@@ -88,3 +88,4 @@ class C4SteerableCNN(torch.nn.Module):
         torch.init.constant_(m.bias, 0)
 
   def forward(self, x):
+    pass
