@@ -51,3 +51,16 @@ class DataGenerator(object):
       None : Episode history
     '''
     pass
+
+class EpisodeHistory(object):
+  '''
+  Class containing the history of an episode.
+  '''
+  def __init__(self):
+    self.obs_history = list()
+    self.action_history = list()
+    self.reward_history = list()
+    self.value_history = list()
+
+    self.priorities = None
+    self.eps_priority = None
