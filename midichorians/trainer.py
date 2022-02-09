@@ -4,7 +4,7 @@ import torch
 import numpy as np
 import numpy.random as npr
 
-import models
+from models.sac import Critic, GaussianPolicy
 
 @ray.remote
 class Trainer(object):
@@ -19,21 +19,38 @@ class Trainer(object):
     self.config = config
     self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
-    # Initialize model
-    self.model = models.C4SteerableCNN()
-    self.model.set_weights(copy.deepcopy(initial_checkpoint['weights']))
-    self.model.to(self.device)
-    self.model.train()
+    self.alpha = self.config.alpha
+
+    # Initialize actor and critic models
+    self.actor = GaussianPolicy()
+    self.actor.set_weights(copy.deepcopy(initial_checkpoint['weights'][0]))
+    self.actor.to(self.device)
+    self.actor.train()
+
+    self.critic = Critic()
+    self.critic.set_weights(copy.deepcopy(initial_checkpoint['weights'][1]))
+    self.critic.to(self.device)
+    self.critic.train()
+
+    self.critic_target = Critic()
+    self.critic_target.set_weights(copy.deepcopy(initial_checkpoint['weights'][1]))
 
     self.training_step = inital_checkpoint['training_step']
 
     # Initialize optimizer
-    self.optimizer = torch.optim.Adam(self.model.parameters(),
-                                      lr=self.config.lr_init,
-                                      weight_decay=self.config.weight_decay)
+    self.actor_optimizer = torch.optim.Adam(self.actor.parameters(),
+                                            lr=self.config.actor_lr_init,
+                                            weight_decay=self.config.actor_weight_decay)
+    self.critic_optimizer = torch.optim.Adam(self.critic.parameters(),
+                                             lr=self.config.critic_lr_init,
+                                             weight_decay=self.config.critic_weight_decay)
+
     if initial_checkpoint['optimizer_state'] is not None:
-      self.optimizer.load_state_dict(
-        copy.deepcopy(initial_checkpoint['optimizer_state'])
+      self.actor_optimizer.load_state_dict(
+        copy.deepcopy(initial_checkpoint['optimizer_state'][0])
+      )
+      self.critic_optimizer.load_state_dict(
+        copy.deepcopy(initial_checkpoint['optimizer_state'][1])
       )
 
     # Set random number generator seed
@@ -96,7 +113,41 @@ class Trainer(object):
     Returns:
       (numpy.array, double) : (Priorities, Batch Loss)
     '''
-    pass
+    obs_batch, next_obs_batch, action_batch, reward_batch, done_batch, weight_batch = batch
+
+    obs_batch = obs_batch.to(self.device)
+    next_obs_batch = next_obs_batch.to(self.device)
+    action_batch = action_batch.to(self.device)
+    reward_batch = reward_batch.to(self.device)
+    done_batch = done_batch.to(self.device)
+    weight_batch = weight_batch.to(self.device)
+
+    # Critic Update
+    with torch.no_grad():
+      next_state_action, next_state_log_pi, _ = self.actor.sample(next_obs_batch)
+      qf1_next_target, qf2_next_target = self.critic_target(next_obs_batch, pred_action)
+      min_qf_next_target = torch.min(qf1_next_target, qf2_next_target) - self.alpha * next_state_log_pi
+
+    qf1, qf2 = self.critic(state_batch, action_batch)
+    qf1_loss = F.mse_loss(qf1, next_q_value)
+    qf2_loss = F.mse_loss(qf2, next_q_value)
+    qf_loss = qf1_loss + qf2_loss
+
+    self.critic_optim.zero_grad()
+    critic_loss.backward()
+    self.critic_optim.step()
+
+    # Actor update
+    pi, log_pi, _ = self.actor.sample(obs_batch)
+
+    qf1_pi, qf2_pi = self.critic(obs_batch, pi)
+    min_qf_pi = torch.min(qf1_pi, qf2_pi)
+
+    actor_loss = ((self.alpha * log_pu) - min_qf_pi).mean()
+
+    self.actor_optim.zero_grad()
+    actor_loss.backward()
+    self.actor_optim.step()
 
   def updateLR(self):
     '''
