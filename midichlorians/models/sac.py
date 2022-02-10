@@ -35,7 +35,7 @@ def conv1x1(in_channels, out_channels, stride=1):
   return nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride, bias=False)
 
 
-def conv3x3(in_channels, out_channels, stride=1):
+def conv3x3(in_channels, out_channels, stride=1, padding=1):
   '''
   Create a 3x3 kernel convolution layer
 
@@ -48,7 +48,7 @@ def conv3x3(in_channels, out_channels, stride=1):
     torch.nn.Conv2d : The 3x3 convolution layer
 
   '''
-  return nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, bias=False)
+  return nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=padding, bias=False)
 
 def makeLayer(block, in_channels, channels, blocks, stride=1):
   '''
@@ -58,13 +58,13 @@ def makeLayer(block, in_channels, channels, blocks, stride=1):
   if stride != 1 or in_channels != channels * block.expansion:
     downsample = nn.Sequential(
       nn.Conv2d(in_channels, channels * block.expansion, kernel_size=1, stride=stride, bias=False),
-      nn.BatchNorm2d(kernels * block.expansion)
+      nn.BatchNorm2d(channels * block.expansion)
     )
 
   layers = list()
   layers.append(block(in_channels, channels, stride, downsample))
   in_channels = channels * block.expansion
-  for i in range(blocks):
+  for i in range(1, blocks):
     layers.append(block(in_channels, channels))
 
   return nn.Sequential(*layers)
@@ -80,7 +80,7 @@ class ResNetBlock(nn.Module):
 
     self.conv_1 = conv3x3(in_channels, channels, stride)
     self.bn_1 = nn.BatchNorm2d(channels)
-    self.conv_2 = conv3x3(channels, channels, stride)
+    self.conv_2 = conv3x3(channels, channels)
     self.bn_2 = nn.BatchNorm2d(channels)
 
     self.downsample = downsample
@@ -109,10 +109,10 @@ class ResNet(nn.Module):
   ResNet trunk.
   '''
   def __init__(self, in_channels):
-    self.in_channels = in_channels
+    super().__init__()
 
     self.conv_1 = nn.Sequential(
-      nn.Conv2d(self.in_channels, 16, 3, stride=1, padding=1, bias=False),
+      nn.Conv2d(in_channels, 16, 3, stride=1, padding=1, bias=False),
       nn.BatchNorm2d(16),
       nn.ReLU(inplace=True)
     )
@@ -138,7 +138,7 @@ class ResNet(nn.Module):
     out = self.layer_4(out)
     out = self.layer_5(out)
 
-    out = seelf.flatten(out)
+    out = self.flatten(out)
     out = self.fc_1(out)
     out = self.relu(out)
 
@@ -167,10 +167,10 @@ class Critic(nn.Module):
 
     initWeights(self.modules())
 
-  def forward(self, x):
-    feat = self.resnet(x)
-    out_1 = self.fc_1(feat)
-    out_2 = self.fc_2(feat)
+  def forward(self, obs, act):
+    feat = self.resnet(obs)
+    out_1 = self.fc_1(torch.cat((feat, act), dim=1))
+    out_2 = self.fc_2(torch.cat((feat, act), dim=1))
 
     return out_1, out_2
 
@@ -178,7 +178,7 @@ class GaussianPolicy(nn.Module):
   '''
   Actor model that uses a Normal distribution to sample actions.
   '''
-  def __init__(self, action_dim):
+  def __init__(self, in_channels, action_dim):
     super().__init__()
     self.log_sig_min = -20
     self.log_sig_max = 2

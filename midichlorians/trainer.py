@@ -4,7 +4,7 @@ import torch
 import numpy as np
 import numpy.random as npr
 
-from models.sac import Critic, GaussianPolicy
+from midichlorians.models.sac import Critic, GaussianPolicy
 
 @ray.remote
 class Trainer(object):
@@ -19,23 +19,23 @@ class Trainer(object):
     self.config = config
     self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
-    self.alpha = self.config.alpha
+    self.alpha = self.config.init_temp
 
     # Initialize actor and critic models
-    self.actor = GaussianPolicy()
-    self.actor.set_weights(copy.deepcopy(initial_checkpoint['weights'][0]))
+    self.actor = GaussianPolicy(self.config.obs_channels, self.config.action_dim)
+    self.actor.load_state_dict(initial_checkpoint['weights'][0])
     self.actor.to(self.device)
     self.actor.train()
 
-    self.critic = Critic()
-    self.critic.set_weights(copy.deepcopy(initial_checkpoint['weights'][1]))
+    self.critic = Critic(self.config.obs_channels, self.config.action_dim)
+    self.critic.load_state_dict(initial_checkpoint['weights'][1])
     self.critic.to(self.device)
     self.critic.train()
 
-    self.critic_target = Critic()
-    self.critic_target.set_weights(copy.deepcopy(initial_checkpoint['weights'][1]))
+    self.critic_target = Critic(self.config.obs_channels, self.config.action_dim)
+    self.critic_target.load_state_dict(initial_checkpoint['weights'][1])
 
-    self.training_step = inital_checkpoint['training_step']
+    self.training_step = initial_checkpoint['training_step']
 
     # Initialize optimizer
     self.actor_optimizer = torch.optim.Adam(self.actor.parameters(),

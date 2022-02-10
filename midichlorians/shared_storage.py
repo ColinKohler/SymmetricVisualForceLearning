@@ -15,7 +15,7 @@ class SharedStorage(object):
   '''
   def __init__(self, checkpoint, config):
     self.config = config
-    self.current_checkptoint = copy.deepcopy(checkpoint)
+    self.current_checkpoint = copy.deepcopy(checkpoint)
 
   def saveCheckpoint(self, path=None):
     '''
@@ -68,19 +68,29 @@ class SharedStorage(object):
     Get data from the current checkpoint for the desired keys.
 
     Args:
-      keys (list[str]): Keys to get data from.
+      keys (str | list[str]): Keys to get data from.
 
     Returns:
       dict: The key-value pairs desired.
     '''
-    return {key: self.current_checkpoint[key] for key in keys}
+    if isinstance(keys, str):
+      return self.current_checkpoint[keys]
+    elif isinstance(keys, list):
+      return {key: self.current_checkpoint[key] for key in keys}
+    else:
+      raise TypeError
 
-  def setInfo(self, keys, values):
+  def setInfo(self, keys, values=None):
     '''
     Update the current checkpoint to the new key-value pairs.
 
     Args:
-      keys (list[str]): Keys to update.
+      keys (str | dict): Keys to update.
       values (list[str]): Values to update.
     '''
-    [self.current_checkpoint[key] = value for key, value in zip(keys, values)]
+    if isinstance(keys, str) and values is not None:
+      self.current_checkpoint[keys] = values
+    elif isinstance(keys, dict):
+      self.current_checkpoint.update(keys)
+    else:
+      raise TypeError

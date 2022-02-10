@@ -1,12 +1,21 @@
+import os
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '../'))
+
 import ray
 import argparse
 
-import tasks
+from configs.block_picking import BlockPickingConfig
+
 from midichlorians.runner import Runner
+
+task_configs = {
+  'block_picking' : BlockPickingConfig,
+}
 
 if __name__ == '__main__':
   parser=  argparse.ArgumentParser()
-  parser.add_argument('test', type=str,
+  parser.add_argument('task', type=str,
     help='Task to train on.')
   parser.add_argument('--num_gpus', type=int, default=1,
     help='Number of GPUs to use for training.')
@@ -18,8 +27,8 @@ if __name__ == '__main__':
     help='Path to the replay buffer to load.')
   args = parser.parse_args()
 
-  task_config = tasks.getTaskConfig(args.task, args.num_Gpus, results_path=args.results_path)
+  task_config = task_configs[args.task](args.num_gpus, results_path=args.results_path)
   runner = Runner(task_config, checkpoint=args.checkpoint, replay_buffer=args.buffer)
 
   runner.train()
-  runner.shutdown()
+  ray.shutdown()

@@ -1,5 +1,6 @@
 import os
 import time
+import copy
 import collections
 import ray
 import torch
@@ -10,8 +11,12 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-from models.sac import Critic, GaussianPolicy
-import torch_utils
+from midichlorians.trainer import Trainer
+from midichlorians.replay_buffer import ReplayBuffer
+from midichlorians.data_generator import DataGenerator
+from midichlorians.shared_storage import SharedStorage
+from midichlorians.models.sac import Critic, GaussianPolicy
+from midichlorians import torch_utils
 
 class Runner(object):
   '''
@@ -35,13 +40,15 @@ class Runner(object):
       'weights' : None,
       'optimizer_state' : None,
       'total_reward' : 0,
-      'past_100_rewards' : collections.deque([0] * 100, max_len=100),
+      'past_100_rewards' : collections.deque([0] * 100, maxlen=100),
       'mean_value' : 0,
       'training_step' : 0,
       'lr' : (0, 0),
       'loss' : (0, 0),
       'num_eps' : 0,
       'num_steps' : 0,
+      'eps_len': 0,
+      'eps_reward': list(),
       'log_counter' : 0,
       'terminate' : False
     }
@@ -56,8 +63,8 @@ class Runner(object):
       replay_buffer = os.path.join(self.config.root_path,
                                    replay_buffer,
                                    'replay_buffer.pkl')
-    self.loadCheckpoint(checkpoint_path=checkpoint,
-                        replay_buffer_path=replay_buffer)
+    self.load(checkpoint_path=checkpoint,
+              replay_buffer_path=replay_buffer)
 
     if not self.checkpoint['weights']:
       self.initWeights()
@@ -75,8 +82,8 @@ class Runner(object):
     '''
     device = torch.device('cpu')
 
-    actor = GaussianPolicy()
-    critic = Critic()
+    actor = GaussianPolicy(self.config.obs_channels, self.config.action_dim)
+    critic = Critic(self.config.obs_channels, self.config.action_dim)
     self.checkpoint['weights'] = (
       torch_utils.dictToCpu(actor.state_dict()),
       torch_utils.dictToCpu(critic.state_dict())
@@ -86,11 +93,11 @@ class Runner(object):
     '''
     Initialize the various workers, start the trainers, and run the logging loop.
     '''
-    self.training_worker = Trainer.options(num_cpus=0, num_gpus=trainer_gpu_allocation).remote(self.cehckpoint, self.config)
-    self.replay_buffer_worker = ReplayBuffer.options(num_cpus=0, num_gpus=replay_buffer_gpu_allocation).remote(self.checkpoint, self.config)
+    self.training_worker = Trainer.options(num_cpus=0, num_gpus=1.0).remote(self.checkpoint, self.config)
+    self.replay_buffer_worker = ReplayBuffer.options(num_cpus=0, num_gpus=0).remote(self.checkpoint, self.replay_buffer, self.config)
     self.data_gen_workers = [
-      DataGenerator.options(num_cpus=0, num_gpus=num_data_gen_gpus).remote(self.checkpoint, self.config, self.config.seed + seed)
-      for seed in range(self.config.num_agent_workers)
+      DataGenerator.options(num_cpus=0, num_gpus=0).remote(self.checkpoint, self.config, self.config.seed + seed)
+      for seed in range(self.config.num_data_gen_workers)
     ]
 
     self.shared_storage_worker = SharedStorage.remote(self.checkpoint, self.config)
@@ -98,7 +105,7 @@ class Runner(object):
 
     # Start workers
     for data_gen_worker in self.data_gen_workers:
-      data_gen_worker.continuousDataGen.remote(self.replay_buffer_worker, self.shared_storage_worker)
+      data_gen_worker.continuousDataGen.remote(self.shared_storage_worker, self.replay_buffer_worker)
     self.training_worker.continuousUpdateWeights.remote(self.replay_buffer_worker, self.shared_storage_worker)
 
     self.loggingLoop()
@@ -109,7 +116,7 @@ class Runner(object):
     '''
     self.save(logging=True)
 
-    self.test_worker = DataGenerator.options(num_cpus=0, num_gpus=0).remote(self.checkpoint, self.config, self.config.seed + self.config.num_agent_workers)
+    self.test_worker = DataGenerator.options(num_cpus=0, num_gpus=0).remote(self.checkpoint, self.config, self.config.seed + self.config.num_data_gen_workers)
     self.test_worker.continuousDataGen.remote(self.shared_storage_worker, None, True)
 
     writer = SummaryWriter(self.config.results_path)
@@ -123,7 +130,17 @@ class Runner(object):
     # Log training loop
     counter = self.checkpoint['log_counter']
     keys = [
-      '',
+      'total_reward',
+      'mean_value',
+      'eps_len',
+      'past_100_rewards',
+      'training_step',
+      'eps_reward',
+      'num_eps',
+      'num_steps',
+      'lr',
+      'loss',
+
     ]
 
     info = ray.get(self.shared_storage_worker.getInfo.remote(keys))

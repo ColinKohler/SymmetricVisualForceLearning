@@ -9,12 +9,24 @@ class Config(object):
   def __init__(self, num_gpus=1):
     # Env
     self.obs_size = 128
-    self.hand_obs_size = 24
+    self.obs_channels = 1
+    self.obs_type = 'pixel'
 
-    self.workspace = np.array([[0.2, 0.6], [-0.2, 0.2], [0, 0.4]])
+    self.action_sequence = 'pxyzr'
+    self.action_dim =  len(self.action_sequence)
+
+    self.workspace = np.array([[0.2, 0.6], [-0.2, 0.2], [0.01, 0.25]])
+    self.view_type = 'camera_center_xyzr'
+    self.random_orientation = True
+    self.robot = 'panda'
+    self.reward_type = 'sparse'
+
+    # Planner
+    self.dpos = 0.005
+    self.drot = np.pi / self.dpos
 
     # Training
-    self.root_path = None
+    self.root_path = 'data'
     self.num_gpus = num_gpus
     self.gen_data_on_gpu = False
     self.per_beta_anneal_steps = None
@@ -27,3 +39,10 @@ class Config(object):
 
     r = max((anneal_steps - step) / anneal_steps, 0)
     return (self.init_per_beta - self.end_per_beta) * r + self.end_per_beta
+
+  def getPlannerConfig(self):
+    return {
+      'random_orientation' : self.random_orientation,
+      'dpos' : dpos,
+      'drot' : drot
+    }

@@ -1,7 +1,7 @@
 import os
 import datetime
 
-from config import Config
+from configs.config import Config
 
 class BlockPickingConfig(Config):
   '''
@@ -16,32 +16,36 @@ class BlockPickingConfig(Config):
     self.seed = 0
 
     # Env
-    self.env_type = 'block_picking'
+    self.env_type = 'close_loop_block_picking'
     self.max_steps = 10
 
     # Data Gen
-    self.num_agent_workers = None
+    self.num_data_gen_workers = 1
     self.discount = 0.95
 
     # Exploration
 
     # Training
     if results_path:
-      self.results_path = os.path.join(self.results_path,
-                                       'block_stacking',
+      self.results_path = os.path.join(self.root_path,
+                                       'block_picking',
                                        results_path)
     else:
-      self.results_path = os.path.join(self.results_path,
-                                       'block_stacking',
+      self.results_path = os.path.join(self.root_path,
+                                       'block_picking',
                                        datetime.datetime.now().strftime('%Y-%m-%d--%H-%M-%S'))
     self.save_model = True
     self.training_steps = 1000
     self.batch_size = 64
+    self.target_update_interval = 100
     self.checkpoint_interval = 100
+    self.init_temp = 1e-2
 
     # LR schedule
-    self.lr_init = 1e-3
-    self.weight_decay = 1e-5
+    self.actor_lr_init = 1e-3
+    self.actor_weight_decay = 1e-5
+    self.critic_lr_init = 1e-3
+    self.critic_weight_decay = 1e-5
     self.lr_decay = 0.95
     self.decay_lr_interval = 50
 
@@ -68,9 +72,14 @@ class BlockPickingConfig(Config):
       'workspace' : self.workspace,
       'max_steps' : self.max_steps,
       'obs_size' : self.obs_size,
-      'in_hand_size' : self.hand_obs_size,
       'physics_mode' : 'slow',
+      'action_sequence' : self.action_sequence,
       'robot' : self.robot,
       'num_objects' : 1,
-      'object_scale_range' : (0.8, 0.8)
+      'object_scale_range' : (1.0, 1.0),
+      'random_orientation' : self.random_orientation,
+      'workspace_check' : 'point',
+      'reward_type' : self.reward_type,
+      'view_type' : self.view_type,
+      'obs_type' : self.obs_type,
     }

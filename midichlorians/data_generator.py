@@ -3,7 +3,7 @@ import torch
 import numpy as np
 import numpy.random as npr
 
-from sac_agent import SACAgent
+from midichlorians.sac_agent import SACAgent
 
 from helping_hands_rl_envs import env_factory
 
@@ -25,9 +25,9 @@ class DataGenerator(object):
     npr.seed(self.seed)
     torch.manual_seed(self.seed)
 
-    self.env = env_factory.createEnvs(0, self.config.env_type, self.config.env_config)
+    self.env = env_factory.createEnvs(0, self.config.env_type, self.config.getEnvConfig())
 
-    self.agent = SACAgent()
+    self.agent = SACAgent(self.config, self.device)
     self.agent.setWeights(initial_checkpoint['weights'])
 
   def continuousDataGen(self, shared_storage, replay_buffer, test_mode=False):
@@ -44,7 +44,7 @@ class DataGenerator(object):
       ray.get(shared_storage.getInfo.remote('training_step')) < self.config.training_steps and \
       not ray.get(shared_storage.getInfo.remote('terminate'))
     ):
-      self.agent.setWeights(ray.get(shared_storage.getInfo.remote('training_step')))
+      self.agent.setWeights(ray.get(shared_storage.getInfo.remote('weights')))
 
       if not test_mode:
         eps_history = self.generateEpisode(test_mode)
@@ -65,7 +65,9 @@ class DataGenerator(object):
         time.sleep(self.config.gen_delay)
       if not test_mode and self.config.train_data_ratio:
         while(
-          ray.get(shared_storage.getInfo.remote('training_step')) \ max(1, ray.get(shared_storoage.getInfo.remote('num_steps'))) < self.config.train_data_ratio
+          ray.get(shared_storage.getInfo.remote('training_step'))
+          / max(1, ray.get(shared_storoage.getInfo.remote('num_steps')))
+          < self.config.train_data_ratio
         ):
           time.sleep(0.5)
 
@@ -86,7 +88,7 @@ class DataGenerator(object):
 
     done = False
     while not done:
-      action, value = self.agent.selectAction(obs, evaulate=True)
+      action, value = self.agent.selectAction(obs[2], evaluate=True)
       obs, reward, done = self.env.step(action.cpu().numpy(), auto_reset=False)
       eps_history.logStep(obs, action, value, reward)
 

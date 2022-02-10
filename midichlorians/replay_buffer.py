@@ -1,4 +1,5 @@
 import ray
+import copy
 import torch
 import numpy as np
 import numpy.random as npr
@@ -8,7 +9,7 @@ class ReplayBuffer(object):
   '''
 
   '''
-  def __init__(self, inital_checkpoint, initial_buffer, config):
+  def __init__(self, initial_checkpoint, initial_buffer, config):
     self.config = config
     npr.seed(self.config.seed)
 
