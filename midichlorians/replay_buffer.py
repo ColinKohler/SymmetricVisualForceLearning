@@ -47,11 +47,11 @@ class ReplayBuffer(object):
           priority = np.abs(value - eps_history.reward_history[i]) + self.config.per_eps
         priorities.append(priority ** self.config.per_alpha)
 
-      eps_history.priorities = np.array(priorities, dytpe=np.float32)
+      eps_history.priorities = np.array(priorities, dtype=np.float32)
       eps_history.eps_priority = np.max(eps_history.priorities)
 
     # Add to buffer
-    self.buffer[self.num_Eps] = copy.deepcopy(eps_history)
+    self.buffer[self.num_eps] = copy.deepcopy(eps_history)
     self.num_eps += 1
     self.num_steps += len(eps_history.obs_history)
     self.total_samples += len(eps_history.obs_history)
@@ -81,8 +81,9 @@ class ReplayBuffer(object):
      next_obs_batch,
      action_batch,
      reward_batch,
+     done_batch,
      weight_batch
-    ) = [list() for _ in range(6)]
+    ) = [list() for _ in range(7)]
 
     for _ in range(self.config.batch_size):
       eps_id, eps_history, eps_prob = self.sampleEps()
@@ -95,7 +96,7 @@ class ReplayBuffer(object):
       reward_batch.append(eps_history.reward_history[eps_step+1])
       done_batch.append(eps_history.done_history[eps_step+1])
 
-      training_step = ray.get(shared_storage.getInfo.remote('training_steps'))
+      training_step = ray.get(shared_storage.getInfo.remote('training_step'))
       weight = (1 / (self.total_samples * eps_prob * step_prob)) ** self.config.getPerBeta(training_step)
 
     return (
@@ -117,7 +118,7 @@ class ReplayBuffer(object):
     Returns:
       (int, EpisodeHistory, double) : (episode ID, episode, episode probability)
     '''
-    eps_probs = np.array([eps_history.eps_priority for eps_prioirity in self.buffer.values()], dtype=np.float32)
+    eps_probs = np.array([eps_history.eps_priority for eps_history in self.buffer.values()], dtype=np.float32)
     eps_probs /= np.sum(eps_probs)
 
     eps_idx = npr.choice(len(self.buffer), p=eps_probs)

@@ -84,13 +84,13 @@ class DataGenerator(object):
     eps_history = EpisodeHistory()
 
     obs = self.env.reset()
-    eps_history.logStep(obs, None, 0, 0)
+    eps_history.logStep(obs, None, 0, 0, 0)
 
     done = False
     while not done:
       action, value = self.agent.selectAction(obs[2], evaluate=True)
       obs, reward, done = self.env.step(action.cpu().squeeze().numpy(), auto_reset=False)
-      eps_history.logStep(obs, action, value[0], reward)
+      eps_history.logStep(obs, action, value[0], reward, done)
 
     return eps_history
 
@@ -103,12 +103,14 @@ class EpisodeHistory(object):
     self.action_history = list()
     self.value_history = list()
     self.reward_history = list()
+    self.done_history = list()
 
     self.priorities = None
     self.eps_priority = None
 
-  def logStep(self, obs, action, value, reward):
+  def logStep(self, obs, action, value, reward, done):
     self.obs_history.append(obs)
     self.action_history.append(action)
     self.value_history.append(value)
     self.reward_history.append(reward)
+    self.done_history.append(done)
