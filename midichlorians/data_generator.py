@@ -89,8 +89,8 @@ class DataGenerator(object):
     done = False
     while not done:
       action, value = self.agent.selectAction(obs[2], evaluate=True)
-      obs, reward, done = self.env.step(action.cpu().numpy(), auto_reset=False)
-      eps_history.logStep(obs, action, value, reward)
+      obs, reward, done = self.env.step(action.cpu().squeeze().numpy(), auto_reset=False)
+      eps_history.logStep(obs, action, value[0], reward)
 
     return eps_history
 

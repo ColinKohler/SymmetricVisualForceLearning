@@ -13,9 +13,15 @@ class SACAgent(object):
     device (torch.Device): Device to use for inference (cpu or gpu)
     training (bool): Flag indicating if the agent is being trained or not. Defaults to False.
   '''
-  def __init__(self, config, device):
+  def __init__(self, config, device, dx=5e-3, dy=5e-3, dz=5e-3, dr=np.pi/16):
     self.config = config
     self.device = device
+
+    self.p_range = torch.tensor([0, 1])
+    self.dx_range = torch.tensor([-dx, dx])
+    self.dy_range = torch.tensor([-dy, dy])
+    self.dz_range = torch.tensor([-dz, dz])
+    self.dtheta_range = torch.tensor([-dr, dr])
 
     self.actor = GaussianPolicy(self.config.obs_channels, self.config.action_dim)
     self.actor.to(self.device)
@@ -42,10 +48,23 @@ class SACAgent(object):
         _, _, action = self.actor.sample(obs)
       else:
         action, _, _ = self.actor.sample(obs)
+      value = self.critic(obs, action)
 
-    value = self.critic(obs, action)
+    return self.decodeAction(*[action[:,i] for i in range(5)])[1], value
 
-    return action, value
+  def decodeAction(self, *args):
+    unscaled_p, unscaled_dx, unscaled_dy, unscaled_dz, unscaled_dtheta = args[0], args[1], args[2], args[3], args[4]
+
+    p = 0.5 * (unscaled_p + 1) * (self.p_range[1] - self.p_range[0]) + self.p_range[0]
+    dx = 0.5 * (unscaled_dx + 1) * (self.dx_range[1] - self.dx_range[0]) + self.dx_range[0]
+    dy = 0.5 * (unscaled_dy + 1) * (self.dy_range[1] - self.dy_range[0]) + self.dy_range[0]
+    dz = 0.5 * (unscaled_dz + 1) * (self.dz_range[1] - self.dz_range[0]) + self.dz_range[0]
+
+    dtheta = 0.5 * (unscaled_dtheta + 1) * (self.dtheta_range[1] - self.dtheta_range[0]) + self.dtheta_range[0]
+    actions = torch.stack([p, dx, dy, dz, dtheta], dim=1)
+    unscaled_actions = torch.stack([unscaled_p, unscaled_dx, unscaled_dy, unscaled_dz, unscaled_dtheta], dim=1)
+
+    return unscaled_actions, actions
 
   def setWeights(self, weights):
     '''
