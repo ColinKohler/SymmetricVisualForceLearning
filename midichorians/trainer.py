@@ -79,6 +79,10 @@ class Trainer(object):
       replay_buffer.updatePriorities.remote(priorities, idx_batch)
       self.training_step += 1
 
+      # Update target critic towards current critic
+      if self.training_step % self.config.target_update_interval == 0:
+        self.softTargetUpdate()
+
       # Save to shared storage
       if self.training_step % self.config.checkpoint_interval == 0:
         shared_storage.setInfo.remote(
@@ -95,8 +99,8 @@ class Trainer(object):
     shared_storage.setInfo.remote(
       {
         'training_step' : self.training_step,
-        'lr' : self.lr,
-        'loss' : loss
+        'lr' : (self.config.actor_lr_init, self.config.critic_lr_init),
+        'loss' : (actor_loss, critic_loss)
       }
     )
 
@@ -159,3 +163,10 @@ class Trainer(object):
 
     for param_group in self.optimizer.param_groups:
       param_group['lr'] = lr
+
+  def softTargetUpdate(self):
+    '''
+    Update the target critic model to the current critic model.
+    '''
+    for t_param, l_param in zip(self.critic_target.parameters(), self.critic.parameters()):
+      t_param.data.copy_(self.config.tau * l_param.data + (1.0 - self.config.tau) * t_param.data)

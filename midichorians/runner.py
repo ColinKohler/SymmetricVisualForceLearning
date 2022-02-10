@@ -10,6 +10,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
+from models.sac import Critic, GaussianPolicy
 import torch_utils
 
 class Runner(object):
@@ -37,8 +38,8 @@ class Runner(object):
       'past_100_rewards' : collections.deque([0] * 100, max_len=100),
       'mean_value' : 0,
       'training_step' : 0,
-      'lr' : 0,
-      'loss' : 0,
+      'lr' : (0, 0),
+      'loss' : (0, 0),
       'num_eps' : 0,
       'num_steps' : 0,
       'log_counter' : 0,
@@ -59,7 +60,7 @@ class Runner(object):
                         replay_buffer_path=replay_buffer)
 
     if not self.checkpoint['weights']:
-      self.initWeights
+      self.initWeights()
 
     # Workers
     self.data_gen_workers = None
@@ -74,8 +75,12 @@ class Runner(object):
     '''
     device = torch.device('cpu')
 
-    model = None
-    self.checkpoint['weights'] = torch_utils.dictToCpu(model.state_dict())
+    actor = GaussianPolicy()
+    critic = Critic()
+    self.checkpoint['weights'] = (
+      torch_utils.dictToCpu(actor.state_dict()),
+      torch_utils.dictToCpu(critic.state_dict())
+    )
 
   def train(self):
     '''
@@ -139,8 +144,10 @@ class Runner(object):
                           info['training_step'] / max(1, info['num_steps']),
                           counter)
 
-        writer.add_scalar('3.Loss/1.Learning_rate', info['lr'], counter)
-        writer.add_scalar('3.Loss/2.Loss', info['loss'], counter)
+        writer.add_scalar('3.Loss/1.Actor_learning_rate', info['lr'][0], counter)
+        writer.add_scalar('3.Loss/2.Actor_loss', info['loss'][0], counter)
+        writer.add_scalar('3.Loss/3.Critic_learning_rate', info['lr'][1], counter)
+        writer.add_scalar('3.Loss/4.Critic_loss', info['loss'][1], counter)
 
         counter += 1
         self.shared_storage_worker.setInfo.remote({'log_counter' : counter})
@@ -197,7 +204,7 @@ class Runner(object):
     Terminate the various workers.
     '''
     if self.shared_storage_worker:
-      self.shared_storage_worker.setInfo.remote('terminater', True)
+      self.shared_storage_worker.setInfo.remote('terminate', True)
       self.checkpoint = ray.get(self.shared_storage_worker.getCheckpoint.remote())
     if self.replay_buffer_worker:
       self.replay_buffer = ray.get(self.replay_buffer_worker.getBuffer.remote())

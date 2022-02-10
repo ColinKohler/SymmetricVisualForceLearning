@@ -77,9 +77,9 @@ class ReplayBuffer(object):
     '''
     (index_batch,
      obs_batch,
+     next_obs_batch,
      action_batch,
      reward_batch,
-     q_value_batch
      weight_batch
     ) = [list() for _ in range(6)]
 
@@ -87,10 +87,27 @@ class ReplayBuffer(object):
       eps_id, eps_history, eps_prob = self.sampleEps()
       eps_step, step_prob = self.sampleStep(eps_history)
 
-      idx = [eps_id, eps_step]
+      index_batch.append([eps_id, eps_step])
+      obs_batch.append(eps_history.obs_history[eps_step])
+      next_obs_batch.append(eps_history.obs_history[eps_step+1])
+      action_batch.append(eps_history.action_history[eps_step])
+      reward_batch.append(eps_history.reward_history[eps_step+1])
+      done_batch.append(eps_history.done_history[eps_step+1])
 
       training_step = ray.get(shared_storage.getInfo.remote('training_steps'))
       weight = (1 / (self.total_samples * eps_prob * step_prob)) ** self.config.getPerBeta(training_step)
+
+    return (
+      index_batch,
+      (
+        obs_batch,
+        next_obs_batch,
+        action_batch,
+        reward_batch,
+        done_batch,
+        weight_batch
+      )
+    )
 
   def sampleEps(self):
     '''
