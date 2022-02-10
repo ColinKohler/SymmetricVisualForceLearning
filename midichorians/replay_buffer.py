@@ -17,8 +17,6 @@ class ReplayBuffer(object):
     self.num_steps = initial_checkpoint['num_steps']
     self.total_samples = sum([len(eps_history.obs_history) for eps_history in self.buffer.values()])
 
-    self.model = None
-
   def getBuffer(self):
     '''
     Get the replay buffer.
@@ -94,6 +92,38 @@ class ReplayBuffer(object):
       training_step = ray.get(shared_storage.getInfo.remote('training_steps'))
       weight = (1 / (self.total_samples * eps_prob * step_prob)) ** self.config.getPerBeta(training_step)
 
+  def sampleEps(self):
+    '''
+    Sample a episode from the buffer using the priorities
+
+    Returns:
+      (int, EpisodeHistory, double) : (episode ID, episode, episode probability)
+    '''
+    eps_probs = np.array([eps_history.eps_priority for eps_prioirity in self.buffer.values()], dtype=np.float32)
+    eps_probs /= np.sum(eps_probs)
+
+    eps_idx = npr.choice(len(self.buffer), p=eps_probs)
+    eps_prob = eps_probs[eps_idx]
+    eps_id = self.num_eps - len(self.buffer) + eps_idx
+
+    return eps_id, self.buffer[eps_id], eps_prob
+
+  def sampleStep(self, eps_history):
+    '''
+    Sample a step from the given episode using the step priorities
+
+    Args:
+      eps_history (EpisodeHistory): The episode to sample a step from
+
+    Returns:
+      (int, double) : (step index, step probability)
+    '''
+    step_probs = eps_history.priorities / sum(eps_history.priorities)
+    step_idx = npr.choice(len(step_probs), p=step_probs)
+    step_prob = step_probs[step_idx]
+
+    return step_idx, step_prob
+
   def updatePriorities(self, td_errors, idx_info):
     '''
     Update the priorities for each sample in the batch.
@@ -120,12 +150,3 @@ class ReplayBuffer(object):
     for eps_history in self.buffer.values():
       eps_history.eps_priority = 1.0
       eps_history.priorities = np.array([1.0] * len(eps_history.priorities))
-
-  def updateTargetNetwork(self, shared_storage):
-    '''
-    Update the weights of the model used to generate the targets.
-
-    Args:
-      shared_storage (ray.Worker): Shared storage worker.
-    '''
-    pass
