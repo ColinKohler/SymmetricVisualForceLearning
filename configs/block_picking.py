@@ -20,14 +20,14 @@ class BlockPickingConfig(Config):
     self.max_steps = 200
 
     # Data Gen
-    self.num_data_gen_workers = 4
-    self.num_expert_episodes = 100
-    self.discount = 0.95
+    self.num_data_gen_workers = 10
+    self.num_expert_episodes = 20
+    self.discount = 0.99
 
     # Exploration
     self.init_eps = 1.0
-    self.end_eps = 0.0
-    self.eps_anneal_steps = 1000
+    self.end_eps = 0.1
+    self.eps_anneal_steps = 5000
 
     # Training
     if results_path:
@@ -55,9 +55,9 @@ class BlockPickingConfig(Config):
     self.decay_lr_interval = 50
 
     # Replay Buffer
-    self.replay_buffer_size = 100
+    self.replay_buffer_size = 1000
     self.per_alpha = 0.6
-    self.init_per_beta = 0.
+    self.init_per_beta = 0.4
     self.end_per_beta = 1.0
     self.per_eps = 1e-6
 
