@@ -40,9 +40,11 @@ class Config(object):
     r = max((anneal_steps - step) / anneal_steps, 0)
     return (self.init_per_beta - self.end_per_beta) * r + self.end_per_beta
 
-  def getPlannerConfig(self):
-    return {
-      'random_orientation' : self.random_orientation,
-      'dpos' : dpos,
-      'drot' : drot
-    }
+  def getEps(self, step):
+    if self.eps_anneal_steps:
+      anneal_steps = self.eps_anneal_steps
+    else:
+      anneal_steps = self.training_steps
+
+    r = max((anneal_steps - step) / anneal_steps, 0)
+    return (self.init_eps - self.end_eps) * r + self.end_eps

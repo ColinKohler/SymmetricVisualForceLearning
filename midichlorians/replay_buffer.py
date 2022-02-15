@@ -92,12 +92,19 @@ class ReplayBuffer(object):
       index_batch.append([eps_id, eps_step])
       obs_batch.append(eps_history.obs_history[eps_step])
       next_obs_batch.append(eps_history.obs_history[eps_step+1])
-      action_batch.append(eps_history.action_history[eps_step])
+      action_batch.append(eps_history.action_history[eps_step+1])
       reward_batch.append(eps_history.reward_history[eps_step+1])
       done_batch.append(eps_history.done_history[eps_step+1])
 
       training_step = ray.get(shared_storage.getInfo.remote('training_step'))
       weight = (1 / (self.total_samples * eps_prob * step_prob)) ** self.config.getPerBeta(training_step)
+
+    obs_batch = torch.stack(obs_batch).float()
+    next_obs_batch = torch.stack(next_obs_batch).float()
+    action_batch = torch.stack(action_batch).float()
+    reward_batch = torch.tensor(reward_batch).float()
+    done_batch = torch.tensor(done_batch).float()
+    weight_batch = torch.tensor(weight_batch).float()
 
     return (
       index_batch,
@@ -137,7 +144,7 @@ class ReplayBuffer(object):
     Returns:
       (int, double) : (step index, step probability)
     '''
-    step_probs = eps_history.priorities / sum(eps_history.priorities)
+    step_probs = eps_history.priorities[:-1] / sum(eps_history.priorities[:-1])
     step_idx = npr.choice(len(step_probs), p=step_probs)
     step_prob = step_probs[step_idx]
 
@@ -155,11 +162,9 @@ class ReplayBuffer(object):
       eps_id, eps_step = idx_info[i]
 
       if next(iter(self.buffer)) <= eps_id:
-        td_error = td_errors[i,:]
-        start_idx = eps_step
-        end_idx = min(eps_step + len(td_error), len(self.buffer[eps_id].priorities))
+        td_error = td_errors[i]
 
-        self.buffer[eps_id].priorities[start_idx:end_idx] = (td_error[:end_idx-start_idx] + self.config.per_eps) ** self.config.per_alpha
+        self.buffer[eps_id].priorities[eps_step] = (td_error + self.config.per_eps) ** self.config.per_alpha
         self.buffer[eps_id].eps_priority = np.max(self.buffer[eps_id].priorities)
 
   def resetPriorities(self):

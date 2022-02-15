@@ -16,6 +16,7 @@ class DataGenerator(object):
     initial_checkpoint (dict): Checkpoint to initalize training with.
     config (dict): Task config.
     seed (int): Random seed to use for random number generation
+    render (bool): Render the PyBullet env. Defaults to False
   '''
   def __init__(self, initial_checkpoint, config, seed):
     self.seed = seed
@@ -25,7 +26,9 @@ class DataGenerator(object):
     npr.seed(self.seed)
     torch.manual_seed(self.seed)
 
-    self.env = env_factory.createEnvs(0, self.config.env_type, self.config.getEnvConfig())
+    env_config = self.config.getEnvConfig()
+    planner_config = self.config.getPlannerConfig()
+    self.env = env_factory.createEnvs(0, self.config.env_type, env_config, planner_config)
 
     self.agent = SACAgent(self.config, self.device)
     self.agent.setWeights(initial_checkpoint['weights'])
@@ -47,10 +50,14 @@ class DataGenerator(object):
       self.agent.setWeights(ray.get(shared_storage.getInfo.remote('weights')))
 
       if not test_mode:
-        eps_history = self.generateEpisode(test_mode)
+        if ray.get(shared_storage.getInfo.remote('num_eps')) < self.config.num_expert_episodes:
+          eps_history = self.generateExpertEpisode()
+        else:
+          training_step = ray.get(shared_storage.getInfo.remote('training_step'))
+          eps_history = self.generateEpisode(self.config.getEps(training_step))
         replay_buffer.add.remote(eps_history, shared_storage)
       else:
-        eps_history = self.generateEpisode(test_mode)
+        eps_history = self.generateEpisode(0.0)
 
         past_100_rewards = ray.get(shared_storage.getInfo.remote('past_100_rewards'))
         past_100_rewards.append(eps_history.reward_history[-1])
@@ -71,12 +78,36 @@ class DataGenerator(object):
         ):
           time.sleep(0.5)
 
-  def generateEpisode(self, test_mode):
+  def generateEpisode(self, eps):
     '''
     Generate a single episode.
 
     Args:
-      test_mode (bool): Flag indicating if we are using this worker for data generation or testing.
+      eps (double): Random action chance
+
+    Returns:
+      EpisodeHistory : Episode history
+    '''
+    eps_history = EpisodeHistory()
+
+    obs = self.env.reset()
+    eps_history.logStep(torch.from_numpy(obs[2]), torch.tensor([0,0,0,0,0]), 0, 0, 0)
+
+    done = False
+    while not done:
+      if npr.rand() < eps:
+        action, value = self.agent.getRandomAction(obs[2])
+      else:
+        action, value = self.agent.getAction(obs[2], evaluate=True)
+
+      obs, reward, done = self.env.step(action.cpu().squeeze().numpy(), auto_reset=False)
+      eps_history.logStep(torch.from_numpy(obs[2]), action.squeeze(), value[0], reward, done)
+
+    return eps_history
+
+  def generateExpertEpisode(self):
+    '''
+    Generate a single episode using a expert planner.
 
     Returns:
       None : Episode history
@@ -84,13 +115,14 @@ class DataGenerator(object):
     eps_history = EpisodeHistory()
 
     obs = self.env.reset()
-    eps_history.logStep(obs, None, 0, 0, 0)
+    eps_history.logStep(torch.from_numpy(obs[2]), torch.tensor([0,0,0,0,0]), 0, 0, 0)
 
     done = False
     while not done:
-      action, value = self.agent.selectAction(obs[2], evaluate=True)
-      obs, reward, done = self.env.step(action.cpu().squeeze().numpy(), auto_reset=False)
-      eps_history.logStep(obs, action, value[0], reward, done)
+      expert_action = torch.tensor(self.env.getNextAction()).float()
+      expert_action_idx, expert_action = self.agent.convertPlanAction(expert_action)
+      obs, reward, done = self.env.step(expert_action.cpu().squeeze().numpy(), auto_reset=False)
+      eps_history.logStep(torch.from_numpy(obs[2]), expert_action.squeeze(), 0.0, reward, done)
 
     return eps_history
 

@@ -140,7 +140,6 @@ class Runner(object):
       'num_steps',
       'lr',
       'loss',
-
     ]
 
     info = ray.get(self.shared_storage_worker.getInfo.remote(keys))
@@ -151,8 +150,12 @@ class Runner(object):
         writer.add_scalar('1.Total_reward/1.Total_reward', info['total_reward'], counter)
         writer.add_scalar('1.Total_reward/2.Mean_value', info['mean_value'], counter)
         writer.add_scalar('1.Total_reward/3.Eps_len', info['eps_len'], counter)
-        writer.add_scalar('1.Total_reward/4.Success_rate', np.mean(info['past_100_rewards']), info['training_step'])
-        writer.add_scalar('1.Total_reward/5.Learning_curve', np.mean(info['eps_reward'][-100:]), info['num_eps'])
+        writer.add_scalar('1.Total_reward/4.Success_rate',
+                          np.mean(info['past_100_rewards']) if info['past_100_rewards'] else 0,
+                          info['training_step'])
+        writer.add_scalar('1.Total_reward/5.Learning_curve',
+                          np.mean(info['eps_reward'][-100:]) if info['eps_reward'] else 0,
+                          info['num_eps'])
 
         writer.add_scalar('2.Workers/1.Num_eps', info['num_eps'], counter)
         writer.add_scalar('2.Workers/2.Training_steps', info['training_step'], counter)

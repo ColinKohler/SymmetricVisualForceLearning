@@ -17,13 +17,17 @@ class BlockPickingConfig(Config):
 
     # Env
     self.env_type = 'close_loop_block_picking'
-    self.max_steps = 10
+    self.max_steps = 200
 
     # Data Gen
-    self.num_data_gen_workers = 1
+    self.num_data_gen_workers = 4
+    self.num_expert_episodes = 100
     self.discount = 0.95
 
     # Exploration
+    self.init_eps = 1.0
+    self.end_eps = 0.0
+    self.eps_anneal_steps = 1000
 
     # Training
     if results_path:
@@ -35,11 +39,12 @@ class BlockPickingConfig(Config):
                                        'block_picking',
                                        datetime.datetime.now().strftime('%Y-%m-%d--%H-%M-%S'))
     self.save_model = True
-    self.training_steps = 1000
+    self.training_steps = 10000
     self.batch_size = 64
     self.target_update_interval = 100
     self.checkpoint_interval = 100
     self.init_temp = 1e-2
+    self.tau = 1e-2
 
     # LR schedule
     self.actor_lr_init = 1e-3
@@ -61,9 +66,12 @@ class BlockPickingConfig(Config):
     self.training_delay = 0
     self.train_data_ratio = 0
 
-  def getEnvConfig(self):
+  def getEnvConfig(self, render=False):
     '''
     Gets the environment config required by the simulator for this task.
+
+    Args:
+      render (bool): Render the PyBullet env. Defaults to False
 
     Returns:
       dict: The env config
@@ -82,4 +90,15 @@ class BlockPickingConfig(Config):
       'reward_type' : self.reward_type,
       'view_type' : self.view_type,
       'obs_type' : self.obs_type,
+      'render': render
+    }
+
+  def getPlannerConfig(self):
+    '''
+
+    '''
+    return {
+      'random_orientation': True,
+      'dpos' : self.dpos,
+      'drot' : self.drot
     }

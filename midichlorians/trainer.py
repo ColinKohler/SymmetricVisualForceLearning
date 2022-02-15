@@ -1,10 +1,13 @@
 import time
+import copy
 import ray
 import torch
+import torch.nn.functional as F
 import numpy as np
 import numpy.random as npr
 
 from midichlorians.models.sac import Critic, GaussianPolicy
+from midichlorians import torch_utils
 
 @ray.remote
 class Trainer(object):
@@ -34,6 +37,7 @@ class Trainer(object):
 
     self.critic_target = Critic(self.config.obs_channels, self.config.action_dim)
     self.critic_target.load_state_dict(initial_checkpoint['weights'][1])
+    self.critic_target.to(self.device)
 
     self.training_step = initial_checkpoint['training_step']
 
@@ -76,7 +80,7 @@ class Trainer(object):
       next_batch = replay_buffer.sample.remote(shared_storage)
 
       priorities, loss = self.updateWeights(batch)
-      replay_buffer.updatePriorities.remote(priorities, idx_batch)
+      replay_buffer.updatePriorities.remote(priorities.cpu(), idx_batch)
       self.training_step += 1
 
       # Update target critic towards current critic
@@ -85,27 +89,32 @@ class Trainer(object):
 
       # Save to shared storage
       if self.training_step % self.config.checkpoint_interval == 0:
+        actor_weights = torch_utils.dictToCpu(self.actor.state_dict())
+        critic_weights = torch_utils.dictToCpu(self.critic.state_dict())
+        actor_optimizer_state = torch_utils.dictToCpu(self.actor_optimizer.state_dict())
+        critic_optimizer_state = torch_utils.dictToCpu(self.critic_optimizer.state_dict())
+
         shared_storage.setInfo.remote(
           {
-            'weights' : copy.deepcopy(weights),
-            'optimizer_state' : copy.deepcopy(optimizer_state)
+            'weights' : (copy.deepcopy(actor_weights), copy.deepcopy(critic_weights)),
+            'optimizer_state' : (copy.deepcopy(actor_optimizer_state), copy.deepcopy(critic_optimizer_state))
           }
         )
-        replay_buffer.updateTargetNetwork.remote(shared_storage)
+
         if self.config.save_model:
           shared_storage.saveReplayBuffer.remote(replay_buffer.getBuffer.remote())
           shared_storage.saveCheckpoint.remote()
 
-    shared_storage.setInfo.remote(
-      {
-        'training_step' : self.training_step,
-        'lr' : (self.config.actor_lr_init, self.config.critic_lr_init),
-        'loss' : (actor_loss, critic_loss)
-      }
-    )
+      shared_storage.setInfo.remote(
+        {
+          'training_step' : self.training_step,
+          'lr' : (self.config.actor_lr_init, self.config.critic_lr_init),
+          'loss' : loss
+        }
+      )
 
-    if self.config.training_delay:
-      time.sleep(self.config.training_delay)
+      if self.config.training_delay:
+        time.sleep(self.config.training_delay)
 
   def updateWeights(self, batch):
     '''
@@ -129,17 +138,28 @@ class Trainer(object):
     # Critic Update
     with torch.no_grad():
       next_state_action, next_state_log_pi, _ = self.actor.sample(next_obs_batch)
-      qf1_next_target, qf2_next_target = self.critic_target(next_obs_batch, pred_action)
-      min_qf_next_target = torch.min(qf1_next_target, qf2_next_target) - self.alpha * next_state_log_pi
+      next_state_log_pi = next_state_log_pi.squeeze()
 
-    qf1, qf2 = self.critic(state_batch, action_batch)
+      qf1_next_target, qf2_next_target = self.critic_target(next_obs_batch, next_state_action)
+      qf1_next_target = qf1_next_target.squeeze()
+      qf2_next_target = qf2_next_target.squeeze()
+
+      min_qf_next_target = torch.min(qf1_next_target, qf2_next_target) - self.alpha * next_state_log_pi
+      next_q_value = reward_batch + done_batch * self.config.discount * min_qf_next_target
+
+    qf1, qf2 = self.critic(obs_batch, action_batch)
+    qf1 = qf1.squeeze()
+    qf2 = qf2.squeeze()
+
     qf1_loss = F.mse_loss(qf1, next_q_value)
     qf2_loss = F.mse_loss(qf2, next_q_value)
-    qf_loss = qf1_loss + qf2_loss
+    critic_loss = qf1_loss + qf2_loss
 
-    self.critic_optim.zero_grad()
+    td_error = 0.5 * (torch.abs(qf2 - next_q_value) + torch.abs(qf1 - next_q_value))
+
+    self.critic_optimizer.zero_grad()
     critic_loss.backward()
-    self.critic_optim.step()
+    self.critic_optimizer.step()
 
     # Actor update
     pi, log_pi, _ = self.actor.sample(obs_batch)
@@ -147,11 +167,13 @@ class Trainer(object):
     qf1_pi, qf2_pi = self.critic(obs_batch, pi)
     min_qf_pi = torch.min(qf1_pi, qf2_pi)
 
-    actor_loss = ((self.alpha * log_pu) - min_qf_pi).mean()
+    actor_loss = ((self.alpha * log_pi) - min_qf_pi).mean()
 
-    self.actor_optim.zero_grad()
+    self.actor_optimizer.zero_grad()
     actor_loss.backward()
-    self.actor_optim.step()
+    self.actor_optimizer.step()
+
+    return td_error, (actor_loss.item(), critic_loss.item())
 
   def updateLR(self):
     '''
