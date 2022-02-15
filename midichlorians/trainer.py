@@ -145,7 +145,7 @@ class Trainer(object):
       qf2_next_target = qf2_next_target.squeeze()
 
       min_qf_next_target = torch.min(qf1_next_target, qf2_next_target) - self.alpha * next_state_log_pi
-      next_q_value = reward_batch + done_batch * self.config.discount * min_qf_next_target
+      next_q_value = reward_batch + torch.abs(1 - done_batch) * self.config.discount * min_qf_next_target
 
     qf1, qf2 = self.critic(obs_batch, action_batch)
     qf1 = qf1.squeeze()
@@ -155,7 +155,8 @@ class Trainer(object):
     qf2_loss = F.mse_loss(qf2, next_q_value)
     critic_loss = qf1_loss + qf2_loss
 
-    td_error = 0.5 * (torch.abs(qf2 - next_q_value) + torch.abs(qf1 - next_q_value))
+    with torch.no_grad():
+      td_error = 0.5 * (torch.abs(qf2 - next_q_value) + torch.abs(qf1 - next_q_value))
 
     self.critic_optimizer.zero_grad()
     critic_loss.backward()
