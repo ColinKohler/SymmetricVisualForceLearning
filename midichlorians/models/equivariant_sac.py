@@ -97,7 +97,7 @@ class EquivariantResNet(nn.Module):
 
     # Initial conv
     in_type = enn.FieldType(self.c4_act, in_channels * [self.c4_act.trivial_repr])
-    out_type = enn.FieldType(self.c4_act, 16 * [self.c4_act.regular_repr])
+    out_type = enn.FieldType(self.c4_act, 8 * [self.c4_act.regular_repr])
     self.conv_1 = nn.Sequential(
       conv3x3(in_type, out_type),
       enn.InnerBatchNorm(out_type),
@@ -106,23 +106,23 @@ class EquivariantResNet(nn.Module):
 
     # Equivariant ResNet blocks
     in_type = out_type
-    out_type = enn.FieldType(self.c4_act, 32 * [self.c4_act.regular_repr])
+    out_type = enn.FieldType(self.c4_act, 16 * [self.c4_act.regular_repr])
     self.layer_1 = makeLayer(EquivariantBlock, in_type, out_type, 1, stride=2)
 
     in_type = out_type
-    out_type = enn.FieldType(self.c4_act, 64 * [self.c4_act.regular_repr])
+    out_type = enn.FieldType(self.c4_act, 32 * [self.c4_act.regular_repr])
     self.layer_2 = makeLayer(EquivariantBlock, in_type, out_type, 1, stride=2)
 
     in_type = out_type
-    out_type = enn.FieldType(self.c4_act, 128 * [self.c4_act.regular_repr])
+    out_type = enn.FieldType(self.c4_act, 64 * [self.c4_act.regular_repr])
     self.layer_3 = makeLayer(EquivariantBlock, in_type, out_type, 1, stride=2)
 
     in_type = out_type
-    out_type = enn.FieldType(self.c4_act, 256 * [self.c4_act.regular_repr])
+    out_type = enn.FieldType(self.c4_act, 128 * [self.c4_act.regular_repr])
     self.layer_4 = makeLayer(EquivariantBlock, in_type, out_type, 1, stride=2)
 
     in_type = out_type
-    out_type = enn.FieldType(self.c4_act, 512 * [self.c4_act.regular_repr])
+    out_type = enn.FieldType(self.c4_act, 256 * [self.c4_act.regular_repr])
     self.layer_5 = makeLayer(EquivariantBlock, in_type, out_type, 1, stride=2)
 
     # Output conv
