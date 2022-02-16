@@ -227,7 +227,7 @@ class EquivariantGaussianPolicy(nn.Module):
     self.conv = conv1x1(self.in_type, self.out_type)
 
   def forward(self, obs):
-    batch_size = obs.shape
+    batch_size = obs.size(0)
 
     obs_geo = enn.GeometricTensor(obs, enn.FieldType(self.c4_act, self.in_channels * [self.c4_act.trivial_repr]))
     feat = self.resnet(obs_geo)
