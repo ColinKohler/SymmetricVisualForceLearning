@@ -91,7 +91,7 @@ class DataGenerator(object):
     eps_history = EpisodeHistory()
 
     obs = self.env.reset()
-    eps_history.logStep(torch.tensor(obs[0]), torch.from_numpy(obs[2]), torch.tensor([0,0,0,0,0]), 0, 0, 0)
+    eps_history.logStep(torch.tensor(obs[0]).float(), torch.from_numpy(obs[2]), torch.tensor([0,0,0,0,0]), 0, 0, 0)
 
     done = False
     while not done:
@@ -101,7 +101,7 @@ class DataGenerator(object):
         action, value = self.agent.getAction(obs[0], obs[2], evaluate=True)
 
       obs, reward, done = self.env.step(action.cpu().squeeze().numpy(), auto_reset=False)
-      eps_history.logStep(torch.tensor(obs[0]), torch.from_numpy(obs[2]), action.squeeze(), value[0], reward, done)
+      eps_history.logStep(torch.tensor(obs[0]).float(), torch.from_numpy(obs[2]), action.squeeze(), value[0], reward, done)
 
     return eps_history
 
@@ -115,14 +115,14 @@ class DataGenerator(object):
     eps_history = EpisodeHistory()
 
     obs = self.env.reset()
-    eps_history.logStep(obs[0], torch.from_numpy(obs[2]), torch.tensor([0,0,0,0,0]), 0, 0, 0)
+    eps_history.logStep(torch.tensor(obs[0]).float(), torch.from_numpy(obs[2]), torch.tensor([0,0,0,0,0]), 0, 0, 0)
 
     done = False
     while not done:
       expert_action = torch.tensor(self.env.getNextAction()).float()
       expert_action_idx, expert_action = self.agent.convertPlanAction(expert_action)
       obs, reward, done = self.env.step(expert_action.cpu().squeeze().numpy(), auto_reset=False)
-      eps_history.logStep(obs[0], torch.from_numpy(obs[2]), expert_action_idx.squeeze(), 0.0, reward, done)
+      eps_history.logStep(torch.tensor(obs[0]).float(), torch.from_numpy(obs[2]), expert_action_idx.squeeze(), 0.0, reward, done)
 
     return eps_history
 
