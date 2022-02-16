@@ -185,7 +185,7 @@ class EquivariantCritic(nn.Module):
   def forward(self, obs, act):
     batch_size = obs.size(0)
 
-    obs_geo = enn.GeometricTensor(obs, enn.FieldType(self.c4_act, 2 * [self.c4_act.trivial_repr]))
+    obs_geo = enn.GeometricTensor(obs, enn.FieldType(self.c4_act, self.in_channels * [self.c4_act.trivial_repr]))
     feat = self.resnet(obs_geo)
 
     dxy = act[:, 1:3].reshape(batch_size,  2, 1, 1)
@@ -229,7 +229,7 @@ class EquivariantGaussianPolicy(nn.Module):
   def forward(self, obs):
     batch_size = obs.shape
 
-    obs_geo = enn.GeometricTensor(obs, enn.FieldType(self.c4_act, 2 * [self.c4_act.trivial_repr]))
+    obs_geo = enn.GeometricTensor(obs, enn.FieldType(self.c4_act, self.in_channels * [self.c4_act.trivial_repr]))
     feat = self.resnet(obs_geo)
     out = self.conv(feat).tensor.reshape(batch_size, -1)
 
