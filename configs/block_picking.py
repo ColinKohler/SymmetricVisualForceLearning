@@ -1,5 +1,6 @@
 import os
 import datetime
+import numpy as np
 
 from configs.config import Config
 
@@ -17,10 +18,12 @@ class BlockPickingConfig(Config):
 
     # Env
     self.env_type = 'close_loop_block_picking'
-    self.max_steps = 200
+    self.max_steps = 50
+    self.dpos = 0.05
+    self.drot = np.pi / self.dpos
 
     # Data Gen
-    self.num_data_gen_workers = 10
+    self.num_data_gen_workers = 1
     self.num_expert_episodes = 20
     self.discount = 0.99
 

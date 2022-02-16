@@ -1,91 +1,262 @@
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
 from e2cnn import gspaces
-from e2cnn import nn
+from e2cnn import nn as enn
 
-import numpy as np
-import matplotlib.pyplot as plt
+def conv1x1(in_type, out_type, stride=1, padding=0):
+  '''
+  Create a 1x1 kernel convolution layer
 
-def makeLayer(block, in_filters, filters, blocks, stride=1, bnorm=True):
- downsample = None
- if stride != 1 or in_filters * block.expansion:
-   r2_act = gspaces.Rot2dOnR2(N=4)
-   in_type = nn.FieldType(r2_act, in_filters * [r2_act.trivial_repr])
-   out_type = nn.FieldType(r2_act, filters * [r2_act.regular_repr])
-   downsample = nn.SequentialModule(
-     nn.R2Conv(in_filters, filters * block.expansion, kernel_size=1, stride=stride, bias=False),
-     nn.InnerBatchNorm(out_type),
-   )
+  Args:
+    in_channels (int): Number of channels in the input
+    out_channels (int): Number of channels produced by the convolution
+    stride (int): Stride of the convolution. Default: 1
 
- layers = list()
- layers.append(block(in_filters, filters, stride, downsample))
- in_filters = filters * block.expansion
- for i in range(1, blocks):
-   layers.append(block(in_kernels, kernels))
+  Returns:
+    torch.nn.Conv2d : The 1x1 convolution layer
+  '''
+  return enn.R2Conv(in_type, out_type, kernel_size=1, stride=stride, padding=padding)
 
- return nn.Sequential(*layers)
+def conv3x3(in_type, out_type, stride=1, padding=1):
+  '''
+  Create a 3x3 kernel convolution layer
 
-class C4SteerableBasicBlock(torch.nn.Module):
-  expansion = 1
+  Args:ww
+    in_channels (int): Number of channels in the input
+    out_channels (int): Number of channels produced by the convolution
+    stride (int): Stride of the convolution. Default: 1
 
-  def __init__(self, in_filters, filters, stride=1, downsample=None):
-    super(C4SteerableBasicBlock, self).__init__()
-    self.r2_act = gspaces.Rot2dOnR2(N=4)
-    self.input_type = nn.FieldType(self.r2_act, in_filters * [self.r2_act.trivial_repr])
+  Returns:
+    torch.nn.Conv2d : The 3x3 convolution layer
 
-    # Conv 1
-    in_type = self.input_type
-    out_type = nn.FieldType(self.r2_act, filters * [self.r2_act.regular_repr])
-    self.conv1 = nn.SequentialModule(
-      nn.R2Conv(in_type, out_type, kernel_size=3, padding=1, bias=False),
-      nn.InnerBatchNorm(out_type),
-      nn.ReLU(out_type, inplace=True)
+  '''
+  return enn.R2Conv(in_type, out_type, kernel_size=3, stride=stride, padding=padding)
+
+def makeLayer(block, in_type, out_type, blocks, stride=1):
+  '''
+
+  '''
+  downsample = None
+  if stride != 1 or in_channels != channels:
+    downsample = enn.SequentialModule(
+      conv1x1(in_type, out_type, stride=stride),
+      enn.InnerBatchNorm(out_type)
     )
 
-    # Conv 2
-    in_type = out_type
-    out_type = nn.FieldType(self.r2_act, filters * [self.r2_act.regular_repr])
-    self.conv2 = nn.SequentialModule(
-      nn.R2Conv(in_type, out_type, kernel_size=3, padding=1, bias=False),
-      nn.InnerBatchNorm(out_type),
-    )
+  layers = list()
+  layers.append(block(in_type, out_type, stride, downsample))
+  for i in range(1, blocks):
+    layers.append(block(out_channels, out_channels))
+
+  return nn.Sequential(*layers)
+
+class EquivariantBlock(nn.Module):
+  '''
+  A equivariant ResNet block. Consists of two 3x3 convolutions.
+  '''
+  def __init__(self, in_type, out_type, stride=1, downsample=None):
+    super().__init__()
+
+    self.conv_1 = conv3x3(in_type, out_type, stride)
+    self.bn_1 = enn.InnerBatchNorm(out_type)
+    self.relu_1 = enn.ReLU(out_type, inplace=True)
+    self.conv_2 = conv3x3(out_type, out_type)
+    self.bn_2 = enn.InnerBatchNorm(out_type)
+    self.relu_2 = enn.ReLU(out_type, inplace=True)
 
     self.downsample = downsample
-    self.stride = stride
-    self.relu = nn.ReLU(out_type, inplace=True)
 
   def forward(self, x):
     identity = x
 
-    out = self.conv1(x)
-    out = self.conv2(x)
+    out = self.conv_1(x)
+    out = self.bn_1(out)
+    out = self.relu_1(out)
+
+    out = self.conv_2(out)
+    out = self.bn_2(out)
 
     if self.downsample is not None:
       identity = self.downsample(x)
 
     out += identity
-    out = self.relu(out)
+    out = self.relu_2(out)
 
     return out
 
-class C4SteerableCNN(torch.nn.Module):
-  def __init__(self):
-    super(C8SteerableCNN, self).__init__()
+class EquivariantResNet(nn.Module):
+  '''
+  EquivariantResNet trunk.
+  '''
+  def __init__(self, in_channels):
+    super().__init__()
 
-    self.feat = torch.nn.Sequential(
-      makeLayer(C4SteerableBasicBlock, 1, 32, 1, stride=2),
-      makeLayer(C4SteerableBasicBlock, 32, 64, 1, stride=2),
-      makeLayer(C4SteerableBasicBlock, 64, 128, 1, stride=2),
-      makeLayer(C4SteerableBasicBlock, 128, 256, 1, stride=2),
+    self.c4_act = gspaces.Rot2dOnR2(4)
+
+    # Initial conv
+    in_type = enn.FieldType(self.c4_act, in_channels * [self.c4_act.trivial_repr])
+    out_type = enn.FieldType(self.c4_act, 16 * [self.c4_act.regular_repr])
+    self.conv_1 = nn.Sequential(
+      conv3x3(in_type, out_type),
+      enn.InnerBatchNorm(out_type),
+      enn.ReLU(out_type, inplace=True)
     )
 
-    self.q_value_head =
+    # Equivariant ResNet blocks
+    in_type = out_type
+    out_type = enn.FieldType(self.c4_act, 32 * [self.c4_act.regular_repr])
+    self.layer_1 = makeLayer(EquivariantBlock, in_type, out_type, 1, stride=2)
 
-    for m in self.modules():
-      if isinstance(m, (nn.R2Conv)):
-        torch.init.kaiming_normal_(m.weight, mode='fan_out', out=0.01, nonlinearity='leaky_relu')
-      elif isinstance(m. nn.InnerBatchNorm2d):
-        torch.init.constant_(m.weight, 1)
-        torch.init.constant_(m.bias, 0)
+    in_type = out_type
+    out_type = enn.FieldType(self.c4_act, 64 * [self.c4_act.regular_repr])
+    self.layer_2 = makeLayer(EquivariantBlock, in_type, out_type, 1, stride=2)
+
+    in_type = out_type
+    out_type = enn.FieldType(self.c4_act, 128 * [self.c4_act.regular_repr])
+    self.layer_3 = makeLayer(EquivariantBlock, in_type, out_type, 1, stride=2)
+
+    in_type = out_type
+    out_type = enn.FieldType(self.c4_act, 256 * [self.c4_act.regular_repr])
+    self.layer_4 = makeLayer(EquivariantBlock, in_type, out_type, 1, stride=2)
+
+    in_type = out_type
+    out_type = enn.FieldType(self.c4_act, 512 * [self.c4_act.regular_repr])
+    self.layer_5 = makeLayer(EquivariantBlock, in_type, out_type, 1, stride=2)
+
+    # Output conv
+    in_type = out_type
+    out_type = enn.FieldType(self.c4_act, 128 * [self.c4_act.regular_repr])
+    self.conv_2 = nn.Sequential(
+      enn.R2Conv(in_type, out_type, kernel_size=4, stride=1, padding=0),
+      enn.InnerBatchNorm(out_type),
+      enn.ReLU(out_type, inplace=True)
+    )
 
   def forward(self, x):
-    pass
+    out = self.conv_1(x)
+
+    out = self.layer_1(out)
+    out = self.layer_2(out)
+    out = self.layer_3(out)
+    out = self.layer_4(out)
+    out = self.layer_5(out)
+
+    out = self.conv_2(out)
+
+    return out
+
+class EquivariantCritic(nn.Module):
+  '''
+  Equivariant critic model.
+  '''
+  def __init__(self, in_channels, action_dim):
+    super().__init__()
+    self.in_channels = in_channels
+    self.action_dim = action_dim
+
+    self.c4_act = gspaces.Rot2dOnR2(4)
+    self.n_rho1 = 1
+    self.feat_repr = 128 * [self.c4_act.regular_repr]
+    self.invariant_action_repr = (self.action_dim - 2) * [self.c4_act.trivial_repr]
+    self.equivariant_action_repr = self.n_rho1 * [self.c4_act.irrep(1)]
+
+    self.in_type = nn.FieldType(self.c4_act, self.feat_repr + self.invariant_action_repr + self.equivariant_action_repr)
+    self.inner_type = nn.FieldType(self.c4_act, 128 * [self.c4_act.regular_repr])
+    self.out_type = nn.FieldType(self.c4_act, 1 * [self.c4_act.trivial_repr])
+
+    self.resnet = EquivariantResNet(in_channels)
+
+    self.conv_1 = nn.Sequential(
+      conv1x1(self.in_type, self.inner_type),
+      enn.ReLU(self.inner_type, inplace=True),
+      enn.GroupPooling(self.inner_type),
+      conv1x1(self.inner_type, self.out_type)
+    )
+
+    self.conv_2 = nn.Sequential(
+      conv1x1(self.in_type, self.inner_type),
+      enn.ReLU(self.inner_type, inplace=True),
+      enn.GroupPooling(self.inner_type),
+      conv1x1(self.inner_type, self.out_type)
+    )
+
+  def forward(self, obs, act):
+    batch_size = obs.size(0)
+
+    obs_geo = enn.GeometricTensor(obs, nn.FieldType(self.c4_act, 2 * [self.c4_act.trivial_repr]))
+    feat = self.resnet(obs_geo)
+
+    dxy = act[:, 1:3].reshape(batch_size,  2, 1, 1)
+
+    inv_act = torch.cat((act[:,:1], act[:,3:]), dim=1)
+    inv_act = inv_act.reshape(batch_size, self.action_dim - 2, 1, 1)
+
+    cat = torch.cat((feat.tensor, inv_act, dxy), dim=1)
+    cat_geo = enn.GeometricTensor(cat, self.in_type)
+
+    out_1 = self.conv_1(cat_geo).tensor.reshape(batch_size, 1)
+    out_2 = self.conv_2(cat_geo).tensor.reshape(batch_size, 1)
+
+    return out_1, out_2
+
+class EquivariantGaussianPolicy(nn.Module):
+  '''
+  Equivariant actor model that uses a Normal distribution to sample actions.
+  '''
+  def __init__(self, in_channels, action_dim):
+    super().__init__()
+    self.log_sig_min = -20
+    self.log_sig_max = 2
+    self.eps = 1e-6
+
+    self.in_channels = in_channels
+    self.action_dim = action_dim
+
+    self.c4_act = gspaces.Rot2dOnR2(4)
+    self.n_rho1 = 1
+    self.feat_repr = 128 * [self.c4_act.regular_repr]
+    self.invariant_action_repr = (self.action_dim * 2 - 2) * [self.c4_act.trivial_repr]
+    self.equivariant_action_repr = self.n_rho1 * [self.c4_act.irrep(1)]
+
+    self.in_type = enn.FieldType(self.c4_act, self.feat_repr)
+    self.out_type = enn.FieldType(self.c4_act, self.feat_repr + self.invariant_action_repr + self.equivariant_action_repr)
+
+    self.resnet = EquivariantResNet(in_channels)
+    self.conv = conv1x1(self.in_type, self.out_type)
+
+  def forward(self, obs):
+    batch_size = obs.shape
+
+    obs_geo = enn.GeometricTensor(obs, nn.FieldType(self.c4_act, 2 * [self.c4_act.trivial_repr]))
+    feat = self.resnet(obs_geo)
+    out = self.conv(feat).tensor.reshape(batch_size, -1)
+
+    dxy = out[:, 0:2]
+    inv_act = out[:, 2:self.action_dim]
+
+    mean = torch.cat((inv_act[:,:1], dxy, inv_act[:,1:]), dim=1)
+    log_std = out[:, self.action_dim:]
+    log_std = torch.clamp(log_std, min=self.log_sig_min, max=self.log_sig_max)
+
+    return mean, log_std
+
+  def sample(self, x):
+    '''
+    Sample an action from a Normal distribution generated by the model.
+    '''
+    mean, log_std = self.forward(x)
+    std = log_std.exp()
+
+    normal = Normal(mean, std)
+    x_t = normal.rsample()
+    y_t = torch.tanh(x_t)
+    action = y_t
+
+    log_prob = normal.log_prob(x_t)
+    log_prob -= torch.log((1 - y_t.pow(2)) + self.eps)
+    log_prob = log_prob.sum(1, keepdim=True)
+    mean = torch.tanh(mean)
+
+    return action, log_prob, mean

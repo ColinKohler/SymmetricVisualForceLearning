@@ -21,7 +21,7 @@ class Config(object):
     self.robot = 'panda'
     self.reward_type = 'sparse'
 
-    self.dpos = 0.05
+    self.dpos = 1e-3
     self.drot = np.pi / self.dpos
 
     # Training

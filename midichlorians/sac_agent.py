@@ -3,6 +3,7 @@ import numpy as np
 import numpy.random as npr
 
 from midichlorians.models.sac import Critic, GaussianPolicy
+from midichlorians.models.equivariant_sac import EquivariantCritic, EquivariantGaussianPolicy
 
 class SACAgent(object):
   '''
@@ -17,22 +18,22 @@ class SACAgent(object):
     dz (double):
     dr (double):
   '''
-  def __init__(self, config, device, dx=5e-3, dy=5e-3, dz=5e-3, dr=np.pi/16):
+  def __init__(self, config, device):
     self.config = config
     self.device = device
 
     self.p_range = torch.tensor([0, 1])
-    self.dx_range = torch.tensor([-dx, dx])
-    self.dy_range = torch.tensor([-dy, dy])
-    self.dz_range = torch.tensor([-dz, dz])
-    self.dtheta_range = torch.tensor([-dr, dr])
+    self.dx_range = torch.tensor([-self.config.dpos, self.config.dpos])
+    self.dy_range = torch.tensor([-self.config.dpos, self.config.dpos])
+    self.dz_range = torch.tensor([-self.config.dpos, self.config.dpos])
+    self.dtheta_range = torch.tensor([-self.config.drot, self.config.drot])
     self.action_shape = 5
 
-    self.actor = GaussianPolicy(self.config.obs_channels, self.config.action_dim)
+    self.actor = EquivariantGaussianPolicy(self.config.obs_channels, self.config.action_dim)
     self.actor.to(self.device)
     self.actor.eval()
 
-    self.critic = Critic(self.config.obs_channels, self.config.action_dim)
+    self.critic = EquivariantCritic(self.config.obs_channels, self.config.action_dim)
     self.critic.to(self.device)
     self.critic.eval()
 

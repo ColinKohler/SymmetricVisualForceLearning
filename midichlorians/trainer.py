@@ -7,6 +7,7 @@ import numpy as np
 import numpy.random as npr
 
 from midichlorians.models.sac import Critic, GaussianPolicy
+from midichlorians.models.equivariant_sac import EquivariantCritic, EquivariantGaussianPolicy
 from midichlorians import torch_utils
 
 @ray.remote
@@ -25,17 +26,17 @@ class Trainer(object):
     self.alpha = self.config.init_temp
 
     # Initialize actor and critic models
-    self.actor = GaussianPolicy(self.config.obs_channels, self.config.action_dim)
+    self.actor = EquivariantGaussianPolicy(self.config.obs_channels, self.config.action_dim)
     self.actor.load_state_dict(initial_checkpoint['weights'][0])
     self.actor.to(self.device)
     self.actor.train()
 
-    self.critic = Critic(self.config.obs_channels, self.config.action_dim)
+    self.critic = EquivariantCritic(self.config.obs_channels, self.config.action_dim)
     self.critic.load_state_dict(initial_checkpoint['weights'][1])
     self.critic.to(self.device)
     self.critic.train()
 
-    self.critic_target = Critic(self.config.obs_channels, self.config.action_dim)
+    self.critic_target = EquivariantCritic(self.config.obs_channels, self.config.action_dim)
     self.critic_target.load_state_dict(initial_checkpoint['weights'][1])
     self.critic_target.to(self.device)
 
