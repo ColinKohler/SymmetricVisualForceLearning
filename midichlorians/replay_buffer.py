@@ -86,8 +86,8 @@ class ReplayBuffer(object):
     ) = [list() for _ in range(7)]
 
     for _ in range(self.config.batch_size):
-      eps_id, eps_history, eps_prob = self.sampleEps()
-      eps_step, step_prob = self.sampleStep(eps_history)
+      eps_id, eps_history, eps_prob = self.sampleEps(uniform=True)
+      eps_step, step_prob = self.sampleStep(eps_history, uniform=True)
 
       index_batch.append([eps_id, eps_step])
       obs_batch.append(eps_history.obs_history[eps_step])
@@ -118,23 +118,27 @@ class ReplayBuffer(object):
       )
     )
 
-  def sampleEps(self):
+  def sampleEps(self, uniform=False):
     '''
     Sample a episode from the buffer using the priorities
 
     Returns:
       (int, EpisodeHistory, double) : (episode ID, episode, episode probability)
     '''
-    eps_probs = np.array([eps_history.eps_priority for eps_history in self.buffer.values()], dtype=np.float32)
-    eps_probs /= np.sum(eps_probs)
+    if uniform:
+      eps_idx = npr.choice(len(self.buffer))
+      eps_prob = 1.0
+    else:
+      eps_probs = np.array([eps_history.eps_priority for eps_history in self.buffer.values()], dtype=np.float32)
+      eps_probs /= np.sum(eps_probs)
 
-    eps_idx = npr.choice(len(self.buffer), p=eps_probs)
-    eps_prob = eps_probs[eps_idx]
+      eps_idx = npr.choice(len(self.buffer), p=eps_probs)
+      eps_prob = eps_probs[eps_idx]
+
     eps_id = self.num_eps - len(self.buffer) + eps_idx
-
     return eps_id, self.buffer[eps_id], eps_prob
 
-  def sampleStep(self, eps_history):
+  def sampleStep(self, eps_history, uniform=False):
     '''
     Sample a step from the given episode using the step priorities
 
@@ -144,9 +148,13 @@ class ReplayBuffer(object):
     Returns:
       (int, double) : (step index, step probability)
     '''
-    step_probs = eps_history.priorities[:-1] / sum(eps_history.priorities[:-1])
-    step_idx = npr.choice(len(step_probs), p=step_probs)
-    step_prob = step_probs[step_idx]
+    if uniform:
+      step_idx = npr.choice(len(step_probs))
+      step_prob = 1.0
+    else:
+      step_probs = eps_history.priorities[:-1] / sum(eps_history.priorities[:-1])
+      step_idx = npr.choice(len(step_probs), p=step_probs)
+      step_prob = step_probs[step_idx]
 
     return step_idx, step_prob
 

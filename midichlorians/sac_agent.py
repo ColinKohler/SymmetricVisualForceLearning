@@ -37,18 +37,23 @@ class SACAgent(object):
     self.critic.to(self.device)
     self.critic.eval()
 
-  def getAction(self, obs, evaluate=False):
+  def getAction(self, state, obs, evaluate=False):
     '''
     Get the action from the policy.
 
     Args:
+      state (int): The current gripper state
       obs (numpy.array): The current observation
       evalute (bool):
 
     Returns:
       (numpy.array, double) : (Action, Q-Value)
     '''
+    state = torch.Tensor(state).view(1, 1, 1, 1).to(self.device)
+    state_tile = state.repeat(1, 1, obs.size(2), obs.size(3))
+
     obs = torch.Tensor(obs.astype(np.float32)).view(1, 1, 128, 128).to(self.device)
+    obs = torch.cat((obs, state_tile), dim=1)
 
     with torch.no_grad():
       if evaluate:
@@ -57,25 +62,34 @@ class SACAgent(object):
         action, _, _ = self.actor.sample(obs)
       value = self.critic(obs, action)
 
-    return self.decodeAction(*[action[:,i] for i in range(self.action_shape)])[1], value
+    action_idx, action = self.decodeAction(*[action[:,i] for i in range(self.action_shape)])
 
-  def getRandomAction(self, obs):
+    return action_idx, action, value
+
+  def getRandomAction(self, state, obs):
     '''
     Get a random action from the environment.
 
     Args:
+      state (int): The current gripper state
       obs (numpy.array): The current observation
 
     Returns:
       (numpy.array, double) : (Action, Q-Value)
     '''
+    state = torch.Tensor(state).view(1, 1, 1, 1).to(self.device)
+    state_tile = state.repeat(1, 1, obs.size(2), obs.size(3))
+
     obs = torch.Tensor(obs.astype(np.float32)).view(1, 1, 128, 128).to(self.device)
+    obs = torch.cat((obs, state_tile), dim=1)
 
     action = torch.rand(1, self.action_shape)
     with torch.no_grad():
       value = self.critic(obs, action.to(self.device))
 
-    return self.decodeAction(*[action[:,i] for i in range(self.action_shape)])[1], value
+    action_idx, action = self.decodeAction(*[action[:,i] for i in range(self.action_shape)])
+
+    return action_idx, action, value
 
   def decodeAction(self, unscaled_p, unscaled_dx, unscaled_dy, unscaled_dz, unscaled_dtheta):
     '''

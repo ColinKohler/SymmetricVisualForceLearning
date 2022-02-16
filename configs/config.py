@@ -9,8 +9,7 @@ class Config(object):
   def __init__(self, num_gpus=1):
     # Env
     self.obs_size = 128
-    self.obs_channels = 1
-    self.obs_type = 'pixel'
+    self.obs_channels = 2
 
     self.action_sequence = 'pxyzr'
     self.action_dim =  len(self.action_sequence)

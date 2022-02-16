@@ -20,7 +20,7 @@ class BlockPickingConfig(Config):
     self.env_type = 'close_loop_block_picking'
     self.max_steps = 50
     self.dpos = 0.05
-    self.drot = np.pi / self.dpos
+    self.drot = np.pi / 8
 
     # Data Gen
     self.num_data_gen_workers = 1

@@ -91,17 +91,17 @@ class DataGenerator(object):
     eps_history = EpisodeHistory()
 
     obs = self.env.reset()
-    eps_history.logStep(torch.from_numpy(obs[2]), torch.tensor([0,0,0,0,0]), 0, 0, 0)
+    eps_history.logStep(obs[0], torch.from_numpy(obs[2]), torch.tensor([0,0,0,0,0]), 0, 0, 0)
 
     done = False
     while not done:
       if npr.rand() < eps:
-        action, value = self.agent.getRandomAction(obs[2])
+        action, value = self.agent.getRandomAction(obs[0], obs[2])
       else:
-        action, value = self.agent.getAction(obs[2], evaluate=True)
+        action, value = self.agent.getAction(obs[0], obs[2], evaluate=True)
 
       obs, reward, done = self.env.step(action.cpu().squeeze().numpy(), auto_reset=False)
-      eps_history.logStep(torch.from_numpy(obs[2]), action.squeeze(), value[0], reward, done)
+      eps_history.logStep(obs[0], torch.from_numpy(obs[2]), action.squeeze(), value[0], reward, done)
 
     return eps_history
 
@@ -115,14 +115,14 @@ class DataGenerator(object):
     eps_history = EpisodeHistory()
 
     obs = self.env.reset()
-    eps_history.logStep(torch.from_numpy(obs[2]), torch.tensor([0,0,0,0,0]), 0, 0, 0)
+    eps_history.logStep(obs[0], torch.from_numpy(obs[2]), torch.tensor([0,0,0,0,0]), 0, 0, 0)
 
     done = False
     while not done:
       expert_action = torch.tensor(self.env.getNextAction()).float()
       expert_action_idx, expert_action = self.agent.convertPlanAction(expert_action)
       obs, reward, done = self.env.step(expert_action.cpu().squeeze().numpy(), auto_reset=False)
-      eps_history.logStep(torch.from_numpy(obs[2]), expert_action.squeeze(), 0.0, reward, done)
+      eps_history.logStep(obs[0], torch.from_numpy(obs[2]), expert_action_idx.squeeze(), 0.0, reward, done)
 
     return eps_history
 
@@ -140,8 +140,10 @@ class EpisodeHistory(object):
     self.priorities = None
     self.eps_priority = None
 
-  def logStep(self, obs, action, value, reward, done):
-    self.obs_history.append(obs)
+  def logStep(self, state, obs, action, value, reward, done):
+    self.obs_history.append(
+      torch.cat((obs, state.reshape(1, 1, 1, 1).repeat(1, 1, obs.size(2), obs.size(3))), dim=1)
+    )
     self.action_history.append(action)
     self.value_history.append(value)
     self.reward_history.append(reward)
