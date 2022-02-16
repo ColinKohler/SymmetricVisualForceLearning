@@ -222,7 +222,7 @@ class EquivariantGaussianPolicy(nn.Module):
     self.equivariant_action_repr = self.n_rho1 * [self.c4_act.irrep(1)]
 
     self.in_type = enn.FieldType(self.c4_act, self.feat_repr)
-    self.out_type = enn.FieldType(self.c4_act, self.feat_repr + self.invariant_action_repr + self.equivariant_action_repr)
+    self.out_type = enn.FieldType(self.c4_act, self.invariant_action_repr + self.equivariant_action_repr)
 
     self.resnet = EquivariantResNet(in_channels)
     self.conv = conv1x1(self.in_type, self.out_type)
