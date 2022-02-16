@@ -141,9 +141,10 @@ class EpisodeHistory(object):
     self.eps_priority = None
 
   def logStep(self, state, obs, action, value, reward, done):
-    print(state.shape)
+    print(obs.size())
+    state_tile = state.view(1, 1, 1, 1).repeat(1, 1, obs.size(2), obs.size(3))
     self.obs_history.append(
-      torch.cat((obs, state.reshape(1, 1, 1, 1).repeat(1, 1, obs.size(2), obs.size(3))), dim=1)
+      torch.cat((obs, state_tile), dim=1)
     )
     self.action_history.append(action)
     self.value_history.append(value)
