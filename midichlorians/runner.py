@@ -16,6 +16,7 @@ from midichlorians.replay_buffer import ReplayBuffer
 from midichlorians.data_generator import DataGenerator
 from midichlorians.shared_storage import SharedStorage
 from midichlorians.models.sac import Critic, GaussianPolicy
+from midichlorians.models.equivariant_sac import EquivariantCritic, EquivariantGaussianPolicy
 from midichlorians import torch_utils
 
 class Runner(object):
@@ -82,8 +83,8 @@ class Runner(object):
     '''
     device = torch.device('cpu')
 
-    actor = GaussianPolicy(self.config.obs_channels, self.config.action_dim)
-    critic = Critic(self.config.obs_channels, self.config.action_dim)
+    actor = EquivariantGaussianPolicy(self.config.obs_channels, self.config.action_dim)
+    critic = EquivariantCritic(self.config.obs_channels, self.config.action_dim)
     self.checkpoint['weights'] = (
       torch_utils.dictToCpu(actor.state_dict()),
       torch_utils.dictToCpu(critic.state_dict())
