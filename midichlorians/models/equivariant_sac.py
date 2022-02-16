@@ -162,9 +162,9 @@ class EquivariantCritic(nn.Module):
     self.invariant_action_repr = (self.action_dim - 2) * [self.c4_act.trivial_repr]
     self.equivariant_action_repr = self.n_rho1 * [self.c4_act.irrep(1)]
 
-    self.in_type = nn.FieldType(self.c4_act, self.feat_repr + self.invariant_action_repr + self.equivariant_action_repr)
-    self.inner_type = nn.FieldType(self.c4_act, 128 * [self.c4_act.regular_repr])
-    self.out_type = nn.FieldType(self.c4_act, 1 * [self.c4_act.trivial_repr])
+    self.in_type = enn.FieldType(self.c4_act, self.feat_repr + self.invariant_action_repr + self.equivariant_action_repr)
+    self.inner_type = enn.FieldType(self.c4_act, 128 * [self.c4_act.regular_repr])
+    self.out_type = enn.FieldType(self.c4_act, 1 * [self.c4_act.trivial_repr])
 
     self.resnet = EquivariantResNet(in_channels)
 
