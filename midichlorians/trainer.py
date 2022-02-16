@@ -90,14 +90,20 @@ class Trainer(object):
 
       # Save to shared storage
       if self.training_step % self.config.checkpoint_interval == 0:
+        self.actor.eval()
+        self.critic.eval()
+
         actor_weights = torch_utils.dictToCpu(self.actor.state_dict())
         critic_weights = torch_utils.dictToCpu(self.critic.state_dict())
         actor_optimizer_state = torch_utils.dictToCpu(self.actor_optimizer.state_dict())
         critic_optimizer_state = torch_utils.dictToCpu(self.critic_optimizer.state_dict())
 
+        self.actor.train()
+        self.critic.train()
+
         shared_storage.setInfo.remote(
           {
-            'weights' : (copy.deepcopy(actor_weights), copy.deepcopy(critic_weights)),
+            'weights' : copy.deepcopy((actor_weights, critic_weights)),
             'optimizer_state' : (copy.deepcopy(actor_optimizer_state), copy.deepcopy(critic_optimizer_state))
           }
         )

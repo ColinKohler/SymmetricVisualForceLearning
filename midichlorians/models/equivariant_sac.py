@@ -173,14 +173,14 @@ class EquivariantCritic(nn.Module):
       conv1x1(self.in_type, self.inner_type),
       enn.ReLU(self.inner_type, inplace=True),
       enn.GroupPooling(self.inner_type),
-      conv1x1(self.inner_type, self.out_type)
+      conv1x1(enn.FieldType(self.c4_act, 128 * [self.c4_act.trivial_repr]), self.out_type)
     )
 
     self.conv_2 = nn.Sequential(
       conv1x1(self.in_type, self.inner_type),
       enn.ReLU(self.inner_type, inplace=True),
       enn.GroupPooling(self.inner_type),
-      conv1x1(self.inner_type, self.out_type)
+      conv1x1(enn.FieldType(self.c4_act, 128 * [self.c4_act.trivial_repr]), self.out_type)
     )
 
   def forward(self, obs, act):

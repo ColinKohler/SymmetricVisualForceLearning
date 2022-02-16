@@ -144,7 +144,8 @@ class SACAgent(object):
     Load given weights into the actor and critic
 
     Args:
-      weights (dict, dict): Model weights to load
+      weights (dict, dict): (actor weights, critic weights)
     '''
-    self.actor.load_state_dict(weights[0])
-    self.critic.load_state_dict(weights[1])
+    if weights is not None:
+      self.actor.load_state_dict(weights[0])
+      self.critic.load_state_dict(weights[1])

@@ -1,4 +1,5 @@
 import torch
+import e2cnn.nn
 
 def dictToCpu(state_dict):
   cpu_dict = dict()
@@ -7,6 +8,8 @@ def dictToCpu(state_dict):
       cpu_dict[k] = v.cpu()
     elif isinstance(v, dict):
       cpu_dict[k] = dictToCpu(v)
+    elif isinstance(v, e2cnn.nn.EquivariantModule):
+      cpu_dict[k] = v.cpu()
     else:
       cpu_dict[k] = v
 
