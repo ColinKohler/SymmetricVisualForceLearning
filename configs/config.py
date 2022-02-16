@@ -10,6 +10,7 @@ class Config(object):
     # Env
     self.obs_size = 128
     self.obs_channels = 2
+    self.obs_type = 'pixel'
 
     self.action_sequence = 'pxyzr'
     self.action_dim =  len(self.action_sequence)
