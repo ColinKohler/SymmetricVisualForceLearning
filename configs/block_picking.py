@@ -44,7 +44,7 @@ class BlockPickingConfig(Config):
     self.save_model = True
     self.training_steps = 10000
     self.batch_size = 64
-    self.target_update_interval = 100
+    self.target_update_interval = 1
     self.checkpoint_interval = 100
     self.init_temp = 1e-2
     self.tau = 1e-2

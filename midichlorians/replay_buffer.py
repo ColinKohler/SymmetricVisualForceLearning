@@ -4,6 +4,8 @@ import torch
 import numpy as np
 import numpy.random as npr
 
+from midichlorians import torch_utils
+
 @ray.remote
 class ReplayBuffer(object):
   '''
@@ -89,10 +91,26 @@ class ReplayBuffer(object):
       eps_id, eps_history, eps_prob = self.sampleEps(uniform=True)
       eps_step, step_prob = self.sampleStep(eps_history, uniform=True)
 
+      obs, obs_, action = self.augmentTransitionSO2(
+        eps_history.obs_history[eps_step],
+        eps_history.obs_history[eps_step+1],
+        eps_history.action_history[eps_step+1]
+      )
+
+      state = eps_history.state_history[eps_step]
+      obs = obs.view(1, 1, 128, 128)
+      state_tile = state.view(1, 1, 1, 1).repeat(1, 1, obs.size(2), obs.size(3))
+      obs = torch.cat((obs, state_tile), dim=1)
+
+      state_ = eps_history.state_history[eps_step+1]
+      obs_ = obs_.view(1, 1, 128, 128)
+      state_tile_ = state_.view(1, 1, 1, 1).repeat(1, 1, obs_.size(2), obs_.size(3))
+      obs_ = torch.cat((obs_, state_tile_), dim=1)
+
       index_batch.append([eps_id, eps_step])
-      obs_batch.append(eps_history.obs_history[eps_step])
-      next_obs_batch.append(eps_history.obs_history[eps_step+1])
-      action_batch.append(eps_history.action_history[eps_step+1])
+      obs_batch.append(obs)
+      next_obs_batch.append(obs_)
+      action_batch.append(action)
       reward_batch.append(eps_history.reward_history[eps_step+1])
       done_batch.append(eps_history.done_history[eps_step+1])
 
@@ -157,6 +175,23 @@ class ReplayBuffer(object):
       step_prob = step_probs[step_idx]
 
     return step_idx, step_prob
+
+  def augmentTransitionSO2(self, obs, next_obs, action):
+    ''''''
+    obs, next_obs, dxy, transform_params = torch_utils.perturb(
+      obs[0].copy(),
+      next_obs[0].copy(),
+      action[1:3].copy(),
+      set_trans_zero=True
+    )
+
+    obs = obs.reshape(1, *obs.shape)
+    next_obs = next_obs.reshape(1, *next_obs.shape)
+    action = action.copy()
+    action[1] = dxy[1]
+    action[2] = dxy[2]
+
+    return obs, next_obs, action
 
   def updatePriorities(self, td_errors, idx_info):
     '''

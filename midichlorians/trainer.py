@@ -24,6 +24,9 @@ class Trainer(object):
     self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
     self.alpha = self.config.init_temp
+    self.target_entropy = -self.config.action_dim
+    self.log_alpha = torch.tensor(np.log.self.alpha), requires_grad=True, device=self.device)
+    self.alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=1e-3)
 
     # Initialize actor and critic models
     self.actor = EquivariantGaussianPolicy(self.config.obs_channels, self.config.action_dim)
@@ -180,6 +183,14 @@ class Trainer(object):
     self.actor_optimizer.zero_grad()
     actor_loss.backward()
     self.actor_optimizer.step()
+
+    alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
+
+    self.alpha_optimizer.zero_grad()
+    alpha_loss.backward()
+    self.alpha_optimizer.step()
+
+    self.alpha = self.log_alpha.exp()
 
     return td_error, (actor_loss.item(), critic_loss.item())
 

@@ -43,7 +43,7 @@ def makeLayer(block, in_type, out_type, blocks, stride=1):
   if stride != 1 or in_channels != channels:
     downsample = enn.SequentialModule(
       conv1x1(in_type, out_type, stride=stride),
-      enn.InnerBatchNorm(out_type)
+      #enn.InnerBatchNorm(out_type)
     )
 
   layers = list()
@@ -61,10 +61,10 @@ class EquivariantBlock(nn.Module):
     super().__init__()
 
     self.conv_1 = conv3x3(in_type, out_type, stride)
-    self.bn_1 = enn.InnerBatchNorm(out_type)
+    #self.bn_1 = enn.InnerBatchNorm(out_type)
     self.relu_1 = enn.ReLU(out_type, inplace=True)
     self.conv_2 = conv3x3(out_type, out_type)
-    self.bn_2 = enn.InnerBatchNorm(out_type)
+    #self.bn_2 = enn.InnerBatchNorm(out_type)
     self.relu_2 = enn.ReLU(out_type, inplace=True)
 
     self.downsample = downsample
@@ -73,11 +73,11 @@ class EquivariantBlock(nn.Module):
     identity = x
 
     out = self.conv_1(x)
-    out = self.bn_1(out)
+    #out = self.bn_1(out)
     out = self.relu_1(out)
 
     out = self.conv_2(out)
-    out = self.bn_2(out)
+    #out = self.bn_2(out)
 
     if self.downsample is not None:
       identity = self.downsample(x)
@@ -94,14 +94,14 @@ class EquivariantResNet(nn.Module):
   def __init__(self, in_channels):
     super().__init__()
 
-    self.c4_act = gspaces.Rot2dOnR2(4)
+    self.c4_act = gspaces.Rot2dOnR2(8)
 
     # Initial conv
     in_type = enn.FieldType(self.c4_act, in_channels * [self.c4_act.trivial_repr])
     out_type = enn.FieldType(self.c4_act, 8 * [self.c4_act.regular_repr])
     self.conv_1 = nn.Sequential(
       conv3x3(in_type, out_type),
-      enn.InnerBatchNorm(out_type),
+      #enn.InnerBatchNorm(out_type),
       enn.ReLU(out_type, inplace=True)
     )
 
@@ -131,7 +131,7 @@ class EquivariantResNet(nn.Module):
     out_type = enn.FieldType(self.c4_act, 128 * [self.c4_act.regular_repr])
     self.conv_2 = nn.Sequential(
       enn.R2Conv(in_type, out_type, kernel_size=4, stride=1, padding=0),
-      enn.InnerBatchNorm(out_type),
+      #enn.InnerBatchNorm(out_type),
       enn.ReLU(out_type, inplace=True)
     )
 
@@ -157,7 +157,7 @@ class EquivariantCritic(nn.Module):
     self.in_channels = in_channels
     self.action_dim = action_dim
 
-    self.c4_act = gspaces.Rot2dOnR2(4)
+    self.c4_act = gspaces.Rot2dOnR2(8)
     self.n_rho1 = 1
     self.feat_repr = 128 * [self.c4_act.regular_repr]
     self.invariant_action_repr = (self.action_dim - 2) * [self.c4_act.trivial_repr]
@@ -215,7 +215,7 @@ class EquivariantGaussianPolicy(nn.Module):
     self.in_channels = in_channels
     self.action_dim = action_dim
 
-    self.c4_act = gspaces.Rot2dOnR2(4)
+    self.c4_act = gspaces.Rot2dOnR2(8)
     self.n_rho1 = 1
     self.feat_repr = 128 * [self.c4_act.regular_repr]
     self.invariant_action_repr = (self.action_dim * 2 - 2) * [self.c4_act.trivial_repr]

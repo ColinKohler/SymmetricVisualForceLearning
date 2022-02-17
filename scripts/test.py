@@ -43,6 +43,8 @@ if __name__ == '__main__':
   while not done:
     #action = torch.tensor(env.getNextAction()).float()
     #action_idx, action = agent.convertPlanAction(action)
-    action, value = agent.getAction(obs[2], evaluate=True)
+    action_idx, action, value = agent.getAction(obs[0], obs[2], evaluate=True)
+    print(action)
+    print(value)
     obs, reward, done = env.step(action.cpu().squeeze().numpy(), auto_reset=False)
   print(reward)

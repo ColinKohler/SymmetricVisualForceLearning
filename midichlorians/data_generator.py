@@ -53,18 +53,20 @@ class DataGenerator(object):
         if ray.get(shared_storage.getInfo.remote('num_eps')) < self.config.num_expert_episodes:
           eps_history = self.generateExpertEpisode()
         else:
-          training_step = ray.get(shared_storage.getInfo.remote('training_step'))
-          eps_history = self.generateEpisode(self.config.getEps(training_step))
+          eps_history = self.generateEpisode(test_mode)
         replay_buffer.add.remote(eps_history, shared_storage)
       else:
-        eps_history = self.generateEpisode(0.0)
+        eps_history = self.generateEpisode(test_mode)
 
         past_100_rewards = ray.get(shared_storage.getInfo.remote('past_100_rewards'))
         past_100_rewards.append(eps_history.reward_history[-1])
 
         shared_storage.setInfo.remote(
           {
-            'past_100_rewards' : past_100_rewards
+            'eps_len' : len(episode_history.obs_history),
+            'total_reward' : sum(episode_history.reward_history),
+            'past_100_rewards' : past_100_rewards,
+            'mean_value' : np.mean([value for value in eps_history.value_history])
           }
         )
 
@@ -78,12 +80,12 @@ class DataGenerator(object):
         ):
           time.sleep(0.5)
 
-  def generateEpisode(self, eps):
+  def generateEpisode(self, test):
     '''
     Generate a single episode.
 
     Args:
-      eps (double): Random action chance
+      test (bool): Flag indicating if this is a training or evaluation data generation
 
     Returns:
       EpisodeHistory : Episode history
@@ -95,10 +97,7 @@ class DataGenerator(object):
 
     done = False
     while not done:
-      if npr.rand() < eps:
-        action_idx, action, value = self.agent.getRandomAction(obs[0], obs[2])
-      else:
-        action_idx, action, value = self.agent.getAction(obs[0], obs[2], evaluate=True)
+      action_idx, action, value = self.agent.getAction(obs[0], obs[2], evaluate=test)
 
       obs, reward, done = self.env.step(action.cpu().squeeze().numpy(), auto_reset=False)
       eps_history.logStep(torch.tensor([obs[0]]).float(), torch.from_numpy(obs[2]), action.squeeze(), value[0], reward, done)
@@ -131,6 +130,7 @@ class EpisodeHistory(object):
   Class containing the history of an episode.
   '''
   def __init__(self):
+    self.state_history = list()
     self.obs_history = list()
     self.action_history = list()
     self.value_history = list()
@@ -141,11 +141,13 @@ class EpisodeHistory(object):
     self.eps_priority = None
 
   def logStep(self, state, obs, action, value, reward, done):
-    obs = obs.view(1, 1, 128, 128)
-    state_tile = state.view(1, 1, 1, 1).repeat(1, 1, obs.size(2), obs.size(3))
-    self.obs_history.append(
-      torch.cat((obs, state_tile), dim=1)
-    )
+    #obs = obs.view(1, 1, 128, 128)
+    #state_tile = state.view(1, 1, 1, 1).repeat(1, 1, obs.size(2), obs.size(3))
+    #self.obs_history.append(
+    #  torch.cat((obs, state_tile), dim=1)
+    #)
+    self.state_history.append(state)
+    self.obs_history.append(obs)
     self.action_history.append(action)
     self.value_history.append(value)
     self.reward_history.append(reward)
