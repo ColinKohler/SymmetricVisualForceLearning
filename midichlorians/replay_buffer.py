@@ -179,19 +179,19 @@ class ReplayBuffer(object):
   def augmentTransitionSO2(self, obs, next_obs, action):
     ''''''
     obs, next_obs, dxy, transform_params = torch_utils.perturb(
-      obs[0].copy(),
-      next_obs[0].copy(),
-      action[1:3].copy(),
+      obs[0].numpy().copy(),
+      next_obs[0].numpy().copy(),
+      action[1:3].numpy().copy(),
       set_trans_zero=True
     )
 
     obs = obs.reshape(1, *obs.shape)
     next_obs = next_obs.reshape(1, *next_obs.shape)
-    action = action.copy()
-    action[1] = dxy[1]
-    action[2] = dxy[2]
+    action = action.numpy().copy()
+    action[1] = dxy[0]
+    action[2] = dxy[1]
 
-    return obs, next_obs, action
+    return torch.from_numpy(obs), torch.from_numpy(next_obs), torch.from_numpy(action)
 
   def updatePriorities(self, td_errors, idx_info):
     '''

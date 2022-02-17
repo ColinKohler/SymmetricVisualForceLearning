@@ -107,28 +107,28 @@ class EquivariantResNet(nn.Module):
 
     # Equivariant ResNet blocks
     in_type = out_type
-    out_type = enn.FieldType(self.c4_act, 16 * [self.c4_act.regular_repr])
+    out_type = enn.FieldType(self.c4_act, 8 * [self.c4_act.regular_repr])
     self.layer_1 = makeLayer(EquivariantBlock, in_type, out_type, 1, stride=2)
 
     in_type = out_type
-    out_type = enn.FieldType(self.c4_act, 32 * [self.c4_act.regular_repr])
+    out_type = enn.FieldType(self.c4_act, 16 * [self.c4_act.regular_repr])
     self.layer_2 = makeLayer(EquivariantBlock, in_type, out_type, 1, stride=2)
 
     in_type = out_type
-    out_type = enn.FieldType(self.c4_act, 64 * [self.c4_act.regular_repr])
+    out_type = enn.FieldType(self.c4_act, 32 * [self.c4_act.regular_repr])
     self.layer_3 = makeLayer(EquivariantBlock, in_type, out_type, 1, stride=2)
 
     in_type = out_type
-    out_type = enn.FieldType(self.c4_act, 128 * [self.c4_act.regular_repr])
+    out_type = enn.FieldType(self.c4_act, 64 * [self.c4_act.regular_repr])
     self.layer_4 = makeLayer(EquivariantBlock, in_type, out_type, 1, stride=2)
 
     in_type = out_type
-    out_type = enn.FieldType(self.c4_act, 256 * [self.c4_act.regular_repr])
+    out_type = enn.FieldType(self.c4_act, 128 * [self.c4_act.regular_repr])
     self.layer_5 = makeLayer(EquivariantBlock, in_type, out_type, 1, stride=2)
 
     # Output conv
     in_type = out_type
-    out_type = enn.FieldType(self.c4_act, 128 * [self.c4_act.regular_repr])
+    out_type = enn.FieldType(self.c4_act, 64 * [self.c4_act.regular_repr])
     self.conv_2 = nn.Sequential(
       enn.R2Conv(in_type, out_type, kernel_size=4, stride=1, padding=0),
       #enn.InnerBatchNorm(out_type),
@@ -159,12 +159,12 @@ class EquivariantCritic(nn.Module):
 
     self.c4_act = gspaces.Rot2dOnR2(8)
     self.n_rho1 = 1
-    self.feat_repr = 128 * [self.c4_act.regular_repr]
+    self.feat_repr = 64 * [self.c4_act.regular_repr]
     self.invariant_action_repr = (self.action_dim - 2) * [self.c4_act.trivial_repr]
     self.equivariant_action_repr = self.n_rho1 * [self.c4_act.irrep(1)]
 
     self.in_type = enn.FieldType(self.c4_act, self.feat_repr + self.invariant_action_repr + self.equivariant_action_repr)
-    self.inner_type = enn.FieldType(self.c4_act, 128 * [self.c4_act.regular_repr])
+    self.inner_type = enn.FieldType(self.c4_act, 64 * [self.c4_act.regular_repr])
     self.out_type = enn.FieldType(self.c4_act, 1 * [self.c4_act.trivial_repr])
 
     self.resnet = EquivariantResNet(in_channels)
@@ -173,14 +173,14 @@ class EquivariantCritic(nn.Module):
       conv1x1(self.in_type, self.inner_type),
       enn.ReLU(self.inner_type, inplace=True),
       enn.GroupPooling(self.inner_type),
-      conv1x1(enn.FieldType(self.c4_act, 128 * [self.c4_act.trivial_repr]), self.out_type)
+      conv1x1(enn.FieldType(self.c4_act, 64 * [self.c4_act.trivial_repr]), self.out_type)
     )
 
     self.conv_2 = nn.Sequential(
       conv1x1(self.in_type, self.inner_type),
       enn.ReLU(self.inner_type, inplace=True),
       enn.GroupPooling(self.inner_type),
-      conv1x1(enn.FieldType(self.c4_act, 128 * [self.c4_act.trivial_repr]), self.out_type)
+      conv1x1(enn.FieldType(self.c4_act, 64 * [self.c4_act.trivial_repr]), self.out_type)
     )
 
   def forward(self, obs, act):
@@ -217,7 +217,7 @@ class EquivariantGaussianPolicy(nn.Module):
 
     self.c4_act = gspaces.Rot2dOnR2(8)
     self.n_rho1 = 1
-    self.feat_repr = 128 * [self.c4_act.regular_repr]
+    self.feat_repr = 64 * [self.c4_act.regular_repr]
     self.invariant_action_repr = (self.action_dim * 2 - 2) * [self.c4_act.trivial_repr]
     self.equivariant_action_repr = self.n_rho1 * [self.c4_act.irrep(1)]
 

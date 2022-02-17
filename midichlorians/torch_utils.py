@@ -25,15 +25,15 @@ def perturb(obs, obs_, dxy, set_theta_zero=False, set_trans_zero=False):
   obs_size = obs.shape[-2:]
 
   # Compute random rigid transform
-  theta, trans, piviot = getRandomImageTransformParams(obs_size)
+  theta, trans, pivot = getRandomImageTransformParams(obs_size)
   if set_theta_zero:
     theta = 0.
   if set_trans_zero:
     trans = [0., 0.]
   transform = getImageTransform(theta, trans, pivot)
-  transform_params = theta, trans, piviot
+  transform_params = theta, trans, pivot
 
-  rot = np.array([[np.cos(theta), -np.sin(theta)], [np.sim(theta), np.cos(theta)]])
+  rot = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
   rotated_dxy = rot.dot(dxy)
   rotated_dxy = np.clip(rotated_dxy, -1, 1)
 

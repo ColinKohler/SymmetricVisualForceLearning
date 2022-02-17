@@ -63,8 +63,8 @@ class DataGenerator(object):
 
         shared_storage.setInfo.remote(
           {
-            'eps_len' : len(episode_history.obs_history),
-            'total_reward' : sum(episode_history.reward_history),
+            'eps_len' : len(eps_history.obs_history),
+            'total_reward' : sum(eps_history.reward_history),
             'past_100_rewards' : past_100_rewards,
             'mean_value' : np.mean([value for value in eps_history.value_history])
           }
@@ -100,7 +100,7 @@ class DataGenerator(object):
       action_idx, action, value = self.agent.getAction(obs[0], obs[2], evaluate=test)
 
       obs, reward, done = self.env.step(action.cpu().squeeze().numpy(), auto_reset=False)
-      eps_history.logStep(torch.tensor([obs[0]]).float(), torch.from_numpy(obs[2]), action.squeeze(), value[0], reward, done)
+      eps_history.logStep(torch.tensor([obs[0]]).float(), torch.from_numpy(obs[2]), action.squeeze(), value[0].item(), reward, done)
 
     return eps_history
 
@@ -141,11 +141,6 @@ class EpisodeHistory(object):
     self.eps_priority = None
 
   def logStep(self, state, obs, action, value, reward, done):
-    #obs = obs.view(1, 1, 128, 128)
-    #state_tile = state.view(1, 1, 1, 1).repeat(1, 1, obs.size(2), obs.size(3))
-    #self.obs_history.append(
-    #  torch.cat((obs, state_tile), dim=1)
-    #)
     self.state_history.append(state)
     self.obs_history.append(obs)
     self.action_history.append(action)
