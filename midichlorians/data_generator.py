@@ -56,6 +56,7 @@ class DataGenerator(object):
         else:
           eps_history = self.generateEpisode(test_mode)
         replay_buffer.add.remote(eps_history, shared_storage)
+        shared_storage.logEpsReward.remote(sum(eps_history.reward_history))
       else:
         eps_history = self.generateEpisode(test_mode)
 

@@ -18,7 +18,7 @@ class BlockPickingConfig(Config):
 
     # Env
     self.env_type = 'close_loop_block_picking'
-    self.max_steps = 50
+    self.max_steps = 100
     self.dpos = 0.05
     self.drot = np.pi / 8
 
@@ -42,7 +42,7 @@ class BlockPickingConfig(Config):
                                        'block_picking',
                                        datetime.datetime.now().strftime('%Y-%m-%d--%H-%M-%S'))
     self.save_model = True
-    self.training_steps = 10000
+    self.training_steps = 20000
     self.batch_size = 64
     self.target_update_interval = 1
     self.checkpoint_interval = 100
@@ -51,11 +51,7 @@ class BlockPickingConfig(Config):
 
     # LR schedule
     self.actor_lr_init = 1e-3
-    self.actor_weight_decay = 1e-5
     self.critic_lr_init = 1e-3
-    self.critic_weight_decay = 1e-5
-    self.lr_decay = 0.95
-    self.decay_lr_interval = 50
 
     # Replay Buffer
     self.replay_buffer_size = 100000
