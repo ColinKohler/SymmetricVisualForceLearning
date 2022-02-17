@@ -101,7 +101,7 @@ class DataGenerator(object):
       action_idx, action, value = self.agent.getAction(obs[0], obs[2], evaluate=test)
 
       obs, reward, done = self.env.step(action.cpu().squeeze().numpy(), auto_reset=False)
-      eps_history.logStep(torch.tensor([obs[0]]).float(), torch.from_numpy(obs[2]), action.squeeze(), value[0].item(), reward, done)
+      eps_history.logStep(torch.tensor([obs[0]]).float(), torch.from_numpy(obs[2]), action_idx.squeeze(), value[0].item(), reward, done)
 
     return eps_history
 
