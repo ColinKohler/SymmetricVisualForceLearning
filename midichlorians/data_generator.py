@@ -4,6 +4,7 @@ import numpy as np
 import numpy.random as npr
 
 from midichlorians.sac_agent import SACAgent
+from midichlorians import torch_utils
 
 from helping_hands_rl_envs import env_factory
 
@@ -142,7 +143,9 @@ class EpisodeHistory(object):
 
   def logStep(self, state, obs, action, value, reward, done):
     self.state_history.append(state)
-    self.obs_history.append(obs)
+    self.obs_history.append(
+      torch_utils.normalizeObs(obs)
+    )
     self.action_history.append(action)
     self.value_history.append(value)
     self.reward_history.append(reward)

@@ -18,6 +18,13 @@ def dictToCpu(state_dict):
 
   return cpu_dict
 
+def normalizeObs(obs):
+  obs = np.clip(obs, 0, 0.32)
+  obs = obs / 0.4 * 255
+  obs.astype(np.uint8)
+
+  return obs
+
 def perturb(obs, obs_, dxy, set_theta_zero=False, set_trans_zero=False):
   '''
 

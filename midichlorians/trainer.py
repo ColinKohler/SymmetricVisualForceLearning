@@ -47,11 +47,9 @@ class Trainer(object):
 
     # Initialize optimizer
     self.actor_optimizer = torch.optim.Adam(self.actor.parameters(),
-                                            lr=self.config.actor_lr_init,
-                                            weight_decay=self.config.actor_weight_decay)
+                                            lr=self.config.actor_lr_init)
     self.critic_optimizer = torch.optim.Adam(self.critic.parameters(),
-                                             lr=self.config.critic_lr_init,
-                                             weight_decay=self.config.critic_weight_decay)
+                                             lr=self.config.critic_lr_init)
 
     if initial_checkpoint['optimizer_state'] is not None:
       self.actor_optimizer.load_state_dict(

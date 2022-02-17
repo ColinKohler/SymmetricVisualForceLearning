@@ -63,27 +63,27 @@ class EquivariantBlock(nn.Module):
     self.conv_1 = conv3x3(in_type, out_type, stride)
     #self.bn_1 = enn.InnerBatchNorm(out_type)
     self.relu_1 = enn.ReLU(out_type, inplace=True)
-    self.conv_2 = conv3x3(out_type, out_type)
+    #self.conv_2 = conv3x3(out_type, out_type)
     #self.bn_2 = enn.InnerBatchNorm(out_type)
-    self.relu_2 = enn.ReLU(out_type, inplace=True)
+    #self.relu_2 = enn.ReLU(out_type, inplace=True)
 
     self.downsample = downsample
 
   def forward(self, x):
-    identity = x
+    #identity = x
 
     out = self.conv_1(x)
     #out = self.bn_1(out)
     out = self.relu_1(out)
 
-    out = self.conv_2(out)
+    #out = self.conv_2(out)
     #out = self.bn_2(out)
 
-    if self.downsample is not None:
-      identity = self.downsample(x)
+    #if self.downsample is not None:
+    #  identity = self.downsample(x)
 
-    out += identity
-    out = self.relu_2(out)
+    #out += identity
+    #out = self.relu_2(out)
 
     return out
 
@@ -96,55 +96,64 @@ class EquivariantResNet(nn.Module):
 
     self.c4_act = gspaces.Rot2dOnR2(8)
 
-    # Initial conv
     in_type = enn.FieldType(self.c4_act, in_channels * [self.c4_act.trivial_repr])
     out_type = enn.FieldType(self.c4_act, 8 * [self.c4_act.regular_repr])
-    self.conv_1 = nn.Sequential(
-      conv3x3(in_type, out_type),
-      #enn.InnerBatchNorm(out_type),
-      enn.ReLU(out_type, inplace=True)
-    )
-
-    # Equivariant ResNet blocks
-    in_type = out_type
-    out_type = enn.FieldType(self.c4_act, 8 * [self.c4_act.regular_repr])
-    self.layer_1 = makeLayer(EquivariantBlock, in_type, out_type, 1, stride=2)
+    self.conv_1 = makeLayer(EquivariantBlock, in_type, out_type, 1, stride=1)
+    self.pool_1 = enn.PointwiseMaxPool(out_type, 2)
 
     in_type = out_type
     out_type = enn.FieldType(self.c4_act, 16 * [self.c4_act.regular_repr])
-    self.layer_2 = makeLayer(EquivariantBlock, in_type, out_type, 1, stride=2)
+    self.conv_2 = makeLayer(EquivariantBlock, in_type, out_type, 1, stride=1)
+    self.pool_2 = enn.PointwiseMaxPool(out_type, 2)
 
     in_type = out_type
     out_type = enn.FieldType(self.c4_act, 32 * [self.c4_act.regular_repr])
-    self.layer_3 = makeLayer(EquivariantBlock, in_type, out_type, 1, stride=2)
+    self.conv_3 = makeLayer(EquivariantBlock, in_type, out_type, 1, stride=1)
+    self.pool_3 = enn.PointwiseMaxPool(out_type, 2)
 
     in_type = out_type
     out_type = enn.FieldType(self.c4_act, 64 * [self.c4_act.regular_repr])
-    self.layer_4 = makeLayer(EquivariantBlock, in_type, out_type, 1, stride=2)
+    self.conv_4 = makeLayer(EquivariantBlock, in_type, out_type, 1, stride=1)
+    self.pool_4 = enn.PointwiseMaxPool(out_type, 2)
 
     in_type = out_type
     out_type = enn.FieldType(self.c4_act, 128 * [self.c4_act.regular_repr])
-    self.layer_5 = makeLayer(EquivariantBlock, in_type, out_type, 1, stride=2)
+    self.conv_5 = makeLayer(EquivariantBlock, in_type, out_type, 1, stride=1)
+
+    in_type = out_type
+    out_type = enn.FieldType(self.c4_act, 64 * [self.c4_act.regular_repr])
+    self.conv_6 = conv3x3(in_type, out_type, stride=1, padding=0)
+    self.relu_6 = enn.ReLU(out_type, inplace=True)
+    self.pool_6 = enn.PointwiseMaxPool(out_type, 2)
 
     # Output conv
     in_type = out_type
     out_type = enn.FieldType(self.c4_act, 64 * [self.c4_act.regular_repr])
-    self.conv_2 = nn.Sequential(
-      enn.R2Conv(in_type, out_type, kernel_size=4, stride=1, padding=0),
-      #enn.InnerBatchNorm(out_type),
+    self.conv_7 = nn.Sequential(
+      enn.R2Conv(in_type, out_type, kernel_size=3, stride=1, padding=0),
       enn.ReLU(out_type, inplace=True)
     )
 
   def forward(self, x):
     out = self.conv_1(x)
-
-    out = self.layer_1(out)
-    out = self.layer_2(out)
-    out = self.layer_3(out)
-    out = self.layer_4(out)
-    out = self.layer_5(out)
+    out = self.pool_1(out)
 
     out = self.conv_2(out)
+    out = self.pool_2(out)
+
+    out = self.conv_3(out)
+    out = self.pool_3(out)
+
+    out = self.conv_4(out)
+    out = self.pool_4(out)
+
+    out = self.conv_5(out)
+
+    out = self.conv_6(out)
+    out = self.relu_6(out)
+    out = self.pool_6(out)
+
+    out = self.conv_7(out)
 
     return out
 
