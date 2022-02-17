@@ -58,7 +58,7 @@ class BlockPickingConfig(Config):
     self.decay_lr_interval = 50
 
     # Replay Buffer
-    self.replay_buffer_size = 1000
+    self.replay_buffer_size = 100000
     self.per_alpha = 0.6
     self.init_per_beta = 0.4
     self.end_per_beta = 1.0
@@ -83,7 +83,8 @@ class BlockPickingConfig(Config):
       'workspace' : self.workspace,
       'max_steps' : self.max_steps,
       'obs_size' : self.obs_size,
-      'physics_mode' : 'slow',
+      'fast_mode' : True,
+      'physics_mode' : 'fast',
       'action_sequence' : self.action_sequence,
       'robot' : self.robot,
       'num_objects' : 1,

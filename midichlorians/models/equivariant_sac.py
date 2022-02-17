@@ -191,7 +191,7 @@ class EquivariantCritic(nn.Module):
 
     dxy = act[:, 1:3].reshape(batch_size,  2, 1, 1)
 
-    inv_act = torch.cat((act[:,:1], act[:,3:]), dim=1)
+    inv_act = torch.cat((act[:,0:1], act[:,3:]), dim=1)
     inv_act = inv_act.reshape(batch_size, self.action_dim - 2, 1, 1)
 
     cat = torch.cat((feat.tensor, inv_act, dxy), dim=1)
@@ -237,7 +237,7 @@ class EquivariantGaussianPolicy(nn.Module):
     dxy = out[:, 0:2]
     inv_act = out[:, 2:self.action_dim]
 
-    mean = torch.cat((inv_act[:,:1], dxy, inv_act[:,1:]), dim=1)
+    mean = torch.cat((inv_act[:, 0:1], dxy, inv_act[:, 1:]), dim=1)
     log_std = out[:, self.action_dim:]
     log_std = torch.clamp(log_std, min=self.log_sig_min, max=self.log_sig_max)
 

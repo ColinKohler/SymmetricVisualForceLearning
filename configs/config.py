@@ -18,7 +18,7 @@ class Config(object):
     self.workspace = np.array([[0.2, 0.6], [-0.2, 0.2], [0.01, 0.25]])
     self.view_type = 'camera_center_xyzr'
     self.random_orientation = True
-    self.robot = 'panda'
+    self.robot = 'kuka'
     self.reward_type = 'sparse'
 
     self.dpos = 1e-3
