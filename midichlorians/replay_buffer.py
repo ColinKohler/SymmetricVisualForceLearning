@@ -97,6 +97,9 @@ class ReplayBuffer(object):
         eps_history.action_history[eps_step+1]
       )
 
+      obs = obs / 255 * 0.4
+      obs_ = obs_ / 255 * 0.4
+
       state = eps_history.state_history[eps_step]
       obs = obs.view(1, 1, 128, 128)
       state_tile = state.view(1, 1, 1, 1).repeat(1, 1, obs.size(2), obs.size(3))

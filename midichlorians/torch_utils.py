@@ -21,7 +21,7 @@ def dictToCpu(state_dict):
 def normalizeObs(obs):
   obs = np.clip(obs, 0, 0.32)
   obs = obs / 0.4 * 255
-  obs.astype(np.uint8)
+  obs = obs.int()
 
   return obs
 

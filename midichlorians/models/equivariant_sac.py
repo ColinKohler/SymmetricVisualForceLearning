@@ -39,15 +39,8 @@ def makeLayer(block, in_type, out_type, blocks, stride=1):
   '''
 
   '''
-  downsample = None
-  if stride != 1 or in_channels != channels:
-    downsample = enn.SequentialModule(
-      conv1x1(in_type, out_type, stride=stride),
-      #enn.InnerBatchNorm(out_type)
-    )
-
   layers = list()
-  layers.append(block(in_type, out_type, stride, downsample))
+  layers.append(block(in_type, out_type, stride))
   for i in range(1, blocks):
     layers.append(block(out_channels, out_channels))
 
@@ -57,7 +50,7 @@ class EquivariantBlock(nn.Module):
   '''
   A equivariant ResNet block. Consists of two 3x3 convolutions.
   '''
-  def __init__(self, in_type, out_type, stride=1, downsample=None):
+  def __init__(self, in_type, out_type, stride=1):
     super().__init__()
 
     self.conv_1 = conv3x3(in_type, out_type, stride)
@@ -66,8 +59,6 @@ class EquivariantBlock(nn.Module):
     #self.conv_2 = conv3x3(out_type, out_type)
     #self.bn_2 = enn.InnerBatchNorm(out_type)
     #self.relu_2 = enn.ReLU(out_type, inplace=True)
-
-    self.downsample = downsample
 
   def forward(self, x):
     #identity = x
