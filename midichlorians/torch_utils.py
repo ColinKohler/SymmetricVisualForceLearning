@@ -44,7 +44,7 @@ def perturb(obs, obs_, dxy, set_theta_zero=False, set_trans_zero=False):
   rotated_dxy = rot.dot(dxy)
   rotated_dxy = np.clip(rotated_dxy, -1, 1)
 
-  # Apply rigid transform to obs and labels
+  # Apply rigid transform to obs
   obs = scipy.ndimage.affine_transform(obs, np.linalg.inv(transform), mode='nearest', order=1)
   if obs_ is not None:
     obs_ = scipy.ndimage.affine_transform(obs_, np.linalg.inv(transform), mode='nearest', order=1)

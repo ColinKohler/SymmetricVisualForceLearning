@@ -91,11 +91,16 @@ class ReplayBuffer(object):
       eps_id, eps_history, eps_prob = self.sampleEps(uniform=True)
       eps_step, step_prob = self.sampleStep(eps_history, uniform=True)
 
-      obs, obs_, action = self.augmentTransitionSO2(
-        eps_history.obs_history[eps_step],
-        eps_history.obs_history[eps_step+1],
-        eps_history.action_history[eps_step+1]
-      )
+      if npr.rand() < 0.8:
+        obs, obs_, action = self.augmentTransitionSO2(
+          eps_history.obs_history[eps_step],
+          eps_history.obs_history[eps_step+1],
+          eps_history.action_history[eps_step+1]
+        )
+      else:
+        obs = eps_history.obs_history[eps_step],
+        obs_ = eps_history.obs_history[eps_step+1],
+        action = eps_history.action_history[eps_step+1]
 
       obs = obs / 255 * 0.4
       obs_ = obs_ / 255 * 0.4

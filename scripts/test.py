@@ -45,7 +45,10 @@ if __name__ == '__main__':
     #action_idx, action = agent.convertPlanAction(action)
     action_idx, action, value = agent.getAction(obs[0], obs[2], evaluate=True)
     a = action.cpu().squeeze().tolist()
+    obs, reward, done = env.step(action.cpu().squeeze().numpy(), auto_reset=False)
+
     print('p: {} | x: {} | y: {} | z: {} | r: {}'.format(a[0], a[1], a[2], a[3], a[4]))
     print('V1: {} | V2: {}'.format(value[0].item(), value[1].item()))
-    obs, reward, done = env.step(action.cpu().squeeze().numpy(), auto_reset=False)
+    #input('continue')
+
   print(reward)
