@@ -49,10 +49,9 @@ class SACAgent(object):
     Returns:
       (numpy.array, double) : (Action, Q-Value)
     '''
-    state = torch.Tensor(state).view(1, 1, 1, 1).to(self.device)
-    state_tile = state.repeat(1, 1, obs.size(2), obs.size(3))
-
     obs = torch.Tensor(obs.astype(np.float32)).view(1, 1, 128, 128).to(self.device)
+    state = torch.Tensor([state]).view(1, 1, 1, 1).to(self.device)
+    state_tile = state.repeat(1, 1, obs.size(2), obs.size(3))
     obs = torch.cat((obs, state_tile), dim=1)
 
     with torch.no_grad():
@@ -77,10 +76,9 @@ class SACAgent(object):
     Returns:
       (numpy.array, double) : (Action, Q-Value)
     '''
-    state = torch.tensor(state).float().view(1, 1, 1, 1).to(self.device)
-    state_tile = state.repeat(1, 1, obs.size(2), obs.size(3))
-
     obs = torch.Tensor(obs.astype(np.float32)).view(1, 1, 128, 128).to(self.device)
+    state = torch.tensor([state]).float().view(1, 1, 1, 1).to(self.device)
+    state_tile = state.repeat(1, 1, obs.size(2), obs.size(3))
     obs = torch.cat((obs, state_tile), dim=1)
 
     action = torch.rand(1, self.action_shape)

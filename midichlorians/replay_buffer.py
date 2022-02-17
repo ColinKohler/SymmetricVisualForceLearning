@@ -99,8 +99,8 @@ class ReplayBuffer(object):
       training_step = ray.get(shared_storage.getInfo.remote('training_step'))
       weight = (1 / (self.total_samples * eps_prob * step_prob)) ** self.config.getPerBeta(training_step)
 
-    obs_batch = torch.stack(obs_batch).float()
-    next_obs_batch = torch.stack(next_obs_batch).float()
+    obs_batch = torch.stack(obs_batch).float().squeeze()
+    next_obs_batch = torch.stack(next_obs_batch).float().squeeze()
     action_batch = torch.stack(action_batch).float()
     reward_batch = torch.tensor(reward_batch).float()
     done_batch = torch.tensor(done_batch).float()
@@ -149,7 +149,7 @@ class ReplayBuffer(object):
       (int, double) : (step index, step probability)
     '''
     if uniform:
-      step_idx = npr.choice(len(step_probs))
+      step_idx = npr.choice(len(eps_history.priorities[:-1]))
       step_prob = 1.0
     else:
       step_probs = eps_history.priorities[:-1] / sum(eps_history.priorities[:-1])
