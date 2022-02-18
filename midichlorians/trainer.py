@@ -30,17 +30,17 @@ class Trainer(object):
 
     # Initialize actor and critic models
     self.actor = EquivariantGaussianPolicy(self.config.obs_channels, self.config.action_dim)
+    self.actor.train()
     self.actor.load_state_dict(initial_checkpoint['weights'][0])
     self.actor.to(self.device)
-    self.actor.train()
-
 
     self.critic = EquivariantCritic(self.config.obs_channels, self.config.action_dim)
+    self.critic.train()
     self.critic.load_state_dict(initial_checkpoint['weights'][1])
     self.critic.to(self.device)
-    self.critic.train()
 
     self.critic_target = EquivariantCritic(self.config.obs_channels, self.config.action_dim)
+    self.critic_target.train()
     self.critic_target.load_state_dict(initial_checkpoint['weights'][1])
     self.critic_target.to(self.device)
 
@@ -59,9 +59,6 @@ class Trainer(object):
       self.critic_optimizer.load_state_dict(
         copy.deepcopy(initial_checkpoint['optimizer_state'][1])
       )
-
-    self.actor_id = ray.put(self.actor)
-    self.critic_id = ray.put(self.critic)
 
     # Set random number generator seed
     npr.seed(self.config.seed)
@@ -95,16 +92,10 @@ class Trainer(object):
 
       # Save to shared storage
       if self.training_step % self.config.checkpoint_interval == 0:
-        self.actor.eval()
-        self.critic.eval()
-
         actor_weights = torch_utils.dictToCpu(self.actor.state_dict())
         critic_weights = torch_utils.dictToCpu(self.critic.state_dict())
         actor_optimizer_state = torch_utils.dictToCpu(self.actor_optimizer.state_dict())
         critic_optimizer_state = torch_utils.dictToCpu(self.critic_optimizer.state_dict())
-
-        self.actor.train()
-        self.critic.train()
 
         shared_storage.setInfo.remote(
           {
@@ -213,6 +204,3 @@ class Trainer(object):
     '''
     for t_param, l_param in zip(self.critic_target.parameters(), self.critic.parameters()):
       t_param.data.copy_(self.config.tau * l_param.data + (1.0 - self.config.tau) * t_param.data)
-
-  def getModelIds(self):
-    return self.actor_id, self.critic_id

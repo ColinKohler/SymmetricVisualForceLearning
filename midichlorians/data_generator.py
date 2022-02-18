@@ -20,7 +20,7 @@ class DataGenerator(object):
     seed (int): Random seed to use for random number generation
     render (bool): Render the PyBullet env. Defaults to False
   '''
-  def __init__(self, initial_checkpoint, config, actor, critic, seed):
+  def __init__(self, initial_checkpoint, config, seed):
     self.seed = seed
     self.config = config
     self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
@@ -32,8 +32,8 @@ class DataGenerator(object):
     planner_config = self.config.getPlannerConfig()
     self.env = env_factory.createEnvs(0, self.config.env_type, env_config, planner_config)
 
-    self.agent = SACAgent(self.config, self.device, actor=actor, critic=critic)
-    #self.agent.setWeights(initial_checkpoint['weights'])
+    self.agent = SACAgent(self.config, self.device)
+    self.agent.setWeights(initial_checkpoint['weights'])
 
   def continuousDataGen(self, shared_storage, replay_buffer, test_mode=False):
     '''

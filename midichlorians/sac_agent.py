@@ -18,7 +18,7 @@ class SACAgent(object):
     dz (double):
     dr (double):
   '''
-  def __init__(self, config, device, actor=None, critic=None):
+  def __init__(self, config, device):
     self.config = config
     self.device = device
 
@@ -29,19 +29,13 @@ class SACAgent(object):
     self.dtheta_range = torch.tensor([-self.config.drot, self.config.drot])
     self.action_shape = 5
 
-    if actor:
-      self.actor = actor
-    else:
-      self.actor = EquivariantGaussianPolicy(self.config.obs_channels, self.config.action_dim)
+    self.actor = EquivariantGaussianPolicy(self.config.obs_channels, self.config.action_dim)
     self.actor.to(self.device)
-    self.actor.eval()
+    self.actor.train()
 
-    if critic:
-      self.critic = critic
-    else:
-      self.critic = EquivariantCritic(self.config.obs_channels, self.config.action_dim)
+    self.critic = EquivariantCritic(self.config.obs_channels, self.config.action_dim)
     self.critic.to(self.device)
-    self.critic.eval()
+    self.critic.train()
 
   def getAction(self, state, obs, evaluate=False):
     '''
