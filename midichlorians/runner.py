@@ -18,6 +18,8 @@ from midichlorians.models.sac import Critic, GaussianPolicy
 from midichlorians.models.equivariant_sac import EquivariantCritic, EquivariantGaussianPolicy
 from midichlorians import torch_utils
 
+from helping_hands_rl_baselines.logger.logger import Logger
+
 class Runner(object):
   '''
   Runner class. Used to train the model and log the results to Tensorboard.
@@ -94,9 +96,11 @@ class Runner(object):
     Initialize the various workers, start the trainers, and run the logging loop.
     '''
     self.training_worker = Trainer.options(num_cpus=0, num_gpus=1.0).remote(self.checkpoint, self.config)
+    actor_id, critic_id = self.training_worker.getModelIds.remote()
+
     self.replay_buffer_worker = ReplayBuffer.options(num_cpus=0, num_gpus=0).remote(self.checkpoint, self.replay_buffer, self.config)
     self.data_gen_workers = [
-      DataGenerator.options(num_cpus=0, num_gpus=0).remote(self.checkpoint, self.config, self.config.seed + seed)
+      DataGenerator.options(num_cpus=0, num_gpus=0).remote(self.checkpoint, self.config, actor_id, critic_id, self.config.seed + seed)
       for seed in range(self.config.num_data_gen_workers)
     ]
 

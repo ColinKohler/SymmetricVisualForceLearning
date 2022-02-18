@@ -34,6 +34,7 @@ class Trainer(object):
     self.actor.to(self.device)
     self.actor.train()
 
+
     self.critic = EquivariantCritic(self.config.obs_channels, self.config.action_dim)
     self.critic.load_state_dict(initial_checkpoint['weights'][1])
     self.critic.to(self.device)
@@ -58,6 +59,9 @@ class Trainer(object):
       self.critic_optimizer.load_state_dict(
         copy.deepcopy(initial_checkpoint['optimizer_state'][1])
       )
+
+    self.actor_id = ray.put(self.actor)
+    self.critic_id = ray.put(self.critic)
 
     # Set random number generator seed
     npr.seed(self.config.seed)
@@ -209,3 +213,6 @@ class Trainer(object):
     '''
     for t_param, l_param in zip(self.critic_target.parameters(), self.critic.parameters()):
       t_param.data.copy_(self.config.tau * l_param.data + (1.0 - self.config.tau) * t_param.data)
+
+  def getModelIds(self):
+    return self.actor_id, self.critic_id

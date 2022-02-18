@@ -20,6 +20,8 @@ if __name__ == '__main__':
     help='Task to train on.')
   parser.add_argument('checkpoint', type=str,
     help='Path to the checkpoint to load.')
+  parser.add_argument('--render', action='store_true', default=False,
+    help='Render the simulation while evaluating.')
   args = parser.parse_args()
 
   task_config = task_configs[args.task](1, results_path=args.checkpoint)
@@ -32,7 +34,7 @@ if __name__ == '__main__':
     print('Checkpoint not found at {}'.format(checkpoint_path))
     sys.exit()
 
-  env_config = task_config.getEnvConfig(render=True)
+  env_config = task_config.getEnvConfig(render=args.render)
   planner_config = task_config.getPlannerConfig()
   env = env_factory.createEnvs(0, task_config.env_type, env_config, planner_config)
 
@@ -57,5 +59,4 @@ if __name__ == '__main__':
     num_success += reward
     pbar.set_description('SR: {}%'.format(int((num_success / (i+1)) * 100)))
     pbar.update(1)
-
-  print('{} / {}'.format(num_success, 100))
+  pbar.close()
