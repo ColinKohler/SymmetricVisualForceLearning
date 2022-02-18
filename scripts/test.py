@@ -2,6 +2,7 @@ import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '../'))
 
+import tqdm
 import argparse
 import torch
 import numpy as np
@@ -38,17 +39,22 @@ if __name__ == '__main__':
   agent = SACAgent(task_config, device)
   agent.setWeights(checkpoint['weights'])
 
-  done = False
-  obs = env.reset()
-  while not done:
-    #action = torch.tensor(env.getNextAction()).float()
-    #action_idx, action = agent.convertPlanAction(action)
-    action_idx, action, value = agent.getAction(obs[0], obs[2], evaluate=True)
-    a = action.cpu().squeeze().tolist()
-    obs, reward, done = env.step(action.cpu().squeeze().numpy(), auto_reset=False)
+  num_success = 0
+  pbar = tqdm.tqdm(total=100)
+  pbar.set_description('SR: 0%')
+  for i in range(100):
+    done = False
+    obs = env.reset()
+    while not done:
+      action_idx, action, value = agent.getAction(obs[0], obs[2], evaluate=True)
+      obs, reward, done = env.step(action.cpu().squeeze().numpy(), auto_reset=False)
 
-    print('p: {} | x: {} | y: {} | z: {} | r: {}'.format(a[0], a[1], a[2], a[3], a[4]))
-    print('V1: {} | V2: {}'.format(value[0].item(), value[1].item()))
-    #input('continue')
+      #print('p: {} | x: {} | y: {} | z: {} | r: {}'.format(a[0], a[1], a[2], a[3], a[4]))
+      #print('V1: {} | V2: {}'.format(value[0].item(), value[1].item()))
+      #input('continue')
 
-  print(reward)
+    num_success += reward
+    pbar.set_description('SR: {}%'.format(int((num_success / (i+1)) * 100)))
+    pbar.update(1)
+
+  print('{} / {}'.format(num_success, 100))
