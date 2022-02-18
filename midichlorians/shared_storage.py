@@ -54,7 +54,7 @@ class SharedStorage(object):
       open(os.path.join(self.config.results_path, 'replay_buffer.pkl'), 'wb')
     )
 
-  def logEpsRewared(self, reward):
+  def logEpsReward(self, reward):
     '''
     Add the episode reward to the checkpoint for logging.
 

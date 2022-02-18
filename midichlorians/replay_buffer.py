@@ -98,8 +98,8 @@ class ReplayBuffer(object):
           eps_history.action_history[eps_step+1]
         )
       else:
-        obs = eps_history.obs_history[eps_step],
-        obs_ = eps_history.obs_history[eps_step+1],
+        obs = eps_history.obs_history[eps_step]
+        obs_ = eps_history.obs_history[eps_step+1]
         action = eps_history.action_history[eps_step+1]
 
       obs = obs / 255 * 0.4

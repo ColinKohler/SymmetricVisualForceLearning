@@ -63,7 +63,7 @@ class BlockPickingConfig(Config):
     # Wait times
     self.data_gen_delay = 0
     self.training_delay = 0
-    self.train_data_ratio = 0
+    self.train_data_ratio = 0.2
 
   def getEnvConfig(self, render=False):
     '''

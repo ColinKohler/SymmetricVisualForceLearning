@@ -1,4 +1,5 @@
 import ray
+import time
 import torch
 import numpy as np
 import numpy.random as npr
@@ -77,7 +78,7 @@ class DataGenerator(object):
       if not test_mode and self.config.train_data_ratio:
         while(
           ray.get(shared_storage.getInfo.remote('training_step'))
-          / max(1, ray.get(shared_storoage.getInfo.remote('num_steps')))
+          / max(1, ray.get(shared_storage.getInfo.remote('num_steps')))
           < self.config.train_data_ratio
         ):
           time.sleep(0.5)
