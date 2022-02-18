@@ -61,6 +61,7 @@ class SACAgent(object):
         action, _, _ = self.actor.sample(obs)
       value = self.critic(obs, action)
 
+    action = action.cpu()
     action_idx, action = self.decodeAction(*[action[:,i] for i in range(self.action_shape)])
 
     return action_idx, action, value

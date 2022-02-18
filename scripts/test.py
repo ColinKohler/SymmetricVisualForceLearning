@@ -7,6 +7,7 @@ import argparse
 import torch
 import numpy as np
 import numpy.random as npr
+import matplotlib.pyplot as plt
 
 from midichlorians.sac_agent import SACAgent
 from configs.block_picking import BlockPickingConfig

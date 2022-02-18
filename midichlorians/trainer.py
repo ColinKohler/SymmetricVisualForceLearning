@@ -134,13 +134,13 @@ class Trainer(object):
     Returns:
       (numpy.array, double) : (Priorities, Batch Loss)
     '''
-    obs_batch, next_obs_batch, action_batch, reward_batch, done_batch, weight_batch = batch
+    obs_batch, next_obs_batch, action_batch, reward_batch, non_final_mask_batch, weight_batch = batch
 
     obs_batch = obs_batch.to(self.device)
     next_obs_batch = next_obs_batch.to(self.device)
     action_batch = action_batch.to(self.device)
     reward_batch = reward_batch.to(self.device)
-    done_batch = done_batch.to(self.device)
+    non_final_mask_batch = non_final_mask_batch.to(self.device)
     weight_batch = weight_batch.to(self.device)
 
     # Critic Update
@@ -153,7 +153,7 @@ class Trainer(object):
       qf2_next_target = qf2_next_target.squeeze()
 
       min_qf_next_target = torch.min(qf1_next_target, qf2_next_target) - self.alpha * next_state_log_pi
-      next_q_value = reward_batch + torch.abs(1 - done_batch) * self.config.discount * min_qf_next_target
+      next_q_value = reward_batch + non_final_mask_batch * self.config.discount * min_qf_next_target
 
     qf1, qf2 = self.critic(obs_batch, action_batch)
     qf1 = qf1.squeeze()

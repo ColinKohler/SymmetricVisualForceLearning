@@ -21,9 +21,12 @@ def dictToCpu(state_dict):
 def normalizeObs(obs):
   obs = np.clip(obs, 0, 0.32)
   obs = obs / 0.4 * 255
-  obs = obs.int()
+  obs = obs.astype(np.uint8)
 
   return obs
+
+def unnormalizeObs(obs):
+  return obs / 255 * 0.4
 
 def perturb(obs, obs_, dxy, set_theta_zero=False, set_trans_zero=False):
   '''
@@ -40,7 +43,8 @@ def perturb(obs, obs_, dxy, set_theta_zero=False, set_trans_zero=False):
   transform = getImageTransform(theta, trans, pivot)
   transform_params = theta, trans, pivot
 
-  rot = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
+  rot = np.array([[np.cos(theta), -np.sin(theta)],
+                  [np.sin(theta), np.cos(theta)]])
   rotated_dxy = rot.dot(dxy)
   rotated_dxy = np.clip(rotated_dxy, -1, 1)
 

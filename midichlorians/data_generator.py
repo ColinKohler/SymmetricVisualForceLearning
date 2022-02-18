@@ -56,8 +56,8 @@ class DataGenerator(object):
           eps_history = self.generateExpertEpisode()
         else:
           eps_history = self.generateEpisode(test_mode)
+          shared_storage.logEpsReward.remote(sum(eps_history.reward_history))
         replay_buffer.add.remote(eps_history, shared_storage)
-        shared_storage.logEpsReward.remote(sum(eps_history.reward_history))
       else:
         eps_history = self.generateEpisode(test_mode)
 
@@ -96,14 +96,14 @@ class DataGenerator(object):
     eps_history = EpisodeHistory()
 
     obs = self.env.reset()
-    eps_history.logStep(torch.tensor([obs[0]]).float(), torch.from_numpy(obs[2]), torch.tensor([0,0,0,0,0]), 0, 0, 0)
+    eps_history.logStep(obs[0], obs[2], np.array([0,0,0,0,0]), 0, 0, 0)
 
     done = False
     while not done:
       action_idx, action, value = self.agent.getAction(obs[0], obs[2], evaluate=test)
 
-      obs, reward, done = self.env.step(action.cpu().squeeze().numpy(), auto_reset=False)
-      eps_history.logStep(torch.tensor([obs[0]]).float(), torch.from_numpy(obs[2]), action_idx.squeeze(), value[0].item(), reward, done)
+      obs, reward, done = self.env.step(action.squeeze().numpy(), auto_reset=False)
+      eps_history.logStep(obs[0], obs[2], action_idx.squeeze().numpy(), value[0].item(), reward, done)
 
     return eps_history
 
@@ -117,14 +117,14 @@ class DataGenerator(object):
     eps_history = EpisodeHistory()
 
     obs = self.env.reset()
-    eps_history.logStep(torch.tensor([obs[0]]).float(), torch.from_numpy(obs[2]), torch.tensor([0,0,0,0,0]), 0, 0, 0)
+    eps_history.logStep(obs[0], obs[2], np.array([0,0,0,0,0]), 0, 0, 0)
 
     done = False
     while not done:
       expert_action = torch.tensor(self.env.getNextAction()).float()
       expert_action_idx, expert_action = self.agent.convertPlanAction(expert_action)
       obs, reward, done = self.env.step(expert_action.cpu().squeeze().numpy(), auto_reset=False)
-      eps_history.logStep(torch.tensor([obs[0]]).float(), torch.from_numpy(obs[2]), expert_action_idx.squeeze(), 0.0, reward, done)
+      eps_history.logStep(obs[0], obs[2], expert_action_idx.squeeze().numpy(), 0.0, reward, done)
 
     return eps_history
 
