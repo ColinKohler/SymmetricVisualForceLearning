@@ -4,7 +4,7 @@ import numpy as np
 
 from configs.config import Config
 
-class BlockPickingConfig(Config):
+class BlockPullingConfig(Config):
   '''
   Task config for block picking.
 
@@ -17,7 +17,7 @@ class BlockPickingConfig(Config):
     self.seed = 0
 
     # Env
-    self.env_type = 'close_loop_block_picking'
+    self.env_type = 'close_loop_block_pulling'
     self.max_steps = 100
     self.dpos = 0.05
     self.drot = np.pi / 8
@@ -35,17 +35,17 @@ class BlockPickingConfig(Config):
     # Training
     if results_path:
       self.results_path = os.path.join(self.root_path,
-                                       'block_picking',
+                                       'block_pulling',
                                        results_path)
     else:
       self.results_path = os.path.join(self.root_path,
-                                       'block_picking',
+                                       'block_pulling',
                                        datetime.datetime.now().strftime('%Y-%m-%d--%H-%M-%S'))
     self.save_model = True
-    self.training_steps = 50000
+    self.training_steps = 20000
     self.batch_size = 64
     self.target_update_interval = 1
-    self.checkpoint_interval = 10
+    self.checkpoint_interval = 100
     self.init_temp = 1e-2
     self.tau = 1e-2
 
