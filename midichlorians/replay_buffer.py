@@ -87,7 +87,7 @@ class ReplayBuffer(object):
      reward_batch,
      done_batch,
      weight_batch
-    ) = [list() for _ in range(7)]
+    ) = [list() for _ in range(9)]
 
     for _ in range(self.config.batch_size):
       eps_id, eps_history, eps_prob = self.sampleEps(uniform=True)
@@ -120,14 +120,14 @@ class ReplayBuffer(object):
       weight = (1 / (self.total_samples * eps_prob * step_prob)) ** self.config.getPerBeta(training_step)
 
     state_batch = torch.tensor(state_batch).long()
-    obs_batch = torch.tensor(np.stack(obs_batch))
+    obs_batch = torch.tensor(np.stack(obs_batch)).float()
     next_state_batch = torch.tensor(next_state_batch).long()
-    next_obs_batch = torch.tensor(np.stack(next_obs_batch))
-    action_batch = torch.tensor(np.stack(action_batch))
-    reward_batch = torch.tensor(reward_batch)
+    next_obs_batch = torch.tensor(np.stack(next_obs_batch)).float()
+    action_batch = torch.tensor(np.stack(action_batch)).float()
+    reward_batch = torch.tensor(reward_batch).float()
     done_batch = torch.tensor(done_batch).int()
     non_final_mask_batch = (done_batch ^ 1).float()
-    weight_batch = torch.tensor(weight_batch)
+    weight_batch = torch.tensor(weight_batch).float()
 
     state_tile = state_batch.reshape(state_batch.size(0), 1, 1, 1).repeat(1, 1, obs_batch.size(2), obs_batch.size(3))
     obs_batch = torch.cat([obs_batch, state_tile], dim=1)
