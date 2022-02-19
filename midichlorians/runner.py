@@ -18,6 +18,8 @@ from midichlorians.models.sac import Critic, GaussianPolicy
 from midichlorians.models.equivariant_sac import EquivariantCritic, EquivariantGaussianPolicy
 from midichlorians import torch_utils
 
+from helping_hands_rl_baselines.logger.ray_logger import RayLogger
+
 class Runner(object):
   '''
   Runner class. Used to train the model and log the results to Tensorboard.
@@ -48,7 +50,6 @@ class Runner(object):
       'eval_mean_value' : list(),
       'eval_eps_len': list(),
       'eval_eps_reward': list(),
-      'log_counter' : 0,
       'terminate' : False
     }
     self.replay_buffer = dict()
@@ -69,6 +70,7 @@ class Runner(object):
       self.initWeights()
 
     # Workers
+    self.logger_worker = None
     self.data_gen_workers = None
     self.replay_buffer_worker = None
     self.shared_storage_worker = None
@@ -94,6 +96,7 @@ class Runner(object):
     '''
     Initialize the various workers, start the trainers, and run the logging loop.
     '''
+    self.logger_worker = RayLogger.options(num_cpus=0, num_gpus=0).remote(self.config.results_path, self.config.__dict__)
     self.training_worker = Trainer.options(num_cpus=0, num_gpus=1.0).remote(self.checkpoint, self.config)
 
     self.replay_buffer_worker = ReplayBuffer.options(num_cpus=0, num_gpus=0).remote(self.checkpoint, self.replay_buffer, self.config)
@@ -109,8 +112,8 @@ class Runner(object):
     self.shared_storage_worker = SharedStorage.remote(self.checkpoint, self.config)
     self.shared_storage_worker.setInfo.remote('terminate', False)
 
-    # Start workers
-    self.training_worker.continuousUpdateWeights.remote(self.replay_buffer_worker, self.shared_storage_worker)
+    # Start training worker
+    self.training_worker.continuousUpdateWeights.remote(self.replay_buffer_worker, self.shared_storage_worker, self.logger_worker)
 
     # Blocking call to generate expert data
     if self.config.num_expert_episodes > 0:
@@ -125,7 +128,7 @@ class Runner(object):
 
     # Start data gen workers
     for data_gen_worker in self.data_gen_workers:
-      data_gen_worker.continuousDataGen.remote(self.shared_storage_worker, self.replay_buffer_worker)
+      data_gen_worker.continuousDataGen.remote(self.shared_storage_worker, self.replay_buffer_worker, self.logger_worker)
 
     self.loggingLoop()
 
@@ -135,26 +138,9 @@ class Runner(object):
     '''
     self.save(logging=True)
 
-    writer = SummaryWriter(self.config.results_path)
-
-    # Log hyperparameters
-    hp_table = [
-      f'| {k} | {v} |' for k, v in self.config.__dict__.items()
-    ]
-    writer.add_text('Hyperparameters', '| Parameter | Value |\n|-------|-------|\n' + '\n'.join(hp_table))
-
     # Log training loop
-    counter = self.checkpoint['log_counter']
     keys = [
-      'train_eps_reward',
-      'eval_mean_value',
-      'eval_eps_reward',
-      'eval_eps_len',
       'training_step',
-      'num_eps',
-      'num_steps',
-      'lr',
-      'loss',
     ]
 
     info = ray.get(self.shared_storage_worker.getInfo.remote(keys))
@@ -170,36 +156,13 @@ class Runner(object):
             eval_worker.generateEpisodes.remote(
               int(self.config.num_eval_episodes / self.config.num_eval_workers),
               self.shared_storage_worker,
+              self.logger_worker,
               evaluate=True
             )
 
-        writer.add_scalar('1.Evaluate/1.Reward',
-                          np.mean(info['eval_eps_reward'][-self.config.num_eval_episodes:]) if info['eval_eps_reward'] else 0,
-                          num_eval_intervals)
-        writer.add_scalar('1.Evaluate/2.Mean_value',
-                          np.mean(info['eval_mean_value'][-self.config.num_eval_episodes:]) if info['eval_mean_value'] else 0,
-                          num_eval_intervals)
-        writer.add_scalar('1.Evaluate/3.Eps_len',
-                          np.mean(info['eval_eps_len'][-self.config.num_eval_episodes:])  if info['eval_eps_len'] else 0,
-                          num_eval_intervals)
-        writer.add_scalar('1.Evaluate/4.Learning_curve',
-                          np.mean(info['train_eps_reward'][-100:]) if info['train_eps_reward'] else 0,
-                          info['num_eps'])
+        # Logging
+        self.logger_worker.writeLog.remote()
 
-        writer.add_scalar('2.Workers/1.Num_eps', info['num_eps'], counter)
-        writer.add_scalar('2.Workers/2.Training_steps', info['training_step'], counter)
-        writer.add_scalar('2.Workers/3.Num_steps', info['num_steps'], counter)
-        writer.add_scalar('2.Workers/4.Training_steps_per_eps_step_ratio',
-                          info['training_step'] / max(1, info['num_steps']),
-                          counter)
-
-        writer.add_scalar('3.Loss/1.Actor_learning_rate', info['lr'][0], counter)
-        writer.add_scalar('3.Loss/2.Actor_loss', info['loss'][0], counter)
-        writer.add_scalar('3.Loss/3.Critic_learning_rate', info['lr'][1], counter)
-        writer.add_scalar('3.Loss/4.Critic_loss', info['loss'][1], counter)
-
-        counter += 1
-        self.shared_storage_worker.setInfo.remote({'log_counter' : counter})
         time.sleep(0.5)
     except KeyboardInterrupt:
       pass
@@ -258,6 +221,7 @@ class Runner(object):
     if self.replay_buffer_worker:
       self.replay_buffer = ray.get(self.replay_buffer_worker.getBuffer.remote())
 
+    self.logger_worker = None
     self.data_gen_workers = None
     self.test_worker = None
     self.training_worker = None

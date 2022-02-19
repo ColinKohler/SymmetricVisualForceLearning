@@ -35,7 +35,7 @@ class DataGenerator(object):
     self.agent = SACAgent(self.config, self.device)
     self.agent.setWeights(initial_checkpoint['weights'])
 
-  def continuousDataGen(self, shared_storage, replay_buffer, test_mode=False):
+  def continuousDataGen(self, shared_storage, replay_buffer, logger, test_mode=False):
     '''
     Continuously generates data samples according to the policy specified in the config.
 
@@ -51,8 +51,10 @@ class DataGenerator(object):
     ):
       if not test_mode:
         eps_history = self.generateEpisode(shared_storage, test_mode)
-        shared_storage.logEpsReward.remote(sum(eps_history.reward_history))
         replay_buffer.add.remote(eps_history, shared_storage)
+
+        shared_storage.logEpsReward.remote(sum(eps_history.reward_history))
+        logger.logTrainingEpisode.remote(eps_history.reward_history)
       else:
         eps_history = self.generateEpisode(shared_storage, test_mode)
 
@@ -66,7 +68,7 @@ class DataGenerator(object):
         ):
           time.sleep(0.5)
 
-  def generateEpisodes(self, num_eps, shared_storage, evaluate=True):
+  def generateEpisodes(self, num_eps, shared_storage, logger, evaluate=True):
     '''
 
     '''
@@ -75,6 +77,7 @@ class DataGenerator(object):
       eps_history = self.generateEpisode(shared_storage, evaluate, update_weights=False)
       if evaluate:
         shared_storage.logEvalEpisode.remote(eps_history)
+        logger.logEvalEpisode.remote(eps_history.reward_history, eps_history.value_history)
 
   def generateEpisode(self, shared_storage, test, update_weights=True):
     '''

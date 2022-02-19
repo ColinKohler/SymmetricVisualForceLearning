@@ -64,7 +64,7 @@ class Trainer(object):
     npr.seed(self.config.seed)
     torch.manual_seed(self.config.seed)
 
-  def continuousUpdateWeights(self, replay_buffer, shared_storage):
+  def continuousUpdateWeights(self, replay_buffer, shared_storage, logger):
     '''
     Continuously sample batches from the replay buffer and perform weight updates.
     This continuous until the desired number of training steps has been reached.
@@ -117,6 +117,12 @@ class Trainer(object):
           'training_step' : self.training_step,
           'lr' : (self.config.actor_lr_init, self.config.critic_lr_init),
           'loss' : loss
+        }
+      )
+      logger.logTrainingStep.remote(
+        {
+          'Actor_loss' : loss[0],
+          'Critic_loss' : loss[1]
         }
       )
 
