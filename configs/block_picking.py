@@ -30,11 +30,6 @@ class BlockPickingConfig(Config):
     self.num_eval_episodes = 100
     self.eval_interval = 500
 
-    # Exploration
-    self.init_eps = 1.0
-    self.end_eps = 0.1
-    self.eps_anneal_steps = 5000
-
     # Training
     if results_path:
       self.results_path = os.path.join(self.root_path,

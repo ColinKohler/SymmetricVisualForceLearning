@@ -103,7 +103,6 @@ class Trainer(object):
 
         shared_storage.setInfo.remote(
           {
-            'weights' : copy.deepcopy((actor_weights, critic_weights)),
             'optimizer_state' : (copy.deepcopy(actor_optimizer_state), copy.deepcopy(critic_optimizer_state))
           }
         )

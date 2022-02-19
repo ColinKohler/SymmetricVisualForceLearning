@@ -1,4 +1,5 @@
 import os
+import shutil
 import time
 import copy
 import collections
@@ -36,6 +37,11 @@ class Runner(object):
     npr.seed(self.config.seed)
     torch.manual_seed(self.config.seed)
     ray.init(num_gpus=self.config.num_gpus, ignore_reinit_error=True)
+
+    # Create log dir
+    if os.path.exists(self.config.results_path):
+      shutil.rmtree(self.config.results_path)
+    os.makedirs(self.config.results_path)
 
     # Initialize checkpoint and replay buffer
     self.checkpoint = {
