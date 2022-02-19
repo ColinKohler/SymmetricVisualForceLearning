@@ -120,8 +120,8 @@ class Trainer(object):
       )
       logger.logTrainingStep.remote(
         {
-          'Actor_loss' : loss[0],
-          'Critic_loss' : loss[1]
+          'Actor' : loss[0],
+          'Critic' : loss[1]
         }
       )
 
