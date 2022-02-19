@@ -148,6 +148,63 @@ class EquivariantResNet(nn.Module):
 
     return out
 
+class EquivariantEncoder128(torch.nn.Module):
+    """
+    Equivariant Encoder. The input is a trivial representation with obs_channel channels.
+    The output is a regular representation with n_out channels
+    """
+    def __init__(self, obs_channel=2, n_out=128, initialize=True, N=4):
+        super().__init__()
+        self.obs_channel = obs_channel
+        self.c4_act = gspaces.Rot2dOnR2(N)
+        self.conv = torch.nn.Sequential(
+            # 128x128
+            enn.R2Conv(enn.FieldType(self.c4_act, obs_channel * [self.c4_act.trivial_repr]),
+                      enn.FieldType(self.c4_act, n_out//8 * [self.c4_act.regular_repr]),
+                      kernel_size=3, padding=1, initialize=initialize),
+            enn.ReLU(enn.FieldType(self.c4_act, n_out//8 * [self.c4_act.regular_repr]), inplace=True),
+            enn.PointwiseMaxPool(enn.FieldType(self.c4_act, n_out//8 * [self.c4_act.regular_repr]), 2),
+            # 64x64
+            enn.R2Conv(enn.FieldType(self.c4_act, n_out//8 * [self.c4_act.regular_repr]),
+                      enn.FieldType(self.c4_act, n_out//4 * [self.c4_act.regular_repr]),
+                      kernel_size=3, padding=1, initialize=initialize),
+            enn.ReLU(enn.FieldType(self.c4_act, n_out//4 * [self.c4_act.regular_repr]), inplace=True),
+            enn.PointwiseMaxPool(enn.FieldType(self.c4_act, n_out//4 * [self.c4_act.regular_repr]), 2),
+            # 32x32
+            enn.R2Conv(enn.FieldType(self.c4_act, n_out//4 * [self.c4_act.regular_repr]),
+                      enn.FieldType(self.c4_act, n_out//2 * [self.c4_act.regular_repr]),
+                      kernel_size=3, padding=1, initialize=initialize),
+            enn.ReLU(enn.FieldType(self.c4_act, n_out//2 * [self.c4_act.regular_repr]), inplace=True),
+            enn.PointwiseMaxPool(enn.FieldType(self.c4_act, n_out//2 * [self.c4_act.regular_repr]), 2),
+            # 16x16
+            enn.R2Conv(enn.FieldType(self.c4_act, n_out//2 * [self.c4_act.regular_repr]),
+                      enn.FieldType(self.c4_act, n_out * [self.c4_act.regular_repr]),
+                      kernel_size=3, padding=1, initialize=initialize),
+            enn.ReLU(enn.FieldType(self.c4_act, n_out * [self.c4_act.regular_repr]), inplace=True),
+            enn.PointwiseMaxPool(enn.FieldType(self.c4_act, n_out * [self.c4_act.regular_repr]), 2),
+            # 8x8
+            enn.R2Conv(enn.FieldType(self.c4_act, n_out * [self.c4_act.regular_repr]),
+                      enn.FieldType(self.c4_act, n_out*2 * [self.c4_act.regular_repr]),
+                      kernel_size=3, padding=1, initialize=initialize),
+            enn.ReLU(enn.FieldType(self.c4_act, n_out*2 * [self.c4_act.regular_repr]), inplace=True),
+
+            enn.R2Conv(enn.FieldType(self.c4_act, n_out*2 * [self.c4_act.regular_repr]),
+                      enn.FieldType(self.c4_act, n_out * [self.c4_act.regular_repr]),
+                      kernel_size=3, padding=0, initialize=initialize),
+            enn.ReLU(enn.FieldType(self.c4_act, n_out * [self.c4_act.regular_repr]), inplace=True),
+            enn.PointwiseMaxPool(enn.FieldType(self.c4_act, n_out * [self.c4_act.regular_repr]), 2),
+            # 3x3
+            enn.R2Conv(enn.FieldType(self.c4_act, n_out * [self.c4_act.regular_repr]),
+                      enn.FieldType(self.c4_act, n_out * [self.c4_act.regular_repr]),
+                      kernel_size=3, padding=0, initialize=initialize),
+            enn.ReLU(enn.FieldType(self.c4_act, n_out * [self.c4_act.regular_repr]), inplace=True),
+            # 1x1
+        )
+
+    def forward(self, geo):
+        return self.conv(geo)
+
+
 class EquivariantCritic(nn.Module):
   '''
   Equivariant critic model.
@@ -167,7 +224,8 @@ class EquivariantCritic(nn.Module):
     self.inner_type = enn.FieldType(self.c4_act, 64 * [self.c4_act.regular_repr])
     self.out_type = enn.FieldType(self.c4_act, 1 * [self.c4_act.trivial_repr])
 
-    self.resnet = EquivariantResNet(in_channels)
+    #self.resnet = EquivariantResNet(in_channels)
+    self.resnet = EquivariantEncoder128(n_out=64, N=8)
 
     self.conv_1 = nn.Sequential(
       conv1x1(self.in_type, self.inner_type),
@@ -224,7 +282,9 @@ class EquivariantGaussianPolicy(nn.Module):
     self.in_type = enn.FieldType(self.c4_act, self.feat_repr)
     self.out_type = enn.FieldType(self.c4_act, self.invariant_action_repr + self.equivariant_action_repr)
 
-    self.resnet = EquivariantResNet(in_channels)
+    #self.resnet = EquivariantResNet(in_channels)
+    self.resnet = EquivariantEncoder128(n_out=64, N=8)
+
     self.conv = conv1x1(self.in_type, self.out_type)
 
   def forward(self, obs):

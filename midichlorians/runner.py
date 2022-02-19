@@ -39,16 +39,15 @@ class Runner(object):
     self.checkpoint = {
       'weights' : None,
       'optimizer_state' : None,
-      'total_reward' : 0,
-      'past_100_rewards' : collections.deque([0] * 100, maxlen=100),
-      'mean_value' : 0,
       'training_step' : 0,
       'lr' : (0, 0),
       'loss' : (0, 0),
       'num_eps' : 0,
       'num_steps' : 0,
-      'eps_len': 0,
-      'eps_reward': list(),
+      'train_eps_reward' : list(),
+      'eval_mean_value' : list(),
+      'eval_eps_len': list(),
+      'eval_eps_reward': list(),
       'log_counter' : 0,
       'terminate' : False
     }
@@ -74,7 +73,7 @@ class Runner(object):
     self.replay_buffer_worker = None
     self.shared_storage_worker = None
     self.training_worker = None
-    self.test_worker = None
+    self.eval_workers = None
 
   def initWeights(self):
     '''
@@ -102,14 +101,31 @@ class Runner(object):
       DataGenerator.options(num_cpus=0, num_gpus=0).remote(self.checkpoint, self.config, self.config.seed + seed)
       for seed in range(self.config.num_data_gen_workers)
     ]
+    self.eval_workers = [
+      DataGenerator.options(num_cpus=0, num_gpus=0).remote(self.checkpoint, self.config, self.config.seed + self.config.num_data_gen_workers + seed)
+      for seed in range(self.config.num_eval_workers)
+    ]
 
     self.shared_storage_worker = SharedStorage.remote(self.checkpoint, self.config)
     self.shared_storage_worker.setInfo.remote('terminate', False)
 
     # Start workers
+    self.training_worker.continuousUpdateWeights.remote(self.replay_buffer_worker, self.shared_storage_worker)
+
+    # Blocking call to generate expert data
+    if self.config.num_expert_episodes > 0:
+      ray.get([
+        data_gen_worker.generateExpertEpisodes.remote(
+          int(self.config.num_expert_episodes / self.config.num_data_gen_workers),
+          self.shared_storage_worker,
+          self.replay_buffer_worker
+        )
+        for data_gen_worker in self.data_gen_workers
+      ])
+
+    # Start data gen workers
     for data_gen_worker in self.data_gen_workers:
       data_gen_worker.continuousDataGen.remote(self.shared_storage_worker, self.replay_buffer_worker)
-    self.training_worker.continuousUpdateWeights.remote(self.replay_buffer_worker, self.shared_storage_worker)
 
     self.loggingLoop()
 
@@ -118,9 +134,6 @@ class Runner(object):
     Initialize the testing model and log the training data
     '''
     self.save(logging=True)
-
-    self.test_worker = DataGenerator.options(num_cpus=0, num_gpus=0).remote(self.checkpoint, self.config, self.config.seed + self.config.num_data_gen_workers)
-    self.test_worker.continuousDataGen.remote(self.shared_storage_worker, None, True)
 
     writer = SummaryWriter(self.config.results_path)
 
@@ -133,12 +146,11 @@ class Runner(object):
     # Log training loop
     counter = self.checkpoint['log_counter']
     keys = [
-      'total_reward',
-      'mean_value',
-      'eps_len',
-      'past_100_rewards',
+      'train_eps_reward',
+      'eval_mean_value',
+      'eval_eps_reward',
+      'eval_eps_len',
       'training_step',
-      'eps_reward',
       'num_eps',
       'num_steps',
       'lr',
@@ -146,18 +158,32 @@ class Runner(object):
     ]
 
     info = ray.get(self.shared_storage_worker.getInfo.remote(keys))
+    num_eval_intervals = 0
     try:
       while info['training_step'] < self.config.training_steps:
         info = ray.get(self.shared_storage_worker.getInfo.remote(keys))
 
-        writer.add_scalar('1.Total_reward/1.Total_reward', info['total_reward'], counter)
-        writer.add_scalar('1.Total_reward/2.Mean_value', info['mean_value'], counter)
-        writer.add_scalar('1.Total_reward/3.Eps_len', info['eps_len'], counter)
-        writer.add_scalar('1.Total_reward/4.Success_rate',
-                          np.mean(info['past_100_rewards']) if info['past_100_rewards'] else 0,
-                          info['training_step'])
-        writer.add_scalar('1.Total_reward/5.Learning_curve',
-                          np.mean(info['eps_reward'][-100:]) if info['eps_reward'] else 0,
+        # Eval
+        if info['training_step'] > 0 and info['training_step'] % self.config.eval_interval == 0:
+          num_eval_intervals += 1
+          for eval_worker in self.eval_workers:
+            eval_worker.generateEpisodes.remote(
+              int(self.config.num_eval_episodes / self.config.num_eval_workers),
+              self.shared_storage_worker,
+              evaluate=True
+            )
+
+        writer.add_scalar('1.Evaluate/1.Reward',
+                          np.mean(info['eval_eps_reward'][-self.config.num_eval_episodes:]) if info['eval_eps_reward'] else 0,
+                          num_eval_intervals)
+        writer.add_scalar('1.Evaluate/2.Mean_value',
+                          np.mean(info['eval_mean_value'][-self.config.num_eval_episodes:]) if info['eval_mean_value'] else 0,
+                          num_eval_intervals)
+        writer.add_scalar('1.Evaluate/3.Eps_len',
+                          np.mean(info['eval_eps_len'][-self.config.num_eval_episodes:])  if info['eval_eps_len'] else 0,
+                          num_eval_intervals)
+        writer.add_scalar('1.Evaluate/4.Learning_curve',
+                          np.mean(info['train_eps_reward'][-100:]) if info['train_eps_reward'] else 0,
                           info['num_eps'])
 
         writer.add_scalar('2.Workers/1.Num_eps', info['num_eps'], counter)

@@ -3,6 +3,7 @@ import os
 import ray
 import torch
 import pickle
+import numpy as np
 
 @ray.remote
 class SharedStorage(object):
@@ -61,7 +62,14 @@ class SharedStorage(object):
     Args:
       reward (float): The episode reward.
     '''
-    self.current_checkpoint['eps_reward'].append(reward)
+    self.current_checkpoint['train_eps_reward'].append(reward)
+
+  def logEvalEpisode(self, eps_history):
+    '''
+    '''
+    self.current_checkpoint['eval_eps_reward'].append(sum(eps_history.reward_history))
+    self.current_checkpoint['eval_eps_len'].append(len(eps_history.obs_history))
+    self.current_checkpoint['eval_mean_value'].append(np.mean(eps_history.value_history))
 
   def getInfo(self, keys):
     '''

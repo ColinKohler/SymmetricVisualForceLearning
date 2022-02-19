@@ -24,8 +24,11 @@ class BlockPickingConfig(Config):
 
     # Data Gen
     self.num_data_gen_workers = 5
+    self.num_eval_workers = 5
     self.num_expert_episodes = 20
     self.discount = 0.99
+    self.num_eval_episodes = 100
+    self.eval_interval = 500
 
     # Exploration
     self.init_eps = 1.0
@@ -42,10 +45,10 @@ class BlockPickingConfig(Config):
                                        'block_picking',
                                        datetime.datetime.now().strftime('%Y-%m-%d--%H-%M-%S'))
     self.save_model = True
-    self.training_steps = 50000
+    self.training_steps = 20000
     self.batch_size = 64
     self.target_update_interval = 1
-    self.checkpoint_interval = 10
+    self.checkpoint_interval = 100
     self.init_temp = 1e-2
     self.tau = 1e-2
 

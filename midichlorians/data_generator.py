@@ -49,29 +49,12 @@ class DataGenerator(object):
       ray.get(shared_storage.getInfo.remote('training_step')) < self.config.training_steps and \
       not ray.get(shared_storage.getInfo.remote('terminate'))
     ):
-      self.agent.setWeights(ray.get(shared_storage.getInfo.remote('weights')))
-
       if not test_mode:
-        if ray.get(shared_storage.getInfo.remote('num_eps')) < self.config.num_expert_episodes:
-          eps_history = self.generateExpertEpisode()
-        else:
-          eps_history = self.generateEpisode(test_mode)
-          shared_storage.logEpsReward.remote(sum(eps_history.reward_history))
+        eps_history = self.generateEpisode(shared_storage, test_mode)
+        shared_storage.logEpsReward.remote(sum(eps_history.reward_history))
         replay_buffer.add.remote(eps_history, shared_storage)
       else:
-        eps_history = self.generateEpisode(test_mode)
-
-        past_100_rewards = ray.get(shared_storage.getInfo.remote('past_100_rewards'))
-        past_100_rewards.append(eps_history.reward_history[-1])
-
-        shared_storage.setInfo.remote(
-          {
-            'eps_len' : len(eps_history.obs_history),
-            'total_reward' : sum(eps_history.reward_history),
-            'past_100_rewards' : past_100_rewards,
-            'mean_value' : np.mean([value for value in eps_history.value_history])
-          }
-        )
+        eps_history = self.generateEpisode(shared_storage, test_mode)
 
       if not test_mode and self.config.data_gen_delay:
         time.sleep(self.config.gen_delay)
@@ -83,7 +66,17 @@ class DataGenerator(object):
         ):
           time.sleep(0.5)
 
-  def generateEpisode(self, test):
+  def generateEpisodes(self, num_eps, shared_storage, evaluate=True):
+    '''
+
+    '''
+    self.agent.setWeights(ray.get(shared_storage.getInfo.remote('weights')))
+    for i in range(num_eps):
+      eps_history = self.generateEpisode(shared_storage, evaluate, update_weights=False)
+      if evaluate:
+        shared_storage.logEvalEpisode.remote(eps_history)
+
+  def generateEpisode(self, shared_storage, test, update_weights=True):
     '''
     Generate a single episode.
 
@@ -100,12 +93,22 @@ class DataGenerator(object):
 
     done = False
     while not done:
+      if update_weights:
+        self.agent.setWeights(ray.get(shared_storage.getInfo.remote('weights')))
       action_idx, action, value = self.agent.getAction(obs[0], obs[2], evaluate=test)
 
       obs, reward, done = self.env.step(action.squeeze().numpy(), auto_reset=False)
       eps_history.logStep(obs[0], obs[2], action_idx.squeeze().numpy(), value[0].item(), reward, done)
 
     return eps_history
+
+  def generateExpertEpisodes(self, num_eps, shared_storage, replay_buffer):
+    '''
+
+    '''
+    for i in range(num_eps):
+      eps_history = self.generateExpertEpisode()
+      replay_buffer.add.remote(eps_history, shared_storage)
 
   def generateExpertEpisode(self):
     '''
