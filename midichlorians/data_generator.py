@@ -1,3 +1,4 @@
+import ray
 import time
 import torch
 import numpy as np
@@ -13,16 +14,19 @@ class EvalDataGenerator(object):
   '''
 
   '''
-  def __init__(self, agent, config, seed, evaluate=False):
-    self.data_generator = DataGenerator(agent, config, seed, evaluate=evaluate)
+  def __init__(self, config, seed):
+    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    agent = SACAgent(config, device)
+    self.data_generator = DataGenerator(agent, config, seed, evaluate=True)
 
   def generateEpisodes(self, num_eps, shared_storage, replay_buffer, logger):
-    self.data_generator.agent.setWeights(ray.get(shared_storage_worker.getInfo('weights')))
-    self.shared_storage.logEvalInterval.remote()
+    self.data_generator.agent.setWeights(ray.get(shared_storage.getInfo.remote('weights')))
+    shared_storage.logEvalInterval.remote()
     self.data_generator.resetEnvs()
 
-    while ray.get(shared_storage.getInfo('num_eval_eps')) < num_eps:
-      self.data_generator.stepEnvs(shared_storage, replay_buffer, logger)
+    while ray.get(shared_storage.getInfo.remote('num_eval_eps')) < num_eps:
+      self.data_generator.stepEnvsAsync(shared_storage, replay_buffer, logger)
+      self.data_generator.stepEnvsWait(shared_storage, replay_buffer, logger)
 
 class DataGenerator(object):
   '''
@@ -57,19 +61,12 @@ class DataGenerator(object):
     self.current_epsiodes = None
 
   def resetEnvs(self):
-    self.current_episodes = [EpisodeHistory for _ in range(self.config.num_data_gen_envs)]
+    self.current_episodes = [EpisodeHistory() for _ in range(self.config.num_data_gen_envs)]
     self.obs = self.envs.reset()
     for i, eps_history in enumerate(self.current_episodes):
-      eps_history.logStep(
-        self.obs[i,0],
-        self.obs[i,2],
-        np.array([0,0,0,0,0]),
-        0,
-        0,
-        0
-      )
+      eps_history.logStep(self.obs[0][i], self.obs[2][i], np.array([0,0,0,0,0]), 0, 0, 0)
 
-  def stepEnvs(self, shared_storage, replay_buffer, logger, expert=False):
+  def stepEnvsAsync(self, shared_storage, replay_buffer, logger, expert=False):
     '''
     Continuously generates data samples according to the policy specified in the config.
 
@@ -82,43 +79,47 @@ class DataGenerator(object):
     '''
     if expert:
       expert_actions = torch.tensor(self.envs.getNextAction()).float()
-      action_idxs, actions = self.agent.convertPlanAction(expert_actions)
+      self.action_idxs, self.actions = self.agent.convertPlanAction(expert_actions)
+      self.values = torch.zeros(self.config.num_data_gen_envs)
     else:
-      action_idxs, actions, values = self.agent.getAction(
+      self.action_idxs, self.actions, self.values = self.agent.getAction(
         self.obs[0],
         self.obs[2],
         evaluate=self.eval
       )
 
-    self.envs.stepAsync(actions, auto_reset=False)
+    self.envs.stepAsync(self.actions, auto_reset=False)
+
+  def stepEnvsWait(self, shared_storage, replay_buffer, logger, expert=False):
+    '''
+    Continuously generates data samples according to the policy specified in the config.
+
+    Args:
+      replay_buffer (ray.worker): Replay buffer worker containing data samples.
+      shared_storage (ray.worker): Shared storage worker, shares data across workers.
+      logger (ray.worker): Logger worker, logs training data across workers.
+      expert (bool): Flag indicating if we are generating expert data or agent data. Defaults to
+        False.
+    '''
     obs_, rewards, dones = self.envs.stepWait()
+    obs_ = list(obs_)
 
     for i, eps_history in enumerate(self.current_episodes):
       eps_history.logStep(
-        obs_[i,0],
-        obs_[i,2],
-        action_idxs[i].squeeze().numpy(),
-        values[i,0].item(),
+        obs_[0][i],
+        obs_[2][i],
+        self.action_idxs[i].squeeze().numpy(),
+        self.values[i].item(),
         rewards[i],
         dones[i]
       )
 
-    done_idxs = torch.nonzero(dones).squeeze(1)
-    if done_idxs.shape[0] != 0:
+    done_idxs = np.nonzero(dones)[0]
+    if len(done_idxs) != 0:
       new_obs_ = self.envs.reset_envs(done_idxs)
-      obs_[done_idxs] = new_obs_
 
-      for done_idx in done_indxs:
-        replay_buffer.add.remote(self.current_epsodes[done_idx], shared_storage)
-        self.current_episodes[done_idx] = EpisodeHistory()
-        self.current_episodes[done_idx].logStep(
-          obs_[done_idx,0],
-          obs_[done_idx,2],
-          np.array([0,0,0,0,0]),
-          0,
-          0,
-          0
-        )
+      for i, done_idx in enumerate(done_idxs):
+        replay_buffer.add.remote(self.current_episodes[done_idx], shared_storage)
 
         if not expert and not self.eval:
           shared_storage.logEpsReward.remote(sum(self.current_episodes[done_idx].reward_history))
@@ -128,6 +129,19 @@ class DataGenerator(object):
           shared_storage.logEvalEpisode.remote(self.current_episodes[done_idx])
           logger.logEvalEpisode.remote(self.current_episodes[done_idx].reward_history,
                                        self.current_episodes[done_idx].value_history)
+
+        self.current_episodes[done_idx] = EpisodeHistory()
+        self.current_episodes[done_idx].logStep(
+          obs_[0][done_idx],
+          obs_[2][done_idx],
+          np.array([0,0,0,0,0]),
+          0,
+          0,
+          0
+        )
+
+        obs_[0][done_idx] = new_obs_[0][i]
+        obs_[2][done_idx] = new_obs_[2][i]
 
     self.obs = obs_
 

@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 
 from midichlorians.trainer import Trainer
 from midichlorians.replay_buffer import ReplayBuffer
-from midichlorians.data_generator import DataGenerator
+from midichlorians.data_generator import DataGenerator, EvalDataGenerator
 from midichlorians.shared_storage import SharedStorage
 from midichlorians.models.sac import Critic, GaussianPolicy
 from midichlorians.models.equivariant_sac import EquivariantCritic, EquivariantGaussianPolicy
@@ -107,16 +107,13 @@ class Runner(object):
     self.training_worker = Trainer.options(num_cpus=0, num_gpus=1.0).remote(self.checkpoint, self.config)
 
     self.replay_buffer_worker = ReplayBuffer.options(num_cpus=0, num_gpus=0).remote(self.checkpoint, self.replay_buffer, self.config)
-
-    self.eval_agent = SACAgent(self.config, self.device)
-    self.eval_agent.setWeights(self.checkpoint['weights'])
-    self.eval_worker = EvalDataGenerator(self.eval_agent, self.config, self.config.seed, eval=True)
+    self.eval_worker = EvalDataGenerator.options(num_cpus=0, num_gpus=0).remote(self.config, self.config.seed)
 
     self.shared_storage_worker = SharedStorage.remote(self.checkpoint, self.config)
     self.shared_storage_worker.setInfo.remote('terminate', False)
 
     # Blocking call to generate expert data
-    self.training_worker.generateExpertData(self.replay_buffer_worker, self.shared_storage_worker, self.logger_worker)
+    self.training_worker.generateExpertData.remote(self.replay_buffer_worker, self.shared_storage_worker, self.logger_worker)
 
     # Start training
     self.training_worker.continuousUpdateWeights.remote(self.replay_buffer_worker, self.shared_storage_worker, self.logger_worker)
@@ -143,7 +140,7 @@ class Runner(object):
         # Eval
         if info['training_step'] > 0 and info['training_step'] % self.config.eval_interval == 0:
           self.logger_worker.logEvalInterval.remote()
-          self.eval_worker.generateEpisodes(self.config.num_eval_episodes, self.shared_storage_worker, self.replay_buffer_worker, self.logger_worker)
+          self.eval_worker.generateEpisodes.remote(self.config.num_eval_episodes, self.shared_storage_worker, self.replay_buffer_worker, self.logger_worker)
 
         # Logging
         self.logger_worker.writeLog.remote()
@@ -154,6 +151,7 @@ class Runner(object):
 
     if self.config.save_model:
       self.shared_storage_worker.setInfo.remote(copy.copy(self.replay_buffer))
+      self.logger_worker.exportData.remote(os.path.join(self.config.results_path, 'log_data.pkl'))
     self.terminateWorkers()
 
   def save(self, logging=False):
@@ -192,7 +190,7 @@ class Runner(object):
         self.checkpoint['num_eps'] = data['num_eps']
         self.checkpoint['num_steps'] = data['num_steps']
 
-        print('Loaded replay buffer at {}'format(replay_buffer_path))
+        print('Loaded replay buffer at {}'.format(replay_buffer_path))
       else:
         print('Replay buffer not found at {}'.format(replay_buffer_path))
 

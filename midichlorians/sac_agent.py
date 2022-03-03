@@ -32,7 +32,7 @@ class SACAgent(object):
       self.actor.train()
 
     if critic:
-      self.critic = crtic
+      self.critic = critic
     else:
       self.critic = EquivariantCritic(self.config.obs_channels, self.config.action_dim)
       self.critic.to(self.device)
@@ -50,8 +50,8 @@ class SACAgent(object):
     Returns:
       (numpy.array, double) : (Action, Q-Value)
     '''
-    obs = torch.Tensor(obs.astype(np.float32)).view(1, 1, 128, 128).to(self.device)
-    state = torch.Tensor([state]).view(1, 1, 1, 1).to(self.device)
+    obs = torch.Tensor(obs.astype(np.float32)).view(len(state), 1, 128, 128).to(self.device)
+    state = torch.Tensor(state).view(len(state), 1, 1, 1).to(self.device)
     state_tile = state.repeat(1, 1, obs.size(2), obs.size(3))
     obs = torch.cat((obs, state_tile), dim=1)
 
@@ -63,11 +63,11 @@ class SACAgent(object):
       value = self.critic(obs, action)
 
     action = action.cpu()
-    action_idx, action = self.decodeAction(*[action[:,i] for i in range(self.action_shape)])
+    action_idx, action = self.decodeActions(*[action[:,i] for i in range(self.action_shape)])
 
-    return action_idx, action, value
+    return action_idx, action, value[0]
 
-  def decodeAction(self, unscaled_p, unscaled_dx, unscaled_dy, unscaled_dz, unscaled_dtheta):
+  def decodeActions(self, unscaled_p, unscaled_dx, unscaled_dy, unscaled_dz, unscaled_dtheta):
     '''
     Convert action from model to environment action.
 
@@ -102,21 +102,21 @@ class SACAgent(object):
     Returns:
       (torch.Tensor, torch.Tensor) : Unscaled actions, scaled actions
     '''
-    p = plan_action[0].clamp(*self.p_range)
-    dx = plan_action[1].clamp(*self.dx_range)
-    dy = plan_action[2].clamp(*self.dy_range)
-    dz = plan_action[3].clamp(*self.dz_range)
-    dtheta = plan_action[4].clamp(*self.dtheta_range)
+    p = plan_action[:, 0].clamp(*self.p_range)
+    dx = plan_action[:, 1].clamp(*self.dx_range)
+    dy = plan_action[:, 2].clamp(*self.dy_range)
+    dz = plan_action[:, 3].clamp(*self.dz_range)
+    dtheta = plan_action[:, 4].clamp(*self.dtheta_range)
 
-    return self.decodeAction(
-      self.getUnscaledAction(p, self.p_range).view(1,1),
-      self.getUnscaledAction(dx, self.dx_range).view(1,1),
-      self.getUnscaledAction(dy, self.dy_range).view(1,1),
-      self.getUnscaledAction(dz, self.dz_range).view(1,1),
-      self.getUnscaledAction(dtheta, self.dtheta_range).view(1,1)
+    return self.decodeActions(
+      self.getUnscaledActions(p, self.p_range),
+      self.getUnscaledActions(dx, self.dx_range),
+      self.getUnscaledActions(dy, self.dy_range),
+      self.getUnscaledActions(dz, self.dz_range),
+      self.getUnscaledActions(dtheta, self.dtheta_range)
     )
 
-  def getUnscaledAction(self, action, action_range):
+  def getUnscaledActions(self, action, action_range):
     '''
     Convert action to the unscalled version using the given range.
 

@@ -6,6 +6,8 @@ import torch.nn.functional as F
 import numpy as np
 import numpy.random as npr
 
+from midichlorians.sac_agent import SACAgent
+from midichlorians.data_generator import DataGenerator, EvalDataGenerator
 from midichlorians.models.sac import Critic, GaussianPolicy
 from midichlorians.models.equivariant_sac import EquivariantCritic, EquivariantGaussianPolicy
 from midichlorians import torch_utils
@@ -61,7 +63,7 @@ class Trainer(object):
       )
 
     # Initialize data generator
-    self.agent = SACAgent(self.config, self.device, actor=self.actor, critic=self.crtic)
+    self.agent = SACAgent(self.config, self.device, actor=self.actor, critic=self.critic)
     self.data_generator = DataGenerator(self.agent, self.config, self.config.seed)
     self.data_generator.resetEnvs()
 
@@ -79,7 +81,8 @@ class Trainer(object):
       logger (ray.worker): Logger worker, logs training data across workers.
     '''
     while ray.get(shared_storage.getInfo.remote('num_eps')) < self.config.num_expert_episodes:
-      self.data_generator.stepEnvs(shared_storage, replay_buffer, logger, expert=True)
+      self.data_generator.stepEnvsAsync(shared_storage, replay_buffer, logger, expert=True)
+      self.data_generator.stepEnvsWait(shared_storage, replay_buffer, logger, expert=True)
 
   def continuousUpdateWeights(self, replay_buffer, shared_storage, logger):
     '''
@@ -97,12 +100,14 @@ class Trainer(object):
     while self.training_step < self.config.training_steps and \
           not ray.get(shared_storage.getInfo.remote('terminate')):
       idx_batch, batch = ray.get(next_batch)
-      self.data_generator.stepEnvs(shared_storage, replay_buffer, logger)
+      self.data_generator.stepEnvsAsync(shared_storage, replay_buffer, logger)
       next_batch = replay_buffer.sample.remote(shared_storage)
 
       priorities, loss = self.updateWeights(batch)
       replay_buffer.updatePriorities.remote(priorities.cpu(), idx_batch)
       self.training_step += 1
+
+      self.data_generator.stepEnvsWait(shared_storage, replay_buffer, logger)
 
       # Update target critic towards current critic
       if self.training_step % self.config.target_update_interval == 0:
