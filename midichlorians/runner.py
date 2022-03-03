@@ -213,7 +213,7 @@ class Runner(object):
         self.checkpoint['num_eps'] = data['num_eps']
         self.checkpoint['num_steps'] = data['num_steps']
 
-        print('Loading replay buffer from {}'.format(replay_buffer_path))
+        print('Loaded replay buffer at {}'format(replay_buffer_path))
       else:
         print('Replay buffer not found at {}'.format(replay_buffer_path))
 
