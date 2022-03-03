@@ -102,7 +102,7 @@ class Runner(object):
     '''
     Initialize the various workers, start the trainers, and run the logging loop.
     '''
-    self.logger_worker = RayLogger.options(num_cpus=0, num_gpus=0).remote(self.config.results_path, self.config.__dict__)
+    self.logger_worker = RayLogger.options(num_cpus=0, num_gpus=0).remote(self.config.results_path, self.config.num_eval_episodes, self.config.__dict__)
     self.training_worker = Trainer.options(num_cpus=0, num_gpus=1.0).remote(self.checkpoint, self.config)
 
     self.replay_buffer_worker = ReplayBuffer.options(num_cpus=0, num_gpus=0).remote(self.checkpoint, self.replay_buffer, self.config)
@@ -157,7 +157,7 @@ class Runner(object):
 
         # Eval
         if info['training_step'] > 0 and info['training_step'] % self.config.eval_interval == 0:
-          num_eval_intervals += 1
+          self.logger_worker.logEvalInterval.remote()
           for eval_worker in self.eval_workers:
             eval_worker.generateEpisodes.remote(
               int(self.config.num_eval_episodes / self.config.num_eval_workers),
