@@ -60,9 +60,26 @@ class Trainer(object):
         copy.deepcopy(initial_checkpoint['optimizer_state'][1])
       )
 
+    # Initialize data generator
+    self.agent = SACAgent(self.config, self.device, actor=self.actor, critic=self.crtic)
+    self.data_generator = DataGenerator(self.agent, self.config, self.config.seed)
+    self.data_generator.resetEnvs()
+
     # Set random number generator seed
     npr.seed(self.config.seed)
     torch.manual_seed(self.config.seed)
+
+  def generateExpertData(self, replay_buffer, shared_storage, logger):
+    '''
+    Generate the amount of expert data defined in the task config.
+
+    Args:
+      replay_buffer (ray.worker): Replay buffer worker containing data samples.
+      shared_storage (ray.worker): Shared storage worker, shares data across workers.
+      logger (ray.worker): Logger worker, logs training data across workers.
+    '''
+    while ray.get(shared_storage.getInfo.remote('num_eps')) < self.config.num_expert_episodes:
+      self.data_generator.stepEnvs(shared_storage, replay_buffer, logger, expert=True)
 
   def continuousUpdateWeights(self, replay_buffer, shared_storage, logger):
     '''
@@ -72,14 +89,15 @@ class Trainer(object):
     Args:
       replay_buffer (ray.worker): Replay buffer worker containing data samples.
       shared_storage (ray.worker): Shared storage worker, shares data across workers.
+      logger (ray.worker): Logger worker, logs training data across workers.
     '''
-    while ray.get(shared_storage.getInfo.remote('num_eps')) == 0:
-      time.sleep(0.1)
+    self.data_generator.resetEnvs()
 
     next_batch = replay_buffer.sample.remote(shared_storage)
     while self.training_step < self.config.training_steps and \
           not ray.get(shared_storage.getInfo.remote('terminate')):
       idx_batch, batch = ray.get(next_batch)
+      self.data_generator.stepEnvs(shared_storage, replay_buffer, logger)
       next_batch = replay_buffer.sample.remote(shared_storage)
 
       priorities, loss = self.updateWeights(batch)

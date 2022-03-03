@@ -64,9 +64,14 @@ class SharedStorage(object):
     '''
     self.current_checkpoint['train_eps_reward'].append(reward)
 
+  def logEvalInterval(self):
+    ''''''
+    self.current_checkpoint['num_eval_eps'] = 0
+
   def logEvalEpisode(self, eps_history):
     '''
     '''
+    self.current_checkpoint['num_eval_eps'] += 1
     self.current_checkpoint['eval_eps_reward'].append(sum(eps_history.reward_history))
     self.current_checkpoint['eval_eps_len'].append(len(eps_history.obs_history))
     self.current_checkpoint['eval_mean_value'].append(np.mean(eps_history.value_history))

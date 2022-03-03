@@ -1,4 +1,3 @@
-import ray
 import time
 import torch
 import numpy as np
@@ -10,129 +9,127 @@ from midichlorians import torch_utils
 from helping_hands_rl_envs import env_factory
 
 @ray.remote
+class EvalDataGenerator(object):
+  '''
+
+  '''
+  def __init__(self, agent, config, seed, evaluate=False):
+    self.data_generator = DataGenerator(agent, config, seed, evaluate=evaluate)
+
+  def generateEpisodes(self, num_eps, shared_storage, replay_buffer, logger):
+    self.data_generator.agent.setWeights(ray.get(shared_storage_worker.getInfo('weights')))
+    self.shared_storage.logEvalInterval.remote()
+    self.data_generator.resetEnvs()
+
+    while ray.get(shared_storage.getInfo('num_eval_eps')) < num_eps:
+      self.data_generator.stepEnvs(shared_storage, replay_buffer, logger)
+
 class DataGenerator(object):
   '''
-  Ray worker that generates data samples.
+  RL Env wrapper that generates data
 
   Args:
-    initial_checkpoint (dict): Checkpoint to initalize training with.
+    agent (midiclorians.SACAgent): Agent used to generate data
     config (dict): Task config.
     seed (int): Random seed to use for random number generation
-    render (bool): Render the PyBullet env. Defaults to False
+    eval (bool): Are we generating training or evaluation data. Defaults to False
   '''
-  def __init__(self, initial_checkpoint, config, seed):
+  def __init__(self, agent, config, seed, evaluate=False):
     self.seed = seed
+    self.eval = evaluate
     self.config = config
     self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
     npr.seed(self.seed)
     torch.manual_seed(self.seed)
 
+    self.agent = agent
+
     env_config = self.config.getEnvConfig()
     planner_config = self.config.getPlannerConfig()
-    self.env = env_factory.createEnvs(0, self.config.env_type, env_config, planner_config)
+    self.envs = env_factory.createEnvs(
+      self.config.num_data_gen_envs if self.eval else self.config.num_eval_envs,
+      self.config.env_type,
+      env_config,
+      planner_config
+    )
+    self.obs = None
+    self.current_epsiodes = None
 
-    self.agent = SACAgent(self.config, self.device)
-    self.agent.setWeights(initial_checkpoint['weights'])
+  def resetEnvs(self):
+    self.current_episodes = [EpisodeHistory for _ in range(self.config.num_data_gen_envs)]
+    self.obs = self.envs.reset()
+    for i, eps_history in enumerate(self.current_episodes):
+      eps_history.logStep(
+        self.obs[i,0],
+        self.obs[i,2],
+        np.array([0,0,0,0,0]),
+        0,
+        0,
+        0
+      )
 
-  def continuousDataGen(self, shared_storage, replay_buffer, logger, test_mode=False):
+  def stepEnvs(self, shared_storage, replay_buffer, logger, expert=False):
     '''
     Continuously generates data samples according to the policy specified in the config.
 
     Args:
       replay_buffer (ray.worker): Replay buffer worker containing data samples.
       shared_storage (ray.worker): Shared storage worker, shares data across workers.
-      test_mode (bool): Flag indicating if we are using this worker for data generation or testing.
-        Defaults to data generation (False).
+      logger (ray.worker): Logger worker, logs training data across workers.
+      expert (bool): Flag indicating if we are generating expert data or agent data. Defaults to
+        False.
     '''
-    while (
-      ray.get(shared_storage.getInfo.remote('training_step')) < self.config.training_steps and \
-      not ray.get(shared_storage.getInfo.remote('terminate'))
-    ):
-      if not test_mode:
-        eps_history = self.generateEpisode(shared_storage, test_mode)
-        replay_buffer.add.remote(eps_history, shared_storage)
+    if expert:
+      expert_actions = torch.tensor(self.envs.getNextAction()).float()
+      action_idxs, actions = self.agent.convertPlanAction(expert_actions)
+    else:
+      action_idxs, actions, values = self.agent.getAction(
+        self.obs[0],
+        self.obs[2],
+        evaluate=self.eval
+      )
 
-        shared_storage.logEpsReward.remote(sum(eps_history.reward_history))
-        logger.logTrainingEpisode.remote(eps_history.reward_history)
-      else:
-        eps_history = self.generateEpisode(shared_storage, test_mode)
+    self.envs.stepAsync(actions, auto_reset=False)
+    obs_, rewards, dones = self.envs.stepWait()
 
-      if not test_mode and self.config.data_gen_delay:
-        time.sleep(self.config.gen_delay)
-      if not test_mode and self.config.train_data_ratio:
-        while(
-          ray.get(shared_storage.getInfo.remote('training_step'))
-          / max(1, ray.get(shared_storage.getInfo.remote('num_steps')))
-          < self.config.train_data_ratio
-        ):
-          time.sleep(0.5)
+    for i, eps_history in enumerate(self.current_episodes):
+      eps_history.logStep(
+        obs_[i,0],
+        obs_[i,2],
+        action_idxs[i].squeeze().numpy(),
+        values[i,0].item(),
+        rewards[i],
+        dones[i]
+      )
 
-  def generateEpisodes(self, num_eps, shared_storage, logger, evaluate=True):
-    '''
+    done_idxs = torch.nonzero(dones).squeeze(1)
+    if done_idxs.shape[0] != 0:
+      new_obs_ = self.envs.reset_envs(done_idxs)
+      obs_[done_idxs] = new_obs_
 
-    '''
-    self.agent.setWeights(ray.get(shared_storage.getInfo.remote('weights')))
-    for i in range(num_eps):
-      eps_history = self.generateEpisode(shared_storage, evaluate, update_weights=False)
-      if evaluate:
-        shared_storage.logEvalEpisode.remote(eps_history)
-        logger.logEvalEpisode.remote(eps_history.reward_history, eps_history.value_history)
+      for done_idx in done_indxs:
+        replay_buffer.add.remote(self.current_epsodes[done_idx], shared_storage)
+        self.current_episodes[done_idx] = EpisodeHistory()
+        self.current_episodes[done_idx].logStep(
+          obs_[done_idx,0],
+          obs_[done_idx,2],
+          np.array([0,0,0,0,0]),
+          0,
+          0,
+          0
+        )
 
-  def generateEpisode(self, shared_storage, test, update_weights=True):
-    '''
-    Generate a single episode.
+        if not expert and not self.eval:
+          shared_storage.logEpsReward.remote(sum(self.current_episodes[done_idx].reward_history))
+          logger.logTrainingEpisode.remote(self.current_episodes[done_idx].reward_history)
 
-    Args:
-      test (bool): Flag indicating if this is a training or evaluation data generation
+        if self.eval:
+          shared_storage.logEvalEpisode.remote(self.current_episodes[done_idx])
+          logger.logEvalEpisode.remote(self.current_episodes[done_idx].reward_history,
+                                       self.current_episodes[done_idx].value_history)
 
-    Returns:
-      EpisodeHistory : Episode history
-    '''
-    eps_history = EpisodeHistory()
-
-    obs = self.env.reset()
-    eps_history.logStep(obs[0], obs[2], np.array([0,0,0,0,0]), 0, 0, 0)
-
-    done = False
-    while not done:
-      if update_weights:
-        self.agent.setWeights(ray.get(shared_storage.getInfo.remote('weights')))
-      action_idx, action, value = self.agent.getAction(obs[0], obs[2], evaluate=test)
-
-      obs, reward, done = self.env.step(action.squeeze().numpy(), auto_reset=False)
-      eps_history.logStep(obs[0], obs[2], action_idx.squeeze().numpy(), value[0].item(), reward, done)
-
-    return eps_history
-
-  def generateExpertEpisodes(self, num_eps, shared_storage, replay_buffer):
-    '''
-
-    '''
-    for i in range(num_eps):
-      eps_history = self.generateExpertEpisode()
-      replay_buffer.add.remote(eps_history, shared_storage)
-
-  def generateExpertEpisode(self):
-    '''
-    Generate a single episode using a expert planner.
-
-    Returns:
-      None : Episode history
-    '''
-    eps_history = EpisodeHistory()
-
-    obs = self.env.reset()
-    eps_history.logStep(obs[0], obs[2], np.array([0,0,0,0,0]), 0, 0, 0)
-
-    done = False
-    while not done:
-      expert_action = torch.tensor(self.env.getNextAction()).float()
-      expert_action_idx, expert_action = self.agent.convertPlanAction(expert_action)
-      obs, reward, done = self.env.step(expert_action.cpu().squeeze().numpy(), auto_reset=False)
-      eps_history.logStep(obs[0], obs[2], expert_action_idx.squeeze().numpy(), 0.0, reward, done)
-
-    return eps_history
+    self.obs = obs_
 
 class EpisodeHistory(object):
   '''

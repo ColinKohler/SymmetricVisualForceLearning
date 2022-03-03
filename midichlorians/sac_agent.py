@@ -12,13 +12,8 @@ class SACAgent(object):
   Args:
     config (dict): Task config.
     device (torch.Device): Device to use for inference (cpu or gpu)
-    training (bool): Flag indicating if the agent is being trained or not. Defaults to False.
-    dx (double):
-    dy (double):
-    dz (double):
-    dr (double):
   '''
-  def __init__(self, config, device):
+  def __init__(self, config, device, actor=None, critic=None):
     self.config = config
     self.device = device
 
@@ -29,13 +24,19 @@ class SACAgent(object):
     self.dtheta_range = torch.tensor([-self.config.drot, self.config.drot])
     self.action_shape = 5
 
-    self.actor = EquivariantGaussianPolicy(self.config.obs_channels, self.config.action_dim)
-    self.actor.to(self.device)
-    self.actor.train()
+    if actor:
+      self.actor = actor
+    else:
+      self.actor = EquivariantGaussianPolicy(self.config.obs_channels, self.config.action_dim)
+      self.actor.to(self.device)
+      self.actor.train()
 
-    self.critic = EquivariantCritic(self.config.obs_channels, self.config.action_dim)
-    self.critic.to(self.device)
-    self.critic.train()
+    if critic:
+      self.critic = crtic
+    else:
+      self.critic = EquivariantCritic(self.config.obs_channels, self.config.action_dim)
+      self.critic.to(self.device)
+      self.critic.train()
 
   def getAction(self, state, obs, evaluate=False):
     '''

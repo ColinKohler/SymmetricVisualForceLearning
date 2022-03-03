@@ -23,8 +23,8 @@ class BlockPickingConfig(Config):
     self.drot = np.pi / 8
 
     # Data Gen
-    self.num_data_gen_workers = 5
-    self.num_eval_workers = 5
+    self.num_data_gen_envs = 5
+    self.num_eval_envs = 5
     self.num_expert_episodes = 20
     self.discount = 0.99
     self.num_eval_episodes = 100

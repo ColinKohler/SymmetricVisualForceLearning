@@ -53,6 +53,7 @@ class Runner(object):
       'num_eps' : 0,
       'num_steps' : 0,
       'train_eps_reward' : list(),
+      'num_eval_eps' : 0,
       'eval_mean_value' : list(),
       'eval_eps_len': list(),
       'eval_eps_reward': list(),
@@ -106,35 +107,19 @@ class Runner(object):
     self.training_worker = Trainer.options(num_cpus=0, num_gpus=1.0).remote(self.checkpoint, self.config)
 
     self.replay_buffer_worker = ReplayBuffer.options(num_cpus=0, num_gpus=0).remote(self.checkpoint, self.replay_buffer, self.config)
-    self.data_gen_workers = [
-      DataGenerator.options(num_cpus=0, num_gpus=0).remote(self.checkpoint, self.config, self.config.seed + seed)
-      for seed in range(self.config.num_data_gen_workers)
-    ]
-    self.eval_workers = [
-      DataGenerator.options(num_cpus=0, num_gpus=0).remote(self.checkpoint, self.config, self.config.seed + self.config.num_data_gen_workers + seed)
-      for seed in range(self.config.num_eval_workers)
-    ]
+
+    self.eval_agent = SACAgent(self.config, self.device)
+    self.eval_agent.setWeights(self.checkpoint['weights'])
+    self.eval_worker = EvalDataGenerator(self.eval_agent, self.config, self.config.seed, eval=True)
 
     self.shared_storage_worker = SharedStorage.remote(self.checkpoint, self.config)
     self.shared_storage_worker.setInfo.remote('terminate', False)
 
-    # Start training worker
-    self.training_worker.continuousUpdateWeights.remote(self.replay_buffer_worker, self.shared_storage_worker, self.logger_worker)
-
     # Blocking call to generate expert data
-    if self.config.num_expert_episodes > 0:
-      ray.get([
-        data_gen_worker.generateExpertEpisodes.remote(
-          int(self.config.num_expert_episodes / self.config.num_data_gen_workers),
-          self.shared_storage_worker,
-          self.replay_buffer_worker
-        )
-        for data_gen_worker in self.data_gen_workers
-      ])
+    self.training_worker.generateExpertData(self.replay_buffer_worker, self.shared_storage_worker, self.logger_worker)
 
-    # Start data gen workers
-    for data_gen_worker in self.data_gen_workers:
-      data_gen_worker.continuousDataGen.remote(self.shared_storage_worker, self.replay_buffer_worker, self.logger_worker)
+    # Start training
+    self.training_worker.continuousUpdateWeights.remote(self.replay_buffer_worker, self.shared_storage_worker, self.logger_worker)
 
     self.loggingLoop()
 
@@ -158,13 +143,7 @@ class Runner(object):
         # Eval
         if info['training_step'] > 0 and info['training_step'] % self.config.eval_interval == 0:
           self.logger_worker.logEvalInterval.remote()
-          for eval_worker in self.eval_workers:
-            eval_worker.generateEpisodes.remote(
-              int(self.config.num_eval_episodes / self.config.num_eval_workers),
-              self.shared_storage_worker,
-              self.logger_worker,
-              evaluate=True
-            )
+          self.eval_worker.generateEpisodes(self.config.num_eval_episodes, self.shared_storage_worker, self.replay_buffer_worker, self.logger_worker)
 
         # Logging
         self.logger_worker.writeLog.remote()
