@@ -58,11 +58,6 @@ class BlockPickingConfig(Config):
     self.end_per_beta = 1.0
     self.per_eps = 1e-6
 
-    # Wait times
-    self.data_gen_delay = 0
-    self.training_delay = 0
-    self.train_data_ratio = 0.2
-
   def getEnvConfig(self, render=False):
     '''
     Gets the environment config required by the simulator for this task.

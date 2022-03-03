@@ -1,4 +1,3 @@
-import time
 import copy
 import ray
 import torch
@@ -99,8 +98,9 @@ class Trainer(object):
     next_batch = replay_buffer.sample.remote(shared_storage)
     while self.training_step < self.config.training_steps and \
           not ray.get(shared_storage.getInfo.remote('terminate')):
-      idx_batch, batch = ray.get(next_batch)
       self.data_generator.stepEnvsAsync(shared_storage, replay_buffer, logger)
+
+      idx_batch, batch = ray.get(next_batch)
       next_batch = replay_buffer.sample.remote(shared_storage)
 
       priorities, loss = self.updateWeights(batch)
@@ -113,19 +113,16 @@ class Trainer(object):
       if self.training_step % self.config.target_update_interval == 0:
         self.softTargetUpdate()
 
-      actor_weights = torch_utils.dictToCpu(self.actor.state_dict())
-      critic_weights = torch_utils.dictToCpu(self.critic.state_dict())
-      shared_storage.setInfo.remote(
-          'weights', copy.deepcopy((actor_weights, critic_weights)),
-      )
-
       # Save to shared storage
       if self.training_step % self.config.checkpoint_interval == 0:
+        actor_weights = torch_utils.dictToCpu(self.actor.state_dict())
+        critic_weights = torch_utils.dictToCpu(self.critic.state_dict())
         actor_optimizer_state = torch_utils.dictToCpu(self.actor_optimizer.state_dict())
         critic_optimizer_state = torch_utils.dictToCpu(self.critic_optimizer.state_dict())
 
         shared_storage.setInfo.remote(
           {
+            'weights' : copy.deepcopy((actor_weights, critic_weights)),
             'optimizer_state' : (copy.deepcopy(actor_optimizer_state), copy.deepcopy(critic_optimizer_state))
           }
         )
@@ -147,9 +144,6 @@ class Trainer(object):
           'Critic' : loss[1]
         }
       )
-
-      if self.config.training_delay:
-        time.sleep(self.config.training_delay)
 
   def updateWeights(self, batch):
     '''

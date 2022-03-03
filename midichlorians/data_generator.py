@@ -20,6 +20,7 @@ class EvalDataGenerator(object):
     self.data_generator = DataGenerator(agent, config, seed, evaluate=True)
 
   def generateEpisodes(self, num_eps, shared_storage, replay_buffer, logger):
+    ''''''
     self.data_generator.agent.setWeights(ray.get(shared_storage.getInfo.remote('weights')))
     shared_storage.logEvalInterval.remote()
     self.data_generator.resetEnvs()
@@ -119,21 +120,22 @@ class DataGenerator(object):
       new_obs_ = self.envs.reset_envs(done_idxs)
 
       for i, done_idx in enumerate(done_idxs):
-        replay_buffer.add.remote(self.current_episodes[done_idx], shared_storage)
+        if not self.eval:
+          replay_buffer.add.remote(self.current_episodes[done_idx], shared_storage)
 
         if not expert and not self.eval:
           shared_storage.logEpsReward.remote(sum(self.current_episodes[done_idx].reward_history))
           logger.logTrainingEpisode.remote(self.current_episodes[done_idx].reward_history)
 
-        if self.eval:
+        if not expert and self.eval:
           shared_storage.logEvalEpisode.remote(self.current_episodes[done_idx])
           logger.logEvalEpisode.remote(self.current_episodes[done_idx].reward_history,
                                        self.current_episodes[done_idx].value_history)
 
         self.current_episodes[done_idx] = EpisodeHistory()
         self.current_episodes[done_idx].logStep(
-          obs_[0][done_idx],
-          obs_[2][done_idx],
+          new_obs_[0][i],
+          new_obs_[2][i],
           np.array([0,0,0,0,0]),
           0,
           0,
