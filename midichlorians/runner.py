@@ -34,8 +34,9 @@ class Runner(object):
     self.config = config
 
     # Set random seeds
-    npr.seed(self.config.seed)
-    torch.manual_seed(self.config.seed)
+    if self.config.seed:
+      npr.seed(self.config.seed)
+      torch.manual_seed(self.config.seed)
     ray.init(num_gpus=self.config.num_gpus, ignore_reinit_error=True)
 
     # Create log dir
@@ -53,10 +54,11 @@ class Runner(object):
       'num_eps' : 0,
       'num_steps' : 0,
       'train_eps_reward' : list(),
-      'num_eval_eps' : 0,
+      'num_eval_eps' : 100,
       'eval_mean_value' : list(),
       'eval_eps_len': list(),
       'eval_eps_reward': list(),
+      'pause_training' : False,
       'terminate' : False
     }
     self.replay_buffer = dict()
@@ -104,10 +106,10 @@ class Runner(object):
     Initialize the various workers, start the trainers, and run the logging loop.
     '''
     self.logger_worker = RayLogger.options(num_cpus=0, num_gpus=0).remote(self.config.results_path, self.config.num_eval_episodes, self.config.__dict__)
-    self.training_worker = Trainer.options(num_cpus=0, num_gpus=1.0).remote(self.checkpoint, self.config)
+    self.training_worker = Trainer.options(num_cpus=0, num_gpus=0.75).remote(self.checkpoint, self.config)
 
     self.replay_buffer_worker = ReplayBuffer.options(num_cpus=0, num_gpus=0).remote(self.checkpoint, self.replay_buffer, self.config)
-    self.eval_worker = EvalDataGenerator.options(num_cpus=0, num_gpus=0).remote(self.config, self.config.seed)
+    self.eval_worker = EvalDataGenerator.options(num_cpus=0, num_gpus=0.25).remote(self.config, self.config.seed+self.config.num_data_gen_envs if self.config.seed else None)
 
     self.shared_storage_worker = SharedStorage.remote(self.checkpoint, self.config)
     self.shared_storage_worker.setInfo.remote('terminate', False)
@@ -132,13 +134,17 @@ class Runner(object):
     ]
 
     info = ray.get(self.shared_storage_worker.getInfo.remote(keys))
-    num_eval_intervals = 0
     try:
       while info['training_step'] < self.config.training_steps:
         info = ray.get(self.shared_storage_worker.getInfo.remote(keys))
 
         # Eval
         if info['training_step'] > 0 and info['training_step'] % self.config.eval_interval == 0:
+          if ray.get(self.shared_storage_worker.getInfo.remote('num_eval_eps')) < 100:
+            self.shared_storage_worker.setInfo.remote('pause_training', True)
+          while(ray.get(self.shared_storage_worker.getInfo.remote('num_eval_eps')) < 100):
+            time.sleep(0.5)
+          self.shared_storage_worker.setInfo.remote('pause_training', False)
           self.logger_worker.logEvalInterval.remote()
           self.eval_worker.generateEpisodes.remote(self.config.num_eval_episodes, self.shared_storage_worker, self.replay_buffer_worker, self.logger_worker)
 

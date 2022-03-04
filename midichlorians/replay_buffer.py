@@ -13,7 +13,8 @@ class ReplayBuffer(object):
   '''
   def __init__(self, initial_checkpoint, initial_buffer, config):
     self.config = config
-    npr.seed(self.config.seed)
+    if self.config.seed:
+      npr.seed(self.config.seed)
 
     self.buffer = copy.deepcopy(initial_buffer)
     self.num_eps = initial_checkpoint['num_eps']

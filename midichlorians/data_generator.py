@@ -45,8 +45,9 @@ class DataGenerator(object):
     self.config = config
     self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
-    npr.seed(self.seed)
-    torch.manual_seed(self.seed)
+    if seed:
+      npr.seed(self.seed)
+      torch.manual_seed(self.seed)
 
     self.agent = agent
 

@@ -1,3 +1,4 @@
+import time
 import copy
 import ray
 import torch
@@ -67,8 +68,9 @@ class Trainer(object):
     self.data_generator.resetEnvs()
 
     # Set random number generator seed
-    npr.seed(self.config.seed)
-    torch.manual_seed(self.config.seed)
+    if self.config.seed:
+      npr.seed(self.config.seed)
+      torch.manual_seed(self.config.seed)
 
   def generateExpertData(self, replay_buffer, shared_storage, logger):
     '''
@@ -98,6 +100,10 @@ class Trainer(object):
     next_batch = replay_buffer.sample.remote(shared_storage)
     while self.training_step < self.config.training_steps and \
           not ray.get(shared_storage.getInfo.remote('terminate')):
+      if ray.get(shared_storage.getInfo.remote('pause_training')):
+        time.sleep(0.5)
+        continue
+
       self.data_generator.stepEnvsAsync(shared_storage, replay_buffer, logger)
 
       idx_batch, batch = ray.get(next_batch)
