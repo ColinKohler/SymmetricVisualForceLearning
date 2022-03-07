@@ -161,10 +161,12 @@ class Trainer(object):
     Returns:
       (numpy.array, double) : (Priorities, Batch Loss)
     '''
-    obs_batch, next_obs_batch, action_batch, reward_batch, non_final_mask_batch, weight_batch = batch
+    obs_batch, force_batch, next_obs_batch, next_force_batch, action_batch, reward_batch, non_final_mask_batch, weight_batch = batch
 
     obs_batch = obs_batch.to(self.device)
+    force_batch = force_batch.to(self.device)
     next_obs_batch = next_obs_batch.to(self.device)
+    next_force_batch = next_force_batch.to(self.device)
     action_batch = action_batch.to(self.device)
     reward_batch = reward_batch.to(self.device)
     non_final_mask_batch = non_final_mask_batch.to(self.device)
@@ -172,17 +174,17 @@ class Trainer(object):
 
     # Critic Update
     with torch.no_grad():
-      next_state_action, next_state_log_pi, _ = self.actor.sample(next_obs_batch)
+      next_state_action, next_state_log_pi, _ = self.actor.sample(next_obs_batch, next_force_batch)
       next_state_log_pi = next_state_log_pi.squeeze()
 
-      qf1_next_target, qf2_next_target = self.critic_target(next_obs_batch, next_state_action)
+      qf1_next_target, qf2_next_target = self.critic_target(next_obs_batch, next_force_batch, next_state_action)
       qf1_next_target = qf1_next_target.squeeze()
       qf2_next_target = qf2_next_target.squeeze()
 
       min_qf_next_target = torch.min(qf1_next_target, qf2_next_target) - self.alpha * next_state_log_pi
       next_q_value = reward_batch + non_final_mask_batch * self.config.discount * min_qf_next_target
 
-    qf1, qf2 = self.critic(obs_batch, action_batch)
+    qf1, qf2 = self.critic(obs_batch, force_batch, action_batch)
     qf1 = qf1.squeeze()
     qf2 = qf2.squeeze()
 
@@ -198,9 +200,9 @@ class Trainer(object):
     self.critic_optimizer.step()
 
     # Actor update
-    pi, log_pi, _ = self.actor.sample(obs_batch)
+    pi, log_pi, _ = self.actor.sample(obs_batch, force_batch)
 
-    qf1_pi, qf2_pi = self.critic(obs_batch, pi)
+    qf1_pi, qf2_pi = self.critic(obs_batch, force_batch, pi)
     min_qf_pi = torch.min(qf1_pi, qf2_pi)
 
     actor_loss = ((self.alpha * log_pi) - min_qf_pi).mean()

@@ -82,13 +82,15 @@ class ReplayBuffer(object):
     (index_batch,
      state_batch,
      obs_batch,
+     force_batch,
      next_state_batch,
      next_obs_batch,
+     next_force_batch,
      action_batch,
      reward_batch,
      done_batch,
      weight_batch
-    ) = [list() for _ in range(9)]
+    ) = [list() for _ in range(11)]
 
     for _ in range(self.config.batch_size):
       eps_id, eps_history, eps_prob = self.sampleEps(uniform=True)
@@ -108,11 +110,25 @@ class ReplayBuffer(object):
       obs = torch_utils.unnormalizeObs(obs)
       obs_ = torch_utils.unnormalizeObs(obs_)
 
+      force = eps_history.force_history[max(0, eps_step-3):eps_step+1]
+      if len(force) == 4:
+        force = np.array(force)
+      else:
+        force = np.pad(force, ((4 - len(force) % 4, 0), (0, 0)))
+
+      force_ = eps_history.force_history[max(0, eps_step-2):eps_step+2]
+      if len(force_) == 4:
+        force_ = np.array(force_)
+      else:
+        force_ = np.pad(force_, ((4 - len(force_) % 4, 0), (0, 0)))
+
       index_batch.append([eps_id, eps_step])
       state_batch.append(eps_history.state_history[eps_step])
       obs_batch.append(obs)
+      force_batch.append(force)
       next_state_batch.append(eps_history.state_history[eps_step+1])
       next_obs_batch.append(obs_)
+      next_force_batch.append(force_)
       action_batch.append(action)
       reward_batch.append(eps_history.reward_history[eps_step+1])
       done_batch.append(eps_history.done_history[eps_step+1])
@@ -122,8 +138,10 @@ class ReplayBuffer(object):
 
     state_batch = torch.tensor(state_batch).long()
     obs_batch = torch.tensor(np.stack(obs_batch)).float()
+    force_batch = torch.tensor(np.stack(force_batch)).float()
     next_state_batch = torch.tensor(next_state_batch).long()
     next_obs_batch = torch.tensor(np.stack(next_obs_batch)).float()
+    next_force_batch = torch.tensor(np.stack(next_force_batch)).float()
     action_batch = torch.tensor(np.stack(action_batch)).float()
     reward_batch = torch.tensor(reward_batch).float()
     done_batch = torch.tensor(done_batch).int()
@@ -140,7 +158,9 @@ class ReplayBuffer(object):
       index_batch,
       (
         obs_batch,
+        force_batch,
         next_obs_batch,
+        next_force_batch,
         action_batch,
         reward_batch,
         non_final_mask_batch,
