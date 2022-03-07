@@ -121,7 +121,7 @@ class DataGenerator(object):
         dones[i]
       )
       force_stack = np.zeros((4, 2))
-      force_stack[:-1] = self.force_stack[i,:-1]
+      force_stack[:-1] = self.force_stack[i,1:]
       force_stack[-1] = obs_[3][i]
       self.force_stack[i] = force_stack
 

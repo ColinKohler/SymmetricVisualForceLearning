@@ -48,13 +48,15 @@ if __name__ == '__main__':
   for i in range(100):
     done = False
     obs = env.reset()
+    force_stack = np.zeros((4, 2))
+    force_stack[-1] = obs[3]
     while not done:
-      action_idx, action, value = agent.getAction(obs[0], obs[2], evaluate=True)
+      action_idx, action, value = agent.getAction([obs[0]], obs[2], force_stack, evaluate=True)
       obs, reward, done = env.step(action.cpu().squeeze().numpy(), auto_reset=False)
-
-      #print('p: {} | x: {} | y: {} | z: {} | r: {}'.format(a[0], a[1], a[2], a[3], a[4]))
-      #print('V1: {} | V2: {}'.format(value[0].item(), value[1].item()))
-      #input('continue')
+      force_stack_ = np.zeros((4, 2))
+      force_stack_[:-1] = force_stack[1:]
+      force_stack_[-1] = obs[3]
+      force_stack = force_stack_
 
     num_success += reward
     pbar.set_description('SR: {}%'.format(int((num_success / (i+1)) * 100)))
