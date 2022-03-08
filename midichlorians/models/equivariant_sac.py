@@ -31,7 +31,7 @@ class EquivariantBlock(nn.Module):
   def forward(self, x):
     out = self.conv(x)
     if self.norm:
-      out = self.bn(x)
+      out = self.bn(out)
     if self.act:
       out = self.relu(out)
 
@@ -41,7 +41,7 @@ class EquivariantResNet(nn.Module):
   '''
   EquivariantResNet trunk.
   '''
-  def __init__(self, obs_channels, n_out=128, initialize=True, N=8):
+  def __init__(self, obs_channels, n_out=64, initialize=True, N=8):
     super().__init__()
     self.obs_channels = obs_channels
     self.c4_act = gspaces.Rot2dOnR2(N)

@@ -58,10 +58,10 @@ class SACAgent(object):
 
     with torch.no_grad():
       if evaluate:
-        _, _, action = self.actor.sample(obs, force)
+        _, _, action = self.actor.sample((obs, force))
       else:
-        action, _, _ = self.actor.sample(obs, force)
-      value = self.critic(obs, force, action)
+        action, _, _ = self.actor.sample((obs, force))
+      value = self.critic((obs, force), action)
 
     action = action.cpu()
     action_idx, action = self.decodeActions(*[action[:,i] for i in range(self.action_shape)])

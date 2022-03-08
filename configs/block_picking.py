@@ -4,7 +4,7 @@ import numpy as np
 
 from configs.config import Config
 
-class ForceBlockPickingConfig(Config):
+class BlockPickingConfig(Config):
   '''
   Task config for block picking.
 
@@ -34,11 +34,11 @@ class ForceBlockPickingConfig(Config):
     # Training
     if results_path:
       self.results_path = os.path.join(self.root_path,
-                                       self.env_type,
+                                       'block_picking',
                                        results_path)
     else:
       self.results_path = os.path.join(self.root_path,
-                                       self.env_type,
+                                       'block_picking',
                                        datetime.datetime.now().strftime('%Y-%m-%d--%H-%M-%S'))
     self.save_model = True
     self.training_steps = 20000

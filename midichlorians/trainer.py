@@ -9,7 +9,6 @@ import numpy.random as npr
 from midichlorians.sac_agent import SACAgent
 from midichlorians.data_generator import DataGenerator, EvalDataGenerator
 from midichlorians.models.sac import Critic, GaussianPolicy
-from midichlorians.models.equivariant_sac import EquivariantCritic, EquivariantGaussianPolicy
 from midichlorians.models.force_equivariant_sac import ForceEquivariantCritic, ForceEquivariantGaussianPolicy
 from midichlorians import torch_utils
 
@@ -32,26 +31,17 @@ class Trainer(object):
     self.alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=1e-3)
 
     # Initialize actor and critic models
-    if self.config.force:
-      self.actor = ForceEquivariantGaussianPolicy(self.config.obs_channels, self.config.action_dim)
-    else:
-      self.actor = EquivariantGaussianPolicy(self.config.obs_channels, self.config.action_dim)
+    self.actor = ForceEquivariantGaussianPolicy(self.config.obs_channels, self.config.action_dim)
     self.actor.train()
     self.actor.load_state_dict(initial_checkpoint['weights'][0])
     self.actor.to(self.device)
 
-    if self.config.force:
-      self.critic = ForceEquivariantCritic(self.config.obs_channels, self.config.action_dim)
-    else:
-      self.critic = EquivariantCritic(self.config.obs_channels, self.config.action_dim)
+    self.critic = ForceEquivariantCritic(self.config.obs_channels, self.config.action_dim)
     self.critic.train()
     self.critic.load_state_dict(initial_checkpoint['weights'][1])
     self.critic.to(self.device)
 
-    if self.config.force:
-      self.critic_target = ForceEquivariantCritic(self.config.obs_channels, self.config.action_dim)
-    else:
-      self.critic_target = EquivariantCritic(self.config.obs_channels, self.config.action_dim)
+    self.critic_target = ForceEquivariantCritic(self.config.obs_channels, self.config.action_dim)
     self.critic_target.train()
     self.critic_target.load_state_dict(initial_checkpoint['weights'][1])
     self.critic_target.to(self.device)
@@ -173,8 +163,8 @@ class Trainer(object):
     '''
     obs_batch, next_obs_batch, action_batch, reward_batch, non_final_mask_batch, weight_batch = batch
 
-    obs_batch = obs_batch.to(self.device)
-    next_obs_batch = next_obs_batch.to(self.device)
+    obs_batch = (obs_batch[0].to(self.device), obs_batch[1].to(self.device))
+    next_obs_batch = (next_obs_batch[0].to(self.device), next_obs_batch[1].to(self.device))
     action_batch = action_batch.to(self.device)
     reward_batch = reward_batch.to(self.device)
     non_final_mask_batch = non_final_mask_batch.to(self.device)

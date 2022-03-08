@@ -6,7 +6,7 @@ from torch.distributions import Normal
 from e2cnn import gspaces
 from e2cnn import nn as enn
 
-from midichlorians.models.equivariant_sac import EquivariantBlock, EquivariantResNet, EquivariantCritic, EquivariantActor
+from midichlorians.models.equivariant_sac import EquivariantBlock, EquivariantResNet, EquivariantCritic, EquivariantGaussianPolicy
 
 class ForceEquivariantResNet(EquivariantResNet):
   '''
@@ -19,11 +19,11 @@ class ForceEquivariantResNet(EquivariantResNet):
       self.c4_act,
       n_out * [self.c4_act.regular_repr] + 8 * [self.c4_act.trivial_repr]
     )
-    out_type = enn.FieldType(self.c4_act, n_out * [self.c4_act.regular_repr]),
+    out_type = enn.FieldType(self.c4_act, n_out * [self.c4_act.regular_repr])
     self.conv_2 = EquivariantBlock(self.in_type, out_type, kernel_size=1, stride=1, padding=0, initialize=initialize)
 
   def forward(self, obs, force):
-    batch_size = obs.size(0)
+    batch_size = force.size(0)
 
     feat = super().forward(obs)
     obs_force = torch.cat((feat.tensor, force.view(batch_size, -1, 1, 1)), dim=1)
@@ -41,10 +41,10 @@ class ForceEquivariantCritic(EquivariantCritic):
     self.resnet = ForceEquivariantResNet(obs_channels, n_out=n_out, initialize=initialize, N=N)
 
   def forward(self, obs, act):
-    batch_size = obs.size(0)
     obs, force = obs
+    batch_size = obs.size(0)
 
-    obs_geo = enn.GeometricTensor(obs, enn.FieldType(self.c4_act, self.in_channels * [self.c4_act.trivial_repr]))
+    obs_geo = enn.GeometricTensor(obs, enn.FieldType(self.c4_act, self.obs_channels * [self.c4_act.trivial_repr]))
     feat = self.resnet(obs_geo, force)
 
     dxy = act[:, 1:3].reshape(batch_size,  2, 1, 1)
@@ -67,11 +67,13 @@ class ForceEquivariantGaussianPolicy(EquivariantGaussianPolicy):
   def __init__(self, obs_channels, action_dim, n_out=64, initialize=True, N=8):
     super().__init__(obs_channels, action_dim, n_out=n_out, initialize=initialize, N=N)
 
-  def forward(self, obs):
-    batch_size = obs.size(0)
-    obs, force = obs
+    self.resnet = ForceEquivariantResNet(obs_channels, n_out=n_out, initialize=initialize, N=N)
 
-    obs_geo = enn.GeometricTensor(obs, enn.FieldType(self.c4_act, self.in_channels * [self.c4_act.trivial_repr]))
+  def forward(self, obs):
+    obs, force = obs
+    batch_size = obs.size(0)
+
+    obs_geo = enn.GeometricTensor(obs, enn.FieldType(self.c4_act, self.obs_channels * [self.c4_act.trivial_repr]))
     feat = self.resnet(obs_geo, force)
     out = self.conv(feat).tensor.reshape(batch_size, -1)
 
