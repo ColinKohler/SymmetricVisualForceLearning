@@ -21,6 +21,8 @@ if __name__ == '__main__':
     help='Task to train on.')
   parser.add_argument('checkpoint', type=str,
     help='Path to the checkpoint to load.')
+  parser.add_argument('--num_eps', type=int, default=100,
+    help='Number of episodes to test on.')
   parser.add_argument('--render', action='store_true', default=False,
     help='Render the simulation while evaluating.')
   args = parser.parse_args()
@@ -44,9 +46,9 @@ if __name__ == '__main__':
   agent.setWeights(checkpoint['weights'])
 
   num_success = 0
-  pbar = tqdm.tqdm(total=100)
+  pbar = tqdm.tqdm(total=args.num_eps)
   pbar.set_description('SR: 0%')
-  for i in range(100):
+  for i in range(args.num_eps):
     done = False
     obs = env.reset()
     force_stack = np.zeros((4, 2))
@@ -66,6 +68,6 @@ if __name__ == '__main__':
       force_stack = force_stack_
 
     num_success += reward
-    pbar.set_description('SR: {}%'.format(int((num_success / (i+1)) * 100)))
+    pbar.set_description('SR: {}%'.format(int((num_success / (i+1)) * args.num_eps)))
     pbar.update(1)
   pbar.close()
