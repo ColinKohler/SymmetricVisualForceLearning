@@ -51,7 +51,7 @@ class DataGenerator(object):
 
     self.agent = agent
 
-    self.num_envs = self.config.num_data_gen_envs if self.eval else self.config.num_eval_envs
+    self.num_envs = self.config.num_data_gen_envs if not self.eval else self.config.num_eval_envs
     env_config = self.config.getEnvConfig()
     planner_config = self.config.getPlannerConfig()
     self.envs = env_factory.createEnvs(
@@ -90,7 +90,7 @@ class DataGenerator(object):
       self.action_idxs, self.actions, self.values = self.agent.getAction(
         self.obs[0],
         self.obs[2],
-        self.force_stack,
+        torch_utils.normalizeForce(self.force_stack),
         evaluate=self.eval
       )
 
@@ -182,7 +182,9 @@ class EpisodeHistory(object):
     self.obs_history.append(
       torch_utils.normalizeObs(obs)
     )
-    self.force_history.append(force)
+    self.force_history.append(
+      torch_utils.normalizeForce(force)
+    )
     self.action_history.append(action)
     self.value_history.append(value)
     self.reward_history.append(reward)

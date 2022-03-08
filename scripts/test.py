@@ -10,6 +10,7 @@ import numpy.random as npr
 import matplotlib.pyplot as plt
 
 from midichlorians.sac_agent import SACAgent
+from midichlorians import torch_utils
 from configs.block_picking import BlockPickingConfig
 from scripts.train import task_configs
 from helping_hands_rl_envs import env_factory
@@ -51,7 +52,13 @@ if __name__ == '__main__':
     force_stack = np.zeros((4, 2))
     force_stack[-1] = obs[3]
     while not done:
-      action_idx, action, value = agent.getAction([obs[0]], obs[2], force_stack, evaluate=True)
+      action_idx, action, value = agent.getAction(
+        [obs[0]],
+        obs[2],
+        torch_utils.normalizeForce(force_stack),
+        evaluate=True
+      )
+
       obs, reward, done = env.step(action.cpu().squeeze().numpy(), auto_reset=False)
       force_stack_ = np.zeros((4, 2))
       force_stack_[:-1] = force_stack[1:]

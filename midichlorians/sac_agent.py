@@ -2,8 +2,7 @@ import torch
 import numpy as np
 import numpy.random as npr
 
-from midichlorians.models.sac import Critic, GaussianPolicy
-from midichlorians.models.equivariant_sac import EquivariantCritic, EquivariantGaussianPolicy
+from midichlorians.models.force_equivariant_sac import ForceEquivariantCritic, ForceEquivariantGaussianPolicy
 
 class SACAgent(object):
   '''
@@ -27,14 +26,14 @@ class SACAgent(object):
     if actor:
       self.actor = actor
     else:
-      self.actor = EquivariantGaussianPolicy(self.config.obs_channels, self.config.action_dim)
+      self.actor = ForceEquivariantGaussianPolicy(self.config.obs_channels, self.config.action_dim)
       self.actor.to(self.device)
       self.actor.train()
 
     if critic:
       self.critic = critic
     else:
-      self.critic = EquivariantCritic(self.config.obs_channels, self.config.action_dim)
+      self.critic = ForceEquivariantCritic(self.config.obs_channels, self.config.action_dim)
       self.critic.to(self.device)
       self.critic.train()
 
