@@ -11,6 +11,8 @@ class Config(object):
     self.obs_size = 128
     self.obs_channels = 2
     self.obs_type = 'pixel'
+    self.force_dim = 2
+    self.force_history = 4
 
     self.action_sequence = 'pxyzr'
     self.action_dim =  len(self.action_sequence)

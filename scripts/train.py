@@ -5,16 +5,12 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../'))
 import ray
 import argparse
 
-from configs.block_picking import BlockPickingConfig
 from configs.force_block_picking import ForceBlockPickingConfig
-from configs.block_pulling import BlockPullingConfig
 
 from midichlorians.runner import Runner
 
 task_configs = {
-  'block_picking' : BlockPickingConfig,
   'force_block_picking' : ForceBlockPickingConfig,
-  'block_pulling' : BlockPullingConfig,
 }
 
 if __name__ == '__main__':

@@ -157,10 +157,8 @@ class ReplayBuffer(object):
     return (
       index_batch,
       (
-        obs_batch,
-        force_batch,
-        next_obs_batch,
-        next_force_batch,
+        (obs_batch, force_batch),
+        (next_obs_batch, next_force_batch),
         action_batch,
         reward_batch,
         non_final_mask_batch,
