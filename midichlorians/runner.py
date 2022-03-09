@@ -157,7 +157,7 @@ class Runner(object):
 
     if self.config.save_model:
       self.shared_storage_worker.setInfo.remote(copy.copy(self.replay_buffer))
-      self.logger_worker.exportData.remote(os.path.join(self.config.results_path, 'log_data.pkl'))
+      self.logger_worker.exportData.remote()
     self.terminateWorkers()
 
   def save(self, logging=False):

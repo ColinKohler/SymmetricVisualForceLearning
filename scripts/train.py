@@ -6,11 +6,15 @@ import ray
 import argparse
 
 from configs.block_picking import BlockPickingConfig
+from configs.block_pulling import BlockPullingConfig
+from configs.block_picking_corner import BlockPickingCornerConfig
 
 from midichlorians.runner import Runner
 
 task_configs = {
   'block_picking' : BlockPickingConfig,
+  'block_pulling' : BlockPullingConfig,
+  'block_picking_corner' : BlockPickingCornerConfig,
 }
 
 if __name__ == '__main__':
