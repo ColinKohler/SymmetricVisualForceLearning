@@ -17,7 +17,7 @@ class BlockPickingCornerConfig(Config):
     self.seed = None
 
     # Env
-    self.robot = 'panda'
+    self.robot = 'kuka'
     self.env_type = 'force_block_picking_corner'
     self.max_steps = 100
     self.dpos = 0.05
