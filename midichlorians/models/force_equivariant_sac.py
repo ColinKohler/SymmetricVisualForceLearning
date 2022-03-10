@@ -30,8 +30,8 @@ class ForceEquivariantResNet(EquivariantResNet):
     batch_size = force.size(0)
 
     feat = super().forward(obs)
-    xy_force = force[:,:,:2].view(batch_size, -1, 1, 1)
-    z_force = force[:,:,2].view(batch_size, -1, 1, 1)
+    xy_force = torch.cat((force[:,:,:2], force[:,:,3:5])).view(batch_size, -1, 1, 1)
+    z_force = torch.cat((force[:,:,2], force[:,:,5])).view(batch_size, -1, 1, 1)
 
     obs_force = torch.cat((feat.tensor, xy_force, z_force), dim=1)
     obs_force = enn.GeometricTensor(obs_force, self.in_type)
