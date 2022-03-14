@@ -50,17 +50,17 @@ class EquivariantResNet(nn.Module):
     in_type = enn.FieldType(self.c4_act, obs_channels * [self.c4_act.trivial_repr])
     out_type = enn.FieldType(self.c4_act, n_out // 8 * [self.c4_act.regular_repr])
     self.layers.append(EquivariantBlock(in_type, out_type, kernel_size=3, stride=1, padding=1, initialize=initialize))
-    #self.layers.append(enn.PointwiseMaxPool(out_type, 2))
+    self.layers.append(enn.PointwiseMaxPool(out_type, 2))
 
     in_type = out_type
     out_type = enn.FieldType(self.c4_act, n_out // 4 * [self.c4_act.regular_repr])
     self.layers.append(EquivariantBlock(in_type, out_type, kernel_size=3, stride=1, padding=1, initialize=initialize))
-    #self.layers.append(enn.PointwiseMaxPool(out_type, 2))
+    self.layers.append(enn.PointwiseMaxPool(out_type, 2))
 
     in_type = out_type
     out_type = enn.FieldType(self.c4_act, n_out // 2 * [self.c4_act.regular_repr])
     self.layers.append(EquivariantBlock(in_type, out_type, kernel_size=3, stride=1, padding=1, initialize=initialize))
-    #self.layers.append(enn.PointwiseMaxPool(out_type, 2))
+    self.layers.append(enn.PointwiseMaxPool(out_type, 2))
 
     in_type = out_type
     out_type = enn.FieldType(self.c4_act, n_out * [self.c4_act.regular_repr])
