@@ -29,7 +29,7 @@ def unnormalizeObs(obs):
   return obs / 255 * 0.4
 
 def normalizeForce(force):
-  force = np.clip(force, 0, 100)
+  force = np.clip(force, -100, 100)
   force = force / 100
   return force
 

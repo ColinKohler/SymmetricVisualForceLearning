@@ -17,10 +17,10 @@ class BlockPullingCornerConfig(Config):
     self.seed = None
 
     # Env
-    self.robot = 'kuka'
+    self.robot = 'panda'
     self.env_type = 'force_block_pulling_corner'
     self.max_steps = 100
-    self.dpos = 0.05
+    self.dpos = 0.025
     self.drot = np.pi / 8
 
     # Data Gen
@@ -78,7 +78,7 @@ class BlockPullingCornerConfig(Config):
       'action_sequence' : self.action_sequence,
       'robot' : self.robot,
       'num_objects' : 1,
-      'object_scale_range' : (1.0, 1.0),
+      'object_scale_range' : (1.2, 1.2),
       'random_orientation' : self.random_orientation,
       'workspace_check' : 'point',
       'reward_type' : self.reward_type,
