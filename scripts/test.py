@@ -51,9 +51,13 @@ if __name__ == '__main__':
   for i in range(args.num_eps):
     done = False
     obs = env.reset()
-    force_stack = np.zeros((4, 2))
+    force_stack = np.zeros((4, 6))
     force_stack[-1] = obs[3]
     while not done:
+      print(force_stack)
+      print(torch_utils.normalizeForce(force_stack))
+      print()
+      plt.imshow(obs[2].squeeze(), cmap='gray'); plt.show()
       #action_idx, action, value = agent.getAction(
       #  [obs[0]],
       #  obs[2],
@@ -64,7 +68,7 @@ if __name__ == '__main__':
       action_idx, action = agent.convertPlanAction(expert_action.view(1, -1))
 
       obs, reward, done = env.step(action.cpu().squeeze().numpy(), auto_reset=False)
-      force_stack_ = np.zeros((4, 2))
+      force_stack_ = np.zeros((4, 6))
       force_stack_[:-1] = force_stack[1:]
       force_stack_[-1] = obs[3]
       force_stack = force_stack_

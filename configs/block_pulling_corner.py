@@ -4,7 +4,7 @@ import numpy as np
 
 from configs.config import Config
 
-class BlockPickingConfig(Config):
+class BlockPullingCornerConfig(Config):
   '''
   Task config for block picking.
 
@@ -18,9 +18,9 @@ class BlockPickingConfig(Config):
 
     # Env
     self.robot = 'panda'
-    self.env_type = 'force_block_picking'
+    self.env_type = 'force_block_pulling_corner'
     self.max_steps = 100
-    self.dpos = 0.05
+    self.dpos = 0.025
     self.drot = np.pi / 8
 
     # Data Gen
@@ -34,11 +34,11 @@ class BlockPickingConfig(Config):
     # Training
     if results_path:
       self.results_path = os.path.join(self.root_path,
-                                       'block_picking',
+                                       'block_pulling_corner',
                                        results_path)
     else:
       self.results_path = os.path.join(self.root_path,
-                                       'block_picking',
+                                       'block_pulling_corner',
                                        datetime.datetime.now().strftime('%Y-%m-%d--%H-%M-%S'))
     self.save_model = True
     self.training_steps = 20000
@@ -78,7 +78,7 @@ class BlockPickingConfig(Config):
       'action_sequence' : self.action_sequence,
       'robot' : self.robot,
       'num_objects' : 1,
-      'object_scale_range' : (1.0, 1.0),
+      'object_scale_range' : (1.2, 1.2),
       'random_orientation' : self.random_orientation,
       'workspace_check' : 'point',
       'reward_type' : self.reward_type,

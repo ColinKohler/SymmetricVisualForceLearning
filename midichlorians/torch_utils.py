@@ -29,11 +29,11 @@ def unnormalizeObs(obs):
   return obs / 255 * 0.4
 
 def normalizeForce(force):
-  force = np.clip(force, 0, 100)
+  force = np.clip(force, -100, 100)
   force = force / 100
   return force
 
-def perturb(obs, obs_, dxy, set_theta_zero=False, set_trans_zero=False):
+def perturb(obs, fxy_1, fxy_2, obs_, fxy_1_, fxy_2_, dxy, set_theta_zero=False, set_trans_zero=False):
   '''
 
   '''
@@ -53,12 +53,16 @@ def perturb(obs, obs_, dxy, set_theta_zero=False, set_trans_zero=False):
   rotated_dxy = rot.dot(dxy)
   rotated_dxy = np.clip(rotated_dxy, -1, 1)
 
+  rotated_fxy_1 = rot.dot(fxy_1)
+  rotated_fxy_2 = rot.dot(fxy_2)
+  rotated_fxy_1_ = rot.dot(fxy_1_)
+  rotated_fxy_2_ = rot.dot(fxy_2_)
+
   # Apply rigid transform to obs
   obs = scipy.ndimage.affine_transform(obs, np.linalg.inv(transform), mode='nearest', order=1)
-  if obs_ is not None:
-    obs_ = scipy.ndimage.affine_transform(obs_, np.linalg.inv(transform), mode='nearest', order=1)
+  obs_ = scipy.ndimage.affine_transform(obs_, np.linalg.inv(transform), mode='nearest', order=1)
 
-  return obs, obs_, rotated_dxy, transform_params
+  return obs, rotated_fxy_1, rotated_fxy_2, obs_, rotated_fxy_1_, rotated_fxy_2_, rotated_dxy, transform_params
 
 def getRandomImageTransformParams(obs_size):
   ''''''

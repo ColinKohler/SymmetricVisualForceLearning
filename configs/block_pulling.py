@@ -73,7 +73,7 @@ class BlockPullingConfig(Config):
       'max_steps' : self.max_steps,
       'obs_size' : self.obs_size,
       'fast_mode' : True,
-      'physics_mode' : 'fast',
+      'physics_mode' : 'slow',
       'action_sequence' : self.action_sequence,
       'robot' : self.robot,
       'num_objects' : 1,
