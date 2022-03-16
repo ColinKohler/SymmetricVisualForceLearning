@@ -38,7 +38,7 @@ class Config(object):
     else:
       anneal_steps = self.training_steps
 
-    r  max((anneal_steps - step) / anneal_steps, 0)
+    r = max((anneal_steps - step) / anneal_steps, 0)
     return (self.init_per_beta - self.end_per_beta) * r + self.end_per_beta
 
   def getEps(self, step):

@@ -6,11 +6,11 @@
 
 #SBATCH --nodes=1
 
-#SBATCH --partition=gpu
-#SBATCH --gres=gpu:v100-sxm2
+#SBATCH --exclude=c[2160,2162-2175,2176-2183],d1008,d1026
 #SBATCH --cpus-per-task=12
 #SBATCH --mem=64GB
-#SBATCH --time=02:00:00
+
+#SBATCH --time=04:00:00
 
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=kohler.c@northeastern.edu

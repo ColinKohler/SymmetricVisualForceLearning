@@ -106,10 +106,10 @@ class Runner(object):
     Initialize the various workers, start the trainers, and run the logging loop.
     '''
     self.logger_worker = RayLogger.options(num_cpus=0, num_gpus=0).remote(self.config.results_path, self.config.num_eval_episodes, self.config.__dict__)
-    self.training_worker = Trainer.options(num_cpus=0, num_gpus=0.75).remote(self.checkpoint, self.config)
+    self.training_worker = Trainer.options(num_cpus=0, num_gpus=1.00).remote(self.checkpoint, self.config)
 
     self.replay_buffer_worker = ReplayBuffer.options(num_cpus=0, num_gpus=0).remote(self.checkpoint, self.replay_buffer, self.config)
-    self.eval_worker = EvalDataGenerator.options(num_cpus=0, num_gpus=0.25).remote(self.config, self.config.seed+self.config.num_data_gen_envs if self.config.seed else None)
+    self.eval_worker = EvalDataGenerator.options(num_cpus=0, num_gpus=0.0).remote(self.config, self.config.seed+self.config.num_data_gen_envs if self.config.seed else None)
 
     self.shared_storage_worker = SharedStorage.remote(self.checkpoint, self.config)
     self.shared_storage_worker.setInfo.remote('terminate', False)

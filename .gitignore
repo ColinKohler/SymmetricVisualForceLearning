@@ -1,6 +1,7 @@
 Pipfile
 Pipfile.lock
 data/
+scripts/outputs/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
