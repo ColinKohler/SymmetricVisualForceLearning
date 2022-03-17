@@ -51,8 +51,12 @@ class Trainer(object):
     # Initialize optimizer
     self.actor_optimizer = torch.optim.Adam(self.actor.parameters(),
                                             lr=self.config.actor_lr_init)
+    self.actor_scheduler = torch.optim.lr_scheduler.ExponentialLR(self.actor_optimizer,
+                                                                  self.config.lr_decay)
     self.critic_optimizer = torch.optim.Adam(self.critic.parameters(),
                                              lr=self.config.critic_lr_init)
+    self.critic_scheduler = torch.optim.lr_scheduler.ExponentialLR(self.critic_optimizer,
+                                                                   self.config.lr_decay)
 
     if initial_checkpoint['optimizer_state'] is not None:
       self.actor_optimizer.load_state_dict(
@@ -119,6 +123,11 @@ class Trainer(object):
       if self.training_step % self.config.target_update_interval == 0:
         self.softTargetUpdate()
 
+      # Update LRs
+      if self.training_step > 0 and self.training_step % self.config.lr_decay_interval == 0:
+        self.actor_scheduler.step()
+        self.critic_scheduler.step()
+
       # Save to shared storage
       if self.training_step % self.config.checkpoint_interval == 0:
         actor_weights = torch_utils.dictToCpu(self.actor.state_dict())
@@ -140,7 +149,8 @@ class Trainer(object):
       shared_storage.setInfo.remote(
         {
           'training_step' : self.training_step,
-          'lr' : (self.config.actor_lr_init, self.config.critic_lr_init),
+          'lr' : (self.actor_optimizer.param_groups[0]['lr'],
+                  self.critic_optimizer.param_groups[0]['lr']),
           'loss' : loss
         }
       )

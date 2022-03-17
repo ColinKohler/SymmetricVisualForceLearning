@@ -48,7 +48,7 @@ class Runner(object):
       'weights' : None,
       'optimizer_state' : None,
       'training_step' : 0,
-      'lr' : (0, 0),
+      'lr' : (self.config.actor_lr_init, self.config.critic_lr_init),
       'loss' : (0, 0),
       'num_eps' : 0,
       'num_steps' : 0,
@@ -131,6 +131,7 @@ class Runner(object):
     # Log training loop
     keys = [
       'training_step',
+      'lr'
     ]
 
     info = ray.get(self.shared_storage_worker.getInfo.remote(keys))
@@ -149,6 +150,12 @@ class Runner(object):
           self.eval_worker.generateEpisodes.remote(self.config.num_eval_episodes, self.shared_storage_worker, self.replay_buffer_worker, self.logger_worker)
 
         # Logging
+        self.logger_worker.updateScalars.remote(
+          {
+            '3.Loss/3.Actor_lr' : info['lr'][0],
+            '3.Loss/4.Critic_lr' : info['lr'][0]
+          }
+        )
         self.logger_worker.writeLog.remote()
 
         time.sleep(0.5)
