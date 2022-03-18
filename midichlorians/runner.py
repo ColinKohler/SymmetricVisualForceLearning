@@ -131,7 +131,7 @@ class Runner(object):
     # Log training loop
     keys = [
       'training_step',
-      'lr'
+      'lr',
     ]
 
     info = ray.get(self.shared_storage_worker.getInfo.remote(keys))
