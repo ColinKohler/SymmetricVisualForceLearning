@@ -73,10 +73,10 @@ if __name__ == '__main__':
       force_stack_[-1] = obs[3]
       force_stack = force_stack_
 
-    #if reward != 1:
-    #  plt.imshow(obs[2].squeeze(), cmap='gray'); plt.show()
+    if reward != 1:
+      plt.imshow(obs[2].squeeze(), cmap='gray'); plt.show()
 
     num_success += reward
-    pbar.set_description('SR: {}%'.format(int((num_success / (i+1)) * args.num_eps)))
+    pbar.set_description('SR: {}%'.format(int((num_success / (i+1)) * 100)))
     pbar.update(1)
   pbar.close()
