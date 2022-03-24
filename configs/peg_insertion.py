@@ -17,6 +17,7 @@ class PegInsertionConfig(Config):
     self.seed = None
 
     # Env
+    self.obs_size = 128
     self.robot = 'panda'
     self.env_type = 'force_peg_insertion'
     self.max_steps = 100

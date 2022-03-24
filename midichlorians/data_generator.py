@@ -22,7 +22,6 @@ class EvalDataGenerator(object):
   def generateEpisodes(self, num_eps, shared_storage, replay_buffer, logger):
     ''''''
     self.data_generator.agent.setWeights(ray.get(shared_storage.getInfo.remote('weights')))
-    shared_storage.logEvalInterval.remote()
     self.data_generator.resetEnvs()
 
     while ray.get(shared_storage.getInfo.remote('num_eval_eps')) < num_eps:
