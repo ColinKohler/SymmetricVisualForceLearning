@@ -83,7 +83,7 @@ class Runner(object):
     self.replay_buffer_worker = None
     self.shared_storage_worker = None
     self.training_worker = None
-    self.eval_workers = None
+    self.eval_worker = None
 
   def initWeights(self):
     '''

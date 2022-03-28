@@ -28,6 +28,9 @@ class EvalDataGenerator(object):
     while ray.get(shared_storage.getInfo.remote('num_eval_eps')) < num_eps:
       self.data_generator.stepEnvsAsync(shared_storage, replay_buffer, logger)
       self.data_generator.stepEnvsWait(shared_storage, replay_buffer, logger)
+
+    # Write log before moving onto the next eval interval (w/o this log for current interval may not get written)
+    logger.writeLog.remote()
     logger.logEvalInterval.remote()
 
 class DataGenerator(object):

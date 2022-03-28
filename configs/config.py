@@ -31,6 +31,7 @@ class Config(object):
     self.num_gpus = num_gpus
     self.gen_data_on_gpu = False
     self.per_beta_anneal_steps = None
+    self.clip_gradient = False
 
   def getPerBeta(self, step):
     if self.per_beta_anneal_steps:

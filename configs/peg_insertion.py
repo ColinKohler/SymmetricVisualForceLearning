@@ -21,8 +21,8 @@ class PegInsertionConfig(Config):
     self.robot = 'panda'
     self.env_type = 'force_peg_insertion'
     self.max_steps = 100
-    self.dpos = 0.01
-    self.drot = np.pi / 16
+    self.dpos = 0.025
+    self.drot = np.pi / 8
 
     # Data Gen
     self.num_data_gen_envs = 5
@@ -48,6 +48,7 @@ class PegInsertionConfig(Config):
     self.checkpoint_interval = 100
     self.init_temp = 1e-2
     self.tau = 1e-2
+    self.clip_gradient = True
 
     # LR schedule
     self.actor_lr_init = 1e-3
