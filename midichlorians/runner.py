@@ -141,12 +141,11 @@ class Runner(object):
 
         # Eval
         if info['training_step'] > 0 and info['training_step'] % self.config.eval_interval == 0:
-          if ray.get(self.shared_storage_worker.getInfo.remote('num_eval_eps')) < 100:
+          if ray.get(self.shared_storage_worker.getInfo.remote('num_eval_eps')) < self.config.num_eval_episodes:
             self.shared_storage_worker.setInfo.remote('pause_training', True)
-          while(ray.get(self.shared_storage_worker.getInfo.remote('num_eval_eps')) < 100):
+          while(ray.get(self.shared_storage_worker.getInfo.remote('num_eval_eps')) < self.config.num_eval_episodes):
             time.sleep(0.5)
           self.shared_storage_worker.setInfo.remote('pause_training', False)
-          self.logger_worker.logEvalInterval.remote()
           self.eval_worker.generateEpisodes.remote(self.config.num_eval_episodes, self.shared_storage_worker, self.replay_buffer_worker, self.logger_worker)
 
         # Logging
