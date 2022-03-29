@@ -21,13 +21,32 @@ class EvalDataGenerator(object):
 
   def generateEpisodes(self, num_eps, shared_storage, replay_buffer, logger):
     ''''''
+    shared_storage.setInfo.remote('generating_eval_eps', True)
     self.data_generator.agent.setWeights(ray.get(shared_storage.getInfo.remote('weights')))
-    shared_storage.logEvalInterval.remote()
     self.data_generator.resetEnvs()
 
-    while ray.get(shared_storage.getInfo.remote('num_eval_eps')) < num_eps:
+    gen_eps = 0
+    while gen_eps < num_eps:
       self.data_generator.stepEnvsAsync(shared_storage, replay_buffer, logger)
-      self.data_generator.stepEnvsWait(shared_storage, replay_buffer, logger)
+      complete_eps = self.data_generator.stepEnvsWait(shared_storage, replay_buffer, logger)
+      gen_eps += complete_eps
+
+    # Write log before moving onto the next eval interval (w/o this log for current interval may not get written)
+    logger.writeLog.remote()
+    prev_reward = ray.get(shared_storage.getInfo.remote('best_model_reward'))
+    logger_state = ray.get(logger.getSaveState.remote())
+    current_reward = np.mean(logger_state['eval_eps_rewards'][-1])
+    if current_reward >= prev_reward:
+      weights = self.data_generator.agent.getWeights()
+      shared_storage.setInfo.remote(
+        {
+          'best_model_reward' : current_reward,
+          'best_weights' : (torch_utils.dictToCpu(weights[0]),
+                            torch_utils.dictToCpu(weights[1]))
+        }
+      )
+    if logger_state['num_eval_intervals'] < self.config.num_eval_intervals:
+      logger.logEvalInterval.remote()
 
 class DataGenerator(object):
   '''
@@ -90,7 +109,7 @@ class DataGenerator(object):
       self.action_idxs, self.actions, self.values = self.agent.getAction(
         self.obs[0],
         self.obs[2],
-        torch_utils.normalizeForce(self.force_stack),
+        torch_utils.normalizeForce(self.force_stack, self.config.max_force),
         evaluate=self.eval
       )
 
@@ -138,7 +157,6 @@ class DataGenerator(object):
           logger.logTrainingEpisode.remote(self.current_episodes[done_idx].reward_history)
 
         if not expert and self.eval:
-          shared_storage.logEvalEpisode.remote(self.current_episodes[done_idx])
           logger.logEvalEpisode.remote(self.current_episodes[done_idx].reward_history,
                                        self.current_episodes[done_idx].value_history)
 
@@ -160,6 +178,7 @@ class DataGenerator(object):
         self.force_stack[done_idx,-1] = new_obs_[3][i]
 
     self.obs = obs_
+    return done_idxs.sum()
 
 class EpisodeHistory(object):
   '''
@@ -183,7 +202,7 @@ class EpisodeHistory(object):
       torch_utils.normalizeObs(obs)
     )
     self.force_history.append(
-      torch_utils.normalizeForce(force)
+      torch_utils.normalizeForce(force, self.config.max_force)
     )
     self.action_history.append(action)
     self.value_history.append(value)

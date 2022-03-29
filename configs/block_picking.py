@@ -51,6 +51,8 @@ class BlockPickingConfig(Config):
     # LR schedule
     self.actor_lr_init = 1e-3
     self.critic_lr_init = 1e-3
+    self.lr_decay = 0.95
+    self.lr_decay_interval = 500
 
     # Replay Buffer
     self.replay_buffer_size = 100000

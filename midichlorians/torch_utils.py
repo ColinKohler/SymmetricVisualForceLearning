@@ -1,5 +1,6 @@
 import torch
-import e2cnn.nn
+import torch.nn as nn
+import e2cnn.nn as enn
 import numpy as np
 import numpy.random as npr
 import scipy.ndimage
@@ -11,12 +12,22 @@ def dictToCpu(state_dict):
       cpu_dict[k] = v.cpu()
     elif isinstance(v, dict):
       cpu_dict[k] = dictToCpu(v)
-    elif isinstance(v, e2cnn.nn.EquivariantModule):
+    elif isinstance(v, enn.EquivariantModule):
       cpu_dict[k] = v.cpu()
     else:
       cpu_dict[k] = v
 
   return cpu_dict
+
+def clipGradNorm(optimizer, max_norm=None, norm_type=2):
+  for param_group in optimizer.param_groups:
+    max_norm_x = max_norm
+    if max_norm_x is None and 'n_params' in param_group:
+      max_norm_x = 1e-1 * np.sqrt(param_group['n_params'])
+    if max_norm_x is not None:
+      nn.utils.clip_grad.clip_grad_norm_(param_groups['params'],
+                                         max_norm=max_norm_x,
+                                         norm_type=norm_type)
 
 def normalizeObs(obs):
   obs = np.clip(obs, 0, 0.32)
@@ -28,9 +39,9 @@ def normalizeObs(obs):
 def unnormalizeObs(obs):
   return obs / 255 * 0.4
 
-def normalizeForce(force):
-  force = np.clip(force, -100, 100)
-  force = force / 100
+def normalizeForce(force, max_force):
+  force = np.clip(force, -max_force, max_force)
+  force = force / max_force
   return force
 
 def perturb(obs, fxy_1, fxy_2, obs_, fxy_1_, fxy_2_, dxy, set_theta_zero=False, set_trans_zero=False):

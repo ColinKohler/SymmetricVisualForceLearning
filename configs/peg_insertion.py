@@ -4,9 +4,9 @@ import numpy as np
 
 from configs.config import Config
 
-class BlockPullingConfig(Config):
+class PegInsertionConfig(Config):
   '''
-  Task config for block picking.
+  Task config for peg insertion.
 
   Args:
     num_gpus (int):
@@ -17,10 +17,13 @@ class BlockPullingConfig(Config):
     self.seed = None
 
     # Env
-    self.env_type = 'force_block_pulling'
+    self.obs_size = 128
+    self.robot = 'panda'
+    self.env_type = 'force_peg_insertion'
     self.max_steps = 100
-    self.dpos = 0.05
+    self.dpos = 0.025
     self.drot = np.pi / 8
+    self.max_force = 100
 
     # Data Gen
     self.num_data_gen_envs = 5
@@ -29,23 +32,25 @@ class BlockPullingConfig(Config):
     self.discount = 0.99
     self.num_eval_episodes = 100
     self.eval_interval = 500
+    self.num_eval_intervals = int(self.training_steps / self.eval_interval)
 
     # Training
     if results_path:
       self.results_path = os.path.join(self.root_path,
-                                       'block_pulling',
+                                       'peg_insertion',
                                        results_path)
     else:
       self.results_path = os.path.join(self.root_path,
-                                       'block_pulling',
+                                       'peg_insertion',
                                        datetime.datetime.now().strftime('%Y-%m-%d--%H-%M-%S'))
     self.save_model = True
-    self.training_steps = 20000
+    self.training_steps = 40000
     self.batch_size = 64
     self.target_update_interval = 1
     self.checkpoint_interval = 100
     self.init_temp = 1e-2
     self.tau = 1e-2
+    self.clip_gradient = False
 
     # LR schedule
     self.actor_lr_init = 1e-3
@@ -75,7 +80,7 @@ class BlockPullingConfig(Config):
       'max_steps' : self.max_steps,
       'obs_size' : self.obs_size,
       'fast_mode' : True,
-      'physics_mode' : 'slow',
+      'physics_mode' : 'force',
       'action_sequence' : self.action_sequence,
       'robot' : self.robot,
       'num_objects' : 1,

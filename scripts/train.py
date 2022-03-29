@@ -9,6 +9,7 @@ from configs.block_picking import BlockPickingConfig
 from configs.block_pulling import BlockPullingConfig
 from configs.block_picking_corner import BlockPickingCornerConfig
 from configs.block_pulling_corner import BlockPullingCornerConfig
+from configs.peg_insertion import PegInsertionConfig
 
 from midichlorians.runner import Runner
 
@@ -17,6 +18,7 @@ task_configs = {
   'block_pulling' : BlockPullingConfig,
   'block_picking_corner' : BlockPickingCornerConfig,
   'block_pulling_corner' : BlockPullingCornerConfig,
+  'peg_insertion' : PegInsertionConfig
 }
 
 if __name__ == '__main__':

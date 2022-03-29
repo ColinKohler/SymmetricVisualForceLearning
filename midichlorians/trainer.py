@@ -51,8 +51,12 @@ class Trainer(object):
     # Initialize optimizer
     self.actor_optimizer = torch.optim.Adam(self.actor.parameters(),
                                             lr=self.config.actor_lr_init)
+    self.actor_scheduler = torch.optim.lr_scheduler.ExponentialLR(self.actor_optimizer,
+                                                                  self.config.lr_decay)
     self.critic_optimizer = torch.optim.Adam(self.critic.parameters(),
                                              lr=self.config.critic_lr_init)
+    self.critic_scheduler = torch.optim.lr_scheduler.ExponentialLR(self.critic_optimizer,
+                                                                   self.config.lr_decay)
 
     if initial_checkpoint['optimizer_state'] is not None:
       self.actor_optimizer.load_state_dict(
@@ -81,9 +85,11 @@ class Trainer(object):
       shared_storage (ray.worker): Shared storage worker, shares data across workers.
       logger (ray.worker): Logger worker, logs training data across workers.
     '''
-    while ray.get(shared_storage.getInfo.remote('num_eps')) < self.config.num_expert_episodes:
+    num_expert_eps = 0
+    while num_expert_eps < self.config.num_expert_episodes:
       self.data_generator.stepEnvsAsync(shared_storage, replay_buffer, logger, expert=True)
-      self.data_generator.stepEnvsWait(shared_storage, replay_buffer, logger, expert=True)
+      complete_eps = self.data_generator.stepEnvsWait(shared_storage, replay_buffer, logger, expert=True)
+      num_expert_eps += complete_eps
 
   def continuousUpdateWeights(self, replay_buffer, shared_storage, logger):
     '''
@@ -100,6 +106,8 @@ class Trainer(object):
     next_batch = replay_buffer.sample.remote(shared_storage)
     while self.training_step < self.config.training_steps and \
           not ray.get(shared_storage.getInfo.remote('terminate')):
+
+      # Pause training if we need to wait for eval interval to end
       if ray.get(shared_storage.getInfo.remote('pause_training')):
         time.sleep(0.5)
         continue
@@ -119,6 +127,11 @@ class Trainer(object):
       if self.training_step % self.config.target_update_interval == 0:
         self.softTargetUpdate()
 
+      # Update LRs
+      if self.training_step > 0 and self.training_step % self.config.lr_decay_interval == 0:
+        self.actor_scheduler.step()
+        self.critic_scheduler.step()
+
       # Save to shared storage
       if self.training_step % self.config.checkpoint_interval == 0:
         actor_weights = torch_utils.dictToCpu(self.actor.state_dict())
@@ -137,11 +150,12 @@ class Trainer(object):
           shared_storage.saveReplayBuffer.remote(replay_buffer.getBuffer.remote())
           shared_storage.saveCheckpoint.remote()
 
-      shared_storage.setInfo.remote(
+      # Logger updates
+      shared_storage.setInfo.remote('training_step', self.training_step)
+      logger.updateScalars.remote(
         {
-          'training_step' : self.training_step,
-          'lr' : (self.config.actor_lr_init, self.config.critic_lr_init),
-          'loss' : loss
+          '3.Loss/3.Actor_lr' : info['lr'][0],
+          '3.Loss/4.Critic_lr' : info['lr'][0]
         }
       )
       logger.logTrainingStep.remote(
@@ -195,6 +209,8 @@ class Trainer(object):
 
     self.critic_optimizer.zero_grad()
     critic_loss.backward()
+    if self.config.clip_gradient:
+      torch_utils.clipGradNorm(self.critic_optimizer)
     self.critic_optimizer.step()
 
     # Actor update
@@ -207,6 +223,8 @@ class Trainer(object):
 
     self.actor_optimizer.zero_grad()
     actor_loss.backward()
+    if self.config.clip_gradient:
+      torch_utils.clipGradNorm(self.actor_optimizer)
     self.actor_optimizer.step()
 
     alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()

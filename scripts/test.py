@@ -54,18 +54,18 @@ if __name__ == '__main__':
     force_stack = np.zeros((4, 6))
     force_stack[-1] = obs[3]
     while not done:
-      print(force_stack)
-      print(torch_utils.normalizeForce(force_stack))
-      print()
-      plt.imshow(obs[2].squeeze(), cmap='gray'); plt.show()
-      #action_idx, action, value = agent.getAction(
-      #  [obs[0]],
-      #  obs[2],
-      #  torch_utils.normalizeForce(force_stack),
-      #  evaluate=True
-      #)
-      expert_action = torch.tensor(env.getNextAction()).float()
-      action_idx, action = agent.convertPlanAction(expert_action.view(1, -1))
+      #print(np.round(force_stack, 2))
+      #print(np.round(torch_utils.normalizeForce(force_stack, task_config.max_force), 2))
+      #print()
+      #plt.imshow(obs[2].squeeze(), cmap='gray'); plt.show()
+      action_idx, action, value = agent.getAction(
+        [obs[0]],
+        obs[2],
+        torch_utils.normalizeForce(force_stack, task_config.max_force),
+        evaluate=True
+      )
+      #expert_action = torch.tensor(env.getNextAction()).float()
+      #action_idx, action = agent.convertPlanAction(expert_action.view(1, -1))
 
       obs, reward, done = env.step(action.cpu().squeeze().numpy(), auto_reset=False)
       force_stack_ = np.zeros((4, 6))
@@ -73,7 +73,10 @@ if __name__ == '__main__':
       force_stack_[-1] = obs[3]
       force_stack = force_stack_
 
+    #if reward != 1:
+    #  plt.imshow(obs[2].squeeze(), cmap='gray'); plt.show()
+
     num_success += reward
-    pbar.set_description('SR: {}%'.format(int((num_success / (i+1)) * args.num_eps)))
+    pbar.set_description('SR: {}%'.format(int((num_success / (i+1)) * 100)))
     pbar.update(1)
   pbar.close()

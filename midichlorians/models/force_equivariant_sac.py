@@ -19,12 +19,15 @@ class ForceEquivariantResNet(EquivariantResNet):
     self.xy_force_type = 2 * 4 * [self.c4_act.irrep(1)]
     self.z_force_type = 2 * 4 * [self.c4_act.trivial_repr]
 
-    self.in_type = enn.FieldType(
-      self.c4_act,
-      self.feat_type + self.xy_force_type + self.z_force_type
+    self.force_input = enn.FieldType(self.c4_act, self.xy_force_type + self.z_force_type)
+    self.force_output = enn.FieldType(self.c4_act, n_out * [self.c4_act.regular_repr])
+    self.force_conv = nn.Sequential(
+      EquivariantBlock(self.force_input, self.force_output, kernel_size=1, stride=1, padding=0, initialize=initialize),
     )
+
+    self.in_type = enn.FieldType(self.c4_act, self.feat_type + n_out * [self.c4_act.regular_repr])
     out_type = enn.FieldType(self.c4_act, n_out * [self.c4_act.regular_repr])
-    self.conv_2 = EquivariantBlock(self.in_type, out_type, kernel_size=1, stride=1, padding=0, initialize=initialize, act=False)
+    self.conv_2 = EquivariantBlock(self.in_type, out_type, kernel_size=1, stride=1, padding=0, initialize=initialize)
 
   def forward(self, obs, force):
     batch_size = force.size(0)
@@ -32,8 +35,10 @@ class ForceEquivariantResNet(EquivariantResNet):
     feat = super().forward(obs)
     xy_force = torch.cat((force[:,:,:2], force[:,:,3:5])).view(batch_size, -1, 1, 1)
     z_force = torch.cat((force[:,:,2], force[:,:,5])).view(batch_size, -1, 1, 1)
+    force_geo = enn.GeometricTensor(torch.cat((xy_force, z_force), dim=1), self.force_input)
+    force_feat = self.force_conv(force_geo)
 
-    obs_force = torch.cat((feat.tensor, xy_force, z_force), dim=1)
+    obs_force = torch.cat((feat.tensor, force_feat.tensor), dim=1)
     obs_force = enn.GeometricTensor(obs_force, self.in_type)
 
     return self.conv_2(obs_force)
