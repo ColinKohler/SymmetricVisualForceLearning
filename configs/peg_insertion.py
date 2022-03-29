@@ -27,12 +27,7 @@ class PegInsertionConfig(Config):
 
     # Data Gen
     self.num_data_gen_envs = 5
-    self.num_eval_envs = 5
     self.num_expert_episodes = 20
-    self.discount = 0.99
-    self.num_eval_episodes = 100
-    self.eval_interval = 500
-    self.num_eval_intervals = int(self.training_steps / self.eval_interval)
 
     # Training
     if results_path:
@@ -50,7 +45,14 @@ class PegInsertionConfig(Config):
     self.checkpoint_interval = 100
     self.init_temp = 1e-2
     self.tau = 1e-2
+    self.discount = 0.99
     self.clip_gradient = False
+
+    # Eval
+    self.num_eval_envs = 5
+    self.num_eval_episodes = 100
+    self.eval_interval = 500
+    self.num_eval_intervals = int(self.training_steps / self.eval_interval)
 
     # LR schedule
     self.actor_lr_init = 1e-3
