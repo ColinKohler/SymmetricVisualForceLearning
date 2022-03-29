@@ -31,6 +31,17 @@ class EvalDataGenerator(object):
 
     # Write log before moving onto the next eval interval (w/o this log for current interval may not get written)
     logger.writeLog.remote()
+    prev_reward = ray.get(shared_storage.getInfo.remote('best_model_reward'))
+    current_reward = np.mean(ray.get(logger.getSaveState.remote())['eval_eps_rewards'][-1])
+    if current_reward >= prev_reward:
+      weights = self.data_generator.agent.getWeights()
+      shared_storage.setInfo.remote(
+        {
+          'best_model_reward' : current_reward,
+          'best_weights' : (torch_utils.dictToCpu(weights[0]),
+                            torch_utils.dictToCpu(weights[1]))
+        }
+      )
     logger.logEvalInterval.remote()
 
 class DataGenerator(object):

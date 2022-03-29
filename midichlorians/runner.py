@@ -45,6 +45,7 @@ class Runner(object):
 
     # Initialize checkpoint and replay buffer
     self.checkpoint = {
+      'best_weights' : None,
       'weights' : None,
       'optimizer_state' : None,
       'training_step' : 0,
@@ -56,7 +57,8 @@ class Runner(object):
       'num_eval_eps' : 100,
       'eval_mean_value' : list(),
       'eval_eps_len': list(),
-      'eval_eps_reward': list(),
+      'eval_eps_reward' : list(),
+      'best_model_reward' : 0,
       'pause_training' : False,
       'terminate' : False
     }
