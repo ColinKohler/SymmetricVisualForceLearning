@@ -21,13 +21,15 @@ class EvalDataGenerator(object):
 
   def generateEpisodes(self, num_eps, shared_storage, replay_buffer, logger):
     ''''''
+    shared_storage.setInfo.remote('generating_eval_eps', True)
     self.data_generator.agent.setWeights(ray.get(shared_storage.getInfo.remote('weights')))
-    shared_storage.logEvalInterval.remote()
     self.data_generator.resetEnvs()
 
-    while ray.get(shared_storage.getInfo.remote('num_eval_eps')) < num_eps:
+    gen_eps = 0
+    while gen_eps < num_eps:
       self.data_generator.stepEnvsAsync(shared_storage, replay_buffer, logger)
-      self.data_generator.stepEnvsWait(shared_storage, replay_buffer, logger)
+      complete_eps = self.data_generator.stepEnvsWait(shared_storage, replay_buffer, logger)
+      gen_eps += complete_eps
 
     # Write log before moving onto the next eval interval (w/o this log for current interval may not get written)
     logger.writeLog.remote()
@@ -153,7 +155,6 @@ class DataGenerator(object):
           logger.logTrainingEpisode.remote(self.current_episodes[done_idx].reward_history)
 
         if not expert and self.eval:
-          shared_storage.logEvalEpisode.remote(self.current_episodes[done_idx])
           logger.logEvalEpisode.remote(self.current_episodes[done_idx].reward_history,
                                        self.current_episodes[done_idx].value_history)
 
@@ -175,6 +176,7 @@ class DataGenerator(object):
         self.force_stack[done_idx,-1] = new_obs_[3][i]
 
     self.obs = obs_
+    return done_idxs.sum()
 
 class EpisodeHistory(object):
   '''

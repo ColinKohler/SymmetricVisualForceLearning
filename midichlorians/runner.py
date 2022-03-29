@@ -49,16 +49,10 @@ class Runner(object):
       'weights' : None,
       'optimizer_state' : None,
       'training_step' : 0,
-      'lr' : (self.config.actor_lr_init, self.config.critic_lr_init),
-      'loss' : (0, 0),
       'num_eps' : 0,
       'num_steps' : 0,
-      'train_eps_reward' : list(),
-      'num_eval_eps' : 100,
-      'eval_mean_value' : list(),
-      'eval_eps_len': list(),
-      'eval_eps_reward' : list(),
       'best_model_reward' : 0,
+      'generating_eval_eps' : False,
       'pause_training' : False,
       'terminate' : False
     }
@@ -133,30 +127,24 @@ class Runner(object):
     # Log training loop
     keys = [
       'training_step',
-      'lr',
+      'generating_eval_eps'
     ]
 
     info = ray.get(self.shared_storage_worker.getInfo.remote(keys))
     try:
-      while info['training_step'] < self.config.training_steps:
+      while info['training_step'] < self.config.training_steps or info['generating_eval_eps']:
         info = ray.get(self.shared_storage_worker.getInfo.remote(keys))
 
         # Eval
         if info['training_step'] > 0 and info['training_step'] % self.config.eval_interval == 0:
-          if ray.get(self.shared_storage_worker.getInfo.remote('num_eval_eps')) < self.config.num_eval_episodes:
+          if info['generating_eval_eps']:
             self.shared_storage_worker.setInfo.remote('pause_training', True)
-          while(ray.get(self.shared_storage_worker.getInfo.remote('num_eval_eps')) < self.config.num_eval_episodes):
+          while(ray.get(self.shared_storage_worker.getInfo.remote('generating_eval_eps'))):
             time.sleep(0.5)
           self.shared_storage_worker.setInfo.remote('pause_training', False)
           self.eval_worker.generateEpisodes.remote(self.config.num_eval_episodes, self.shared_storage_worker, self.replay_buffer_worker, self.logger_worker)
 
         # Logging
-        self.logger_worker.updateScalars.remote(
-          {
-            '3.Loss/3.Actor_lr' : info['lr'][0],
-            '3.Loss/4.Critic_lr' : info['lr'][0]
-          }
-        )
         self.logger_worker.writeLog.remote()
 
         time.sleep(0.5)

@@ -85,9 +85,11 @@ class Trainer(object):
       shared_storage (ray.worker): Shared storage worker, shares data across workers.
       logger (ray.worker): Logger worker, logs training data across workers.
     '''
-    while ray.get(shared_storage.getInfo.remote('num_eps')) < self.config.num_expert_episodes:
+    num_expert_eps = 0
+    while num_expert_eps < self.config.num_expert_episodes:
       self.data_generator.stepEnvsAsync(shared_storage, replay_buffer, logger, expert=True)
-      self.data_generator.stepEnvsWait(shared_storage, replay_buffer, logger, expert=True)
+      complete_eps = self.data_generator.stepEnvsWait(shared_storage, replay_buffer, logger, expert=True)
+      num_expert_eps += complete_eps
 
   def continuousUpdateWeights(self, replay_buffer, shared_storage, logger):
     '''
@@ -104,6 +106,8 @@ class Trainer(object):
     next_batch = replay_buffer.sample.remote(shared_storage)
     while self.training_step < self.config.training_steps and \
           not ray.get(shared_storage.getInfo.remote('terminate')):
+
+      # Pause training if we need to wait for eval interval to end
       if ray.get(shared_storage.getInfo.remote('pause_training')):
         time.sleep(0.5)
         continue
@@ -146,12 +150,12 @@ class Trainer(object):
           shared_storage.saveReplayBuffer.remote(replay_buffer.getBuffer.remote())
           shared_storage.saveCheckpoint.remote()
 
-      shared_storage.setInfo.remote(
+      # Logger updates
+      shared_storage.setInfo.remote('training_step', self.training_step)
+      logger.updateScalars.remote(
         {
-          'training_step' : self.training_step,
-          'lr' : (self.actor_optimizer.param_groups[0]['lr'],
-                  self.critic_optimizer.param_groups[0]['lr']),
-          'loss' : loss
+          '3.Loss/3.Actor_lr' : info['lr'][0],
+          '3.Loss/4.Critic_lr' : info['lr'][0]
         }
       )
       logger.logTrainingStep.remote(
