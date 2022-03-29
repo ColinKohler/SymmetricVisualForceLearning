@@ -91,7 +91,7 @@ class DataGenerator(object):
       self.action_idxs, self.actions, self.values = self.agent.getAction(
         self.obs[0],
         self.obs[2],
-        torch_utils.normalizeForce(self.force_stack),
+        torch_utils.normalizeForce(self.force_stack, self.config.max_force),
         evaluate=self.eval
       )
 
@@ -184,7 +184,7 @@ class EpisodeHistory(object):
       torch_utils.normalizeObs(obs)
     )
     self.force_history.append(
-      torch_utils.normalizeForce(force)
+      torch_utils.normalizeForce(force, self.config.max_force)
     )
     self.action_history.append(action)
     self.value_history.append(value)
