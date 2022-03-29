@@ -23,7 +23,7 @@ class PegInsertionConfig(Config):
     self.max_steps = 100
     self.dpos = 0.025
     self.drot = np.pi / 8
-    self.max_force = 10
+    self.max_force = 100
 
     # Data Gen
     self.num_data_gen_envs = 5
@@ -32,6 +32,7 @@ class PegInsertionConfig(Config):
     self.discount = 0.99
     self.num_eval_episodes = 100
     self.eval_interval = 500
+    self.num_eval_intervals = int(self.training_steps / self.eval_interval)
 
     # Training
     if results_path:
