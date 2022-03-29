@@ -129,6 +129,12 @@ class SACAgent(object):
     '''
     return 2 * (action - action_range[0]) / (action_range[1] - action_range[0]) - 1
 
+  def getWeights(self):
+    '''
+    '''
+    return (self.actor.state_dict(),
+            self.critic.state_dict())
+
   def setWeights(self, weights):
     '''
     Load given weights into the actor and critic

@@ -205,6 +205,8 @@ class Trainer(object):
 
     self.critic_optimizer.zero_grad()
     critic_loss.backward()
+    if self.config.clip_gradient:
+      torch_utils.clipGradNorm(self.critic_optimizer)
     self.critic_optimizer.step()
 
     # Actor update
@@ -217,6 +219,8 @@ class Trainer(object):
 
     self.actor_optimizer.zero_grad()
     actor_loss.backward()
+    if self.config.clip_gradient:
+      torch_utils.clipGradNorm(self.actor_optimizer)
     self.actor_optimizer.step()
 
     alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
