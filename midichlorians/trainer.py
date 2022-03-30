@@ -154,8 +154,8 @@ class Trainer(object):
       shared_storage.setInfo.remote('training_step', self.training_step)
       logger.updateScalars.remote(
         {
-          '3.Loss/3.Actor_lr' : info['lr'][0],
-          '3.Loss/4.Critic_lr' : info['lr'][0]
+          '3.Loss/3.Actor_lr' : self.actor_optimizer.param_groups[0]['lr'],
+          '3.Loss/4.Critic_lr' : self.critic_optimizer.param_groups[0]['lr']
         }
       )
       logger.logTrainingStep.remote(

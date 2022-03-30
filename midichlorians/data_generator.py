@@ -17,6 +17,8 @@ class EvalDataGenerator(object):
   def __init__(self, config, seed):
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     agent = SACAgent(config, device)
+
+    self.config = config
     self.data_generator = DataGenerator(agent, config, seed, evaluate=True)
 
   def generateEpisodes(self, num_eps, shared_storage, replay_buffer, logger):
@@ -30,6 +32,7 @@ class EvalDataGenerator(object):
       self.data_generator.stepEnvsAsync(shared_storage, replay_buffer, logger)
       complete_eps = self.data_generator.stepEnvsWait(shared_storage, replay_buffer, logger)
       gen_eps += complete_eps
+    shared_storage.setInfo.remote('generating_eval_eps', False)
 
     # Write log before moving onto the next eval interval (w/o this log for current interval may not get written)
     logger.writeLog.remote()
@@ -87,7 +90,7 @@ class DataGenerator(object):
     self.current_episodes = [EpisodeHistory() for _ in range(self.config.num_data_gen_envs)]
     self.obs = self.envs.reset()
     for i, eps_history in enumerate(self.current_episodes):
-      eps_history.logStep(self.obs[0][i], self.obs[2][i], self.obs[3][i], np.array([0,0,0,0,0]), 0, 0, 0)
+      eps_history.logStep(self.obs[0][i], self.obs[2][i], self.obs[3][i], np.array([0,0,0,0,0]), 0, 0, 0, self.config.max_force)
       self.force_stack[i,-1] = self.obs[3][i]
 
   def stepEnvsAsync(self, shared_storage, replay_buffer, logger, expert=False):
@@ -137,7 +140,8 @@ class DataGenerator(object):
         self.action_idxs[i].squeeze().numpy(),
         self.values[i].item(),
         rewards[i],
-        dones[i]
+        dones[i],
+        self.config.max_force
       )
       force_stack = np.zeros((4, 6))
       force_stack[:-1] = self.force_stack[i,1:]
@@ -153,7 +157,6 @@ class DataGenerator(object):
           replay_buffer.add.remote(self.current_episodes[done_idx], shared_storage)
 
         if not expert and not self.eval:
-          shared_storage.logEpsReward.remote(sum(self.current_episodes[done_idx].reward_history))
           logger.logTrainingEpisode.remote(self.current_episodes[done_idx].reward_history)
 
         if not expert and self.eval:
@@ -168,7 +171,8 @@ class DataGenerator(object):
           np.array([0,0,0,0,0]),
           0,
           0,
-          0
+          0,
+          self.config.max_force
         )
 
         obs_[0][done_idx] = new_obs_[0][i]
@@ -196,13 +200,13 @@ class EpisodeHistory(object):
     self.priorities = None
     self.eps_priority = None
 
-  def logStep(self, state, obs, force, action, value, reward, done):
+  def logStep(self, state, obs, force, action, value, reward, done, max_force):
     self.state_history.append(state)
     self.obs_history.append(
       torch_utils.normalizeObs(obs)
     )
     self.force_history.append(
-      torch_utils.normalizeForce(force, self.config.max_force)
+      torch_utils.normalizeForce(force, max_force)
     )
     self.action_history.append(action)
     self.value_history.append(value)

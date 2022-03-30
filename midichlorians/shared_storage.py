@@ -55,15 +55,6 @@ class SharedStorage(object):
       open(os.path.join(self.config.results_path, 'replay_buffer.pkl'), 'wb')
     )
 
-  def logEpsReward(self, reward):
-    '''
-    Add the episode reward to the checkpoint for logging.
-
-    Args:
-      reward (float): The episode reward.
-    '''
-    self.current_checkpoint['train_eps_reward'].append(reward)
-
   def getInfo(self, keys):
     '''
     Get data from the current checkpoint for the desired keys.
