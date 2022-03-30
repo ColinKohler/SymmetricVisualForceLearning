@@ -8,7 +8,6 @@ import numpy.random as npr
 
 from midichlorians.sac_agent import SACAgent
 from midichlorians.data_generator import DataGenerator, EvalDataGenerator
-from midichlorians.models.sac import Critic, GaussianPolicy
 from midichlorians.models.force_equivariant_sac import ForceEquivariantCritic, ForceEquivariantGaussianPolicy
 from midichlorians import torch_utils
 
@@ -236,17 +235,6 @@ class Trainer(object):
     self.alpha = self.log_alpha.exp()
 
     return td_error, (actor_loss.item(), critic_loss.item())
-
-  def updateLR(self):
-    '''
-    Update the learning rate.
-    '''
-    lr = self.config.lr_init * self.config.lr_decay_rate ** (
-      self.training_step / self.config.lr_decay_steps
-    )
-
-    for param_group in self.optimizer.param_groups:
-      param_group['lr'] = lr
 
   def softTargetUpdate(self):
     '''
