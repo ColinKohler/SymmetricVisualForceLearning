@@ -83,7 +83,7 @@ class DataGenerator(object):
       planner_config
     )
     self.obs = None
-    self.force_stack = np.zeros((self.num_envs, 4, 6))
+    self.force_stack = np.zeros((self.num_envs, self.config.force_history, self.config.force_dim))
     self.current_epsiodes = None
 
   def resetEnvs(self):
@@ -143,7 +143,7 @@ class DataGenerator(object):
         dones[i],
         self.config.max_force
       )
-      force_stack = np.zeros((4, 6))
+      force_stack = np.zeros((self.config.force_history, self.config.force_dim))
       force_stack[:-1] = self.force_stack[i,1:]
       force_stack[-1] = obs_[3][i]
       self.force_stack[i] = force_stack
@@ -178,7 +178,7 @@ class DataGenerator(object):
         obs_[0][done_idx] = new_obs_[0][i]
         obs_[2][done_idx] = new_obs_[2][i]
         obs_[3][done_idx] = new_obs_[3][i]
-        self.force_stack[done_idx] = np.zeros((4,6))
+        self.force_stack[done_idx] = np.zeros((self.config.force_history, self.config.force_dim))
         self.force_stack[done_idx,-1] = new_obs_[3][i]
 
     self.obs = obs_
