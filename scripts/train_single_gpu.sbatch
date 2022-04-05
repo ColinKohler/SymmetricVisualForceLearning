@@ -10,7 +10,7 @@
 #SBATCH --gres=gpu:v100-sxm2
 #SBATCH --cpus-per-task=12
 #SBATCH --mem=64GB
-#SBATCH --time=04:00:00
+#SBATCH --time=08:00:00
 
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=kohler.c@northeastern.edu
