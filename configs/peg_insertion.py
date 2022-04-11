@@ -27,7 +27,7 @@ class PegInsertionConfig(Config):
 
     # Data Gen
     self.num_data_gen_envs = 5
-    self.num_expert_episodes = 20
+    self.num_expert_episodes = 100
 
     # Training
     if results_path:
@@ -102,5 +102,6 @@ class PegInsertionConfig(Config):
     return {
       'random_orientation': True,
       'dpos' : self.dpos,
-      'drot' : self.drot
+      'drot' : self.drot,
+      'rand_point' : True,
     }
