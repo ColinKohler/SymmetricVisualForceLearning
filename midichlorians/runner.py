@@ -52,6 +52,7 @@ class Runner(object):
       'num_eps' : 0,
       'num_steps' : 0,
       'best_model_reward' : 0,
+      'run_eval_interval' : False,
       'generating_eval_eps' : False,
       'pause_training' : False,
       'terminate' : False
@@ -127,6 +128,7 @@ class Runner(object):
     # Log training loop
     keys = [
       'training_step',
+      'run_eval_interval',
       'generating_eval_eps'
     ]
 
@@ -136,7 +138,7 @@ class Runner(object):
         info = ray.get(self.shared_storage_worker.getInfo.remote(keys))
 
         # Eval
-        if info['training_step'] > 0 and info['training_step'] % self.config.eval_interval == 0:
+        if info['run_eval_interval']:
           if info['generating_eval_eps']:
             self.shared_storage_worker.setInfo.remote('pause_training', True)
           while(ray.get(self.shared_storage_worker.getInfo.remote('generating_eval_eps'))):

@@ -20,15 +20,9 @@ class ForceEquivariantResNet(EquivariantResNet):
     self.z_force_type = 2 * 4 * [self.c4_act.trivial_repr]
 
     self.force_input = enn.FieldType(self.c4_act, self.xy_force_type + self.z_force_type)
-    mid_1 = enn.FieldType(self.c4_act, 32 * [self.c4_act.regular_repr])
-    mid_2 = enn.FieldType(self.c4_act, 64 * [self.c4_act.regular_repr])
-    mid_3 = enn.FieldType(self.c4_act, 129 * [self.c4_act.regular_repr])
     self.force_output = enn.FieldType(self.c4_act, n_out * [self.c4_act.regular_repr])
     self.force_conv = nn.Sequential(
-      EquivariantBlock(self.force_input, mid_1, kernel_size=1, stride=1, padding=0, initialize=initialize),
-      EquivariantBlock(mid_1, mid_2, kernel_size=1, stride=1, padding=0, initialize=initialize),
-      EquivariantBlock(mid_2, mid_3, kernel_size=1, stride=1, padding=0, initialize=initialize),
-      EquivariantBlock(mid_3, self.force_output, kernel_size=1, stride=1, padding=0, initialize=initialize),
+      EquivariantBlock(self.force_input, self.force_output, kernel_size=1, stride=1, padding=0, initialize=initialize),
     )
 
     self.in_type = enn.FieldType(self.c4_act, self.feat_type + n_out * [self.c4_act.regular_repr])

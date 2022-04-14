@@ -149,8 +149,13 @@ class Trainer(object):
           shared_storage.saveReplayBuffer.remote(replay_buffer.getBuffer.remote())
           shared_storage.saveCheckpoint.remote()
 
-      # Logger updates
-      shared_storage.setInfo.remote('training_step', self.training_step)
+      # Logger/Shared storage updates
+      shared_storage.setInfo.remote(
+        {
+          'training_step' : self.training_step,
+          'run_eval_interval' : self.training_step % self.config.eval_interval == 0
+        }
+      )
       logger.updateScalars.remote(
         {
           '3.Loss/3.Actor_lr' : self.actor_optimizer.param_groups[0]['lr'],
