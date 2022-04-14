@@ -23,7 +23,12 @@ class EvalDataGenerator(object):
 
   def generateEpisodes(self, num_eps, shared_storage, replay_buffer, logger):
     ''''''
-    shared_storage.setInfo.remote('generating_eval_eps', True)
+    shared_storage.setInfo.remote(
+      {
+        'generating_eval_eps' : True,
+        'run_eval_interval' : False,
+      }
+    )
     self.data_generator.agent.setWeights(ray.get(shared_storage.getInfo.remote('weights')))
     self.data_generator.resetEnvs()
 
@@ -182,7 +187,7 @@ class DataGenerator(object):
         self.force_stack[done_idx,-1] = new_obs_[3][i]
 
     self.obs = obs_
-    return done_idxs.sum()
+    return len(done_idxs)
 
 class EpisodeHistory(object):
   '''

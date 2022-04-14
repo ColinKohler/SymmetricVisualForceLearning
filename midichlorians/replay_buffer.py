@@ -96,38 +96,27 @@ class ReplayBuffer(object):
       eps_id, eps_history, eps_prob = self.sampleEps(uniform=True)
       eps_step, step_prob = self.sampleStep(eps_history, uniform=True)
 
-      if npr.rand() < 0.8:
-        obs, force, obs_, force_, action = self.augmentTransitionSO2(
-          eps_history.obs_history[eps_step],
-          eps_history.force_history[eps_step],
-          eps_history.obs_history[eps_step+1],
-          eps_history.force_history[eps_step+1],
-          eps_history.action_history[eps_step+1]
-        )
-      else:
-        obs = eps_history.obs_history[eps_step]
-        force = eps_history.force_history[eps_step]
-        obs_ = eps_history.obs_history[eps_step+1]
-        force_ = eps_history.force_history[eps_step+1]
-        action = eps_history.action_history[eps_step+1]
-
-      obs = torch_utils.unnormalizeObs(obs)
-      obs_ = torch_utils.unnormalizeObs(obs_)
-
       force_stack = eps_history.force_history[max(0, eps_step-3):eps_step+1]
       if len(force_stack) == 4:
         force_stack = np.array(force_stack)
       else:
         force_stack = np.pad(force_stack, ((4 - len(force_stack) % 4, 0), (0, 0)))
-      force_stack[-1] = force
 
       force_stack_ = eps_history.force_history[max(0, eps_step-2):eps_step+2]
       if len(force_stack_) == 4:
         force_stack_ = np.array(force_stack_)
       else:
         force_stack_ = np.pad(force_stack_, ((4 - len(force_stack_) % 4, 0), (0, 0)))
-      force_stack_[-2] = force
-      force_stack_[-1] = force_
+
+      obs, force_stack, obs_, force_stack_, action = self.augmentTransitionSO2(
+        eps_history.obs_history[eps_step],
+        force_stack,
+        eps_history.obs_history[eps_step+1],
+        force_stack_,
+        eps_history.action_history[eps_step+1]
+      )
+      obs = torch_utils.unnormalizeObs(obs)
+      obs_ = torch_utils.unnormalizeObs(obs_)
 
       index_batch.append([eps_id, eps_step])
       state_batch.append(eps_history.state_history[eps_step])
@@ -217,28 +206,28 @@ class ReplayBuffer(object):
     ''''''
     obs, fxy_1, fxy_2, obs_, fxy_1_, fxy_2_, dxy, transform_params = torch_utils.perturb(
       obs[0].copy(),
-      force[:2].copy(),
-      force[3:5].copy(),
+      force[:,:2].copy(),
+      force[:,3:5].copy(),
       obs_[0].copy(),
-      force_[:2].copy(),
-      force_[3:5].copy(),
+      force_[:,:2].copy(),
+      force_[:,3:5].copy(),
       action[1:3].copy(),
       set_trans_zero=True
     )
 
     obs = obs.reshape(1, *obs.shape)
     force = force.copy()
-    force[0] = fxy_1[0]
-    force[1] = fxy_1[1]
-    force[3] = fxy_2[0]
-    force[4] = fxy_2[1]
+    force[:,0] = fxy_1[:,0]
+    force[:,1] = fxy_1[:,1]
+    force[:,3] = fxy_2[:,0]
+    force[:,4] = fxy_2[:,1]
 
     obs_ = obs_.reshape(1, *obs_.shape)
     force_ = force_.copy()
-    force_[0] = fxy_1_[0]
-    force_[1] = fxy_1_[1]
-    force_[3] = fxy_2_[0]
-    force_[4] = fxy_2_[1]
+    force_[:,0] = fxy_1_[:,0]
+    force_[:,1] = fxy_1_[:,1]
+    force_[:,3] = fxy_2_[:,0]
+    force_[:,4] = fxy_2_[:,1]
 
     action = action.copy()
     action[1] = dxy[0]
