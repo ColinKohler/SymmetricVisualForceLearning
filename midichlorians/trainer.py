@@ -86,6 +86,7 @@ class Trainer(object):
     '''
     num_expert_eps = 0
     while num_expert_eps < self.config.num_expert_episodes:
+      print(num_expert_eps)
       self.data_generator.stepEnvsAsync(shared_storage, replay_buffer, logger, expert=True)
       complete_eps = self.data_generator.stepEnvsWait(shared_storage, replay_buffer, logger, expert=True)
       num_expert_eps += complete_eps

@@ -17,7 +17,7 @@ class BlockPickingConfig(Config):
     self.seed = None
 
     # Env
-    self.obs_size = 128
+    self.obs_size = 16
     self.robot = 'panda'
     self.env_type = 'force_block_picking'
     self.max_steps = 100
@@ -82,7 +82,7 @@ class BlockPickingConfig(Config):
       'max_steps' : self.max_steps,
       'obs_size' : self.obs_size,
       'fast_mode' : True,
-      'physics_mode' : 'slow',
+      'physics_mode' : 'force',
       'action_sequence' : self.action_sequence,
       'robot' : self.robot,
       'num_objects' : 1,
