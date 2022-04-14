@@ -134,7 +134,7 @@ class Runner(object):
 
     info = ray.get(self.shared_storage_worker.getInfo.remote(keys))
     try:
-      while info['training_step'] < self.config.training_steps or info['generating_eval_eps']:
+      while info['training_step'] < self.config.training_steps or info['generating_eval_eps'] or info['run_eval_interval']:
         info = ray.get(self.shared_storage_worker.getInfo.remote(keys))
 
         # Eval
