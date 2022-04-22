@@ -111,16 +111,19 @@ class Trainer(object):
         time.sleep(0.5)
         continue
 
-      self.data_generator.stepEnvsAsync(shared_storage, replay_buffer, logger)
+      if self.training_step > self.config.pre_training_steps:
+        self.data_generator.stepEnvsAsync(shared_storage, replay_buffer, logger)
 
       idx_batch, batch = ray.get(next_batch)
       next_batch = replay_buffer.sample.remote(shared_storage)
 
       priorities, loss = self.updateWeights(batch)
       replay_buffer.updatePriorities.remote(priorities.cpu(), idx_batch)
-      self.training_step += 1
 
-      self.data_generator.stepEnvsWait(shared_storage, replay_buffer, logger)
+      if self.training_step > self.config.pre_training_steps:
+        self.data_generator.stepEnvsWait(shared_storage, replay_buffer, logger)
+
+      self.training_step += 1
 
       # Update target critic towards current critic
       if self.training_step % self.config.target_update_interval == 0:

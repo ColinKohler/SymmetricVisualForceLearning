@@ -115,6 +115,9 @@ class ReplayBuffer(object):
         force_stack_,
         eps_history.action_history[eps_step+1]
       )
+      #obs = eps_history.obs_history[eps_step]
+      #obs_ = eps_history.obs_history[eps_step+1]
+      #action = eps_history.action_history[eps_step+1]
       obs = torch_utils.unnormalizeObs(obs)
       obs_ = torch_utils.unnormalizeObs(obs_)
 

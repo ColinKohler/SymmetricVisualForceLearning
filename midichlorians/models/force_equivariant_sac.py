@@ -17,6 +17,7 @@ class ForceEquivariantResNet(EquivariantResNet):
 
     self.feat_type = n_out * [self.c4_act.regular_repr]
     self.xy_force_type = 2 * 4 * [self.c4_act.irrep(1)]
+    #self.xy_force_type = 2 * 2 * 4 * [self.c4_act.trivial_repr]
     self.z_force_type = 2 * 4 * [self.c4_act.trivial_repr]
 
     self.force_input = enn.FieldType(self.c4_act, self.xy_force_type + self.z_force_type)
