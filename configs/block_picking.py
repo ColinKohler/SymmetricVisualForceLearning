@@ -17,13 +17,13 @@ class BlockPickingConfig(Config):
     self.seed = None
 
     # Env
-    self.obs_size = 16
+    self.obs_size = 128
     self.robot = 'panda'
     self.env_type = 'force_block_picking'
     self.max_steps = 100
     self.dpos = 0.05
     self.drot = np.pi / 8
-    self.max_force = 10
+    self.max_force = 15
 
     # Data Gen
     self.num_data_gen_envs = 5
