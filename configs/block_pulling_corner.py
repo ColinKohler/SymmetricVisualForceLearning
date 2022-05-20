@@ -20,16 +20,12 @@ class BlockPullingCornerConfig(Config):
     self.robot = 'panda'
     self.env_type = 'force_block_pulling_corner'
     self.max_steps = 100
-    self.dpos = 0.025
+    self.dpos = 0.05
     self.drot = np.pi / 8
 
     # Data Gen
     self.num_data_gen_envs = 5
-    self.num_eval_envs = 5
     self.num_expert_episodes = 20
-    self.discount = 0.99
-    self.num_eval_episodes = 100
-    self.eval_interval = 500
 
     # Training
     if results_path:
@@ -47,6 +43,14 @@ class BlockPullingCornerConfig(Config):
     self.checkpoint_interval = 100
     self.init_temp = 1e-2
     self.tau = 1e-2
+    self.discount = 0.99
+    self.clip_gradient = False
+
+    # Eval
+    self.num_eval_envs = 5
+    self.num_eval_episodes = 100
+    self.eval_interval = 500
+    self.num_eval_intervals = int(self.training_steps / self.eval_interval)
 
     # LR schedule
     self.actor_lr_init = 1e-3
@@ -76,7 +80,7 @@ class BlockPullingCornerConfig(Config):
       'max_steps' : self.max_steps,
       'obs_size' : self.obs_size,
       'fast_mode' : True,
-      'physics_mode' : 'slow',
+      'physics_mode' : 'force',
       'action_sequence' : self.action_sequence,
       'robot' : self.robot,
       'num_objects' : 1,

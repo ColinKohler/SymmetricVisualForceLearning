@@ -23,7 +23,7 @@ class BlockPickingCornerConfig(Config):
     self.max_steps = 100
     self.dpos = 0.05
     self.drot = np.pi / 8
-    self.max_force = 10
+    self.max_force = 20
 
     # Data Gen
     self.num_data_gen_envs = 5
