@@ -96,17 +96,20 @@ class ReplayBuffer(object):
       eps_id, eps_history, eps_prob = self.sampleEps(uniform=True)
       eps_step, step_prob = self.sampleStep(eps_history, uniform=True)
 
-      force_stack = eps_history.force_history[max(0, eps_step-3):eps_step+1]
-      if len(force_stack) == 4:
-        force_stack = np.array(force_stack)
-      else:
-        force_stack = np.pad(force_stack, ((4 - len(force_stack) % 4, 0), (0, 0)))
+      #force_stack = eps_history.force_history[max(0, eps_step-3):eps_step+1]
+      #if len(force_stack) == 4:
+      #  force_stack = np.array(force_stack)
+      #else:
+      #  force_stack = np.pad(force_stack, ((4 - len(force_stack) % 4, 0), (0, 0)))
 
-      force_stack_ = eps_history.force_history[max(0, eps_step-2):eps_step+2]
-      if len(force_stack_) == 4:
-        force_stack_ = np.array(force_stack_)
-      else:
-        force_stack_ = np.pad(force_stack_, ((4 - len(force_stack_) % 4, 0), (0, 0)))
+      #force_stack_ = eps_history.force_history[max(0, eps_step-2):eps_step+2]
+      #if len(force_stack_) == 4:
+      #  force_stack_ = np.array(force_stack_)
+      #else:
+      #  force_stack_ = np.pad(force_stack_, ((4 - len(force_stack_) % 4, 0), (0, 0)))
+
+      force_stack = eps_history.force_history[eps_step].reshape(1,6)
+      force_stack_ = eps_history.force_history[eps_step+1].reshape(1,6)
 
       obs, force_stack, obs_, force_stack_, action = self.augmentTransitionSO2(
         eps_history.obs_history[eps_step],
@@ -118,8 +121,10 @@ class ReplayBuffer(object):
       #obs = eps_history.obs_history[eps_step]
       #obs_ = eps_history.obs_history[eps_step+1]
       #action = eps_history.action_history[eps_step+1]
-      obs = torch_utils.unnormalizeObs(obs)
-      obs_ = torch_utils.unnormalizeObs(obs_)
+      #obs = torch_utils.unnormalizeObs(obs)
+      obs = np.stack((torch_utils.unnormalizeObs(obs[0,0]), obs[0,1])).reshape(1, 2, 128, 128)
+      #obs_ = torch_utils.unnormalizeObs(obs_)
+      obs_ = np.stack((torch_utils.unnormalizeObs(obs_[0,0]), obs_[0,1])).reshape(1, 2, 128, 128)
 
       index_batch.append([eps_id, eps_step])
       state_batch.append(eps_history.state_history[eps_step])
@@ -136,10 +141,10 @@ class ReplayBuffer(object):
       weight = (1 / (self.total_samples * eps_prob * step_prob)) ** self.config.getPerBeta(training_step)
 
     state_batch = torch.tensor(state_batch).long()
-    obs_batch = torch.tensor(np.stack(obs_batch)).float()
+    obs_batch = torch.tensor(np.stack(obs_batch)).float().squeeze()
     force_batch = torch.tensor(np.stack(force_batch)).float()
     next_state_batch = torch.tensor(next_state_batch).long()
-    next_obs_batch = torch.tensor(np.stack(next_obs_batch)).float()
+    next_obs_batch = torch.tensor(np.stack(next_obs_batch)).float().squeeze()
     next_force_batch = torch.tensor(np.stack(next_force_batch)).float()
     action_batch = torch.tensor(np.stack(action_batch)).float()
     reward_batch = torch.tensor(reward_batch).float()
@@ -208,10 +213,10 @@ class ReplayBuffer(object):
   def augmentTransitionSO2(self, obs, force, obs_, force_, action):
     ''''''
     obs, fxy_1, fxy_2, obs_, fxy_1_, fxy_2_, dxy, transform_params = torch_utils.perturb(
-      obs[0].copy(),
+      obs.copy(),
       force[:,:2].copy(),
       force[:,3:5].copy(),
-      obs_[0].copy(),
+      obs_.copy(),
       force_[:,:2].copy(),
       force_[:,3:5].copy(),
       action[1:3].copy(),

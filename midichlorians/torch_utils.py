@@ -70,8 +70,10 @@ def perturb(obs, fxy_1, fxy_2, obs_, fxy_1_, fxy_2_, dxy, set_theta_zero=False, 
   rotated_fxy_2_ = rot.dot(fxy_2_.T).T
 
   # Apply rigid transform to obs
-  obs = scipy.ndimage.affine_transform(obs, np.linalg.inv(transform), mode='nearest', order=1)
-  obs_ = scipy.ndimage.affine_transform(obs_, np.linalg.inv(transform), mode='nearest', order=1)
+  obs[0] = scipy.ndimage.affine_transform(obs[0], np.linalg.inv(transform), mode='nearest', order=1)
+  obs[1] = scipy.ndimage.affine_transform(obs[1], np.linalg.inv(transform), mode='nearest', order=1)
+  obs_[0] = scipy.ndimage.affine_transform(obs_[0], np.linalg.inv(transform), mode='nearest', order=1)
+  obs_[1] = scipy.ndimage.affine_transform(obs_[1], np.linalg.inv(transform), mode='nearest', order=1)
 
   return obs, rotated_fxy_1, rotated_fxy_2, obs_, rotated_fxy_1_, rotated_fxy_2_, rotated_dxy, transform_params
 
