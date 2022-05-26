@@ -90,8 +90,8 @@ class ForceEquivariantCritic(EquivariantCritic):
   def __init__(self, depth_channels, action_dim, n_out=64, initialize=True, N=8):
     super().__init__(depth_channels, action_dim, n_out=n_out, initialize=initialize, N=N)
 
-    xy_channels = 2
-    z_channels = 2
+    xy_channels = 2 * 100
+    z_channels = 2 * 100
     self.enc = EquivariantEncoder(xy_channels, z_channels, depth_channels, n_out=n_out, initialize=initialize, N=N)
 
   def forward(self, depth, act):
@@ -121,8 +121,8 @@ class ForceEquivariantGaussianPolicy(EquivariantGaussianPolicy):
   def __init__(self, depth_channels, action_dim, n_out=64, initialize=True, N=8):
     super().__init__(depth_channels, action_dim, n_out=n_out, initialize=initialize, N=N)
 
-    xy_channels = 2
-    z_channels = 2
+    xy_channels = 2 * 100
+    z_channels = 2 * 100
     self.enc = EquivariantEncoder(xy_channels, z_channels, depth_channels, n_out=n_out, initialize=initialize, N=N)
 
   def forward(self, depth):

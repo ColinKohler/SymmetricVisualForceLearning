@@ -96,26 +96,14 @@ class ReplayBuffer(object):
       eps_id, eps_history, eps_prob = self.sampleEps(uniform=True)
       eps_step, step_prob = self.sampleStep(eps_history, uniform=True)
 
-      #force_stack = eps_history.force_history[max(0, eps_step-3):eps_step+1]
-      #if len(force_stack) == 4:
-      #  force_stack = np.array(force_stack)
-      #else:
-      #  force_stack = np.pad(force_stack, ((4 - len(force_stack) % 4, 0), (0, 0)))
+      force = eps_history.force_history[eps_step].reshape(self.config.force_history, self.config.force_dim)
+      force_ = eps_history.force_history[eps_step+1].reshape(self.config.force_history, self.config.force_dim)
 
-      #force_stack_ = eps_history.force_history[max(0, eps_step-2):eps_step+2]
-      #if len(force_stack_) == 4:
-      #  force_stack_ = np.array(force_stack_)
-      #else:
-      #  force_stack_ = np.pad(force_stack_, ((4 - len(force_stack_) % 4, 0), (0, 0)))
-
-      force_stack = eps_history.force_history[eps_step].reshape(1,6)
-      force_stack_ = eps_history.force_history[eps_step+1].reshape(1,6)
-
-      obs, force_stack, obs_, force_stack_, action = self.augmentTransitionSO2(
+      obs, force, obs_, force_, action = self.augmentTransitionSO2(
         eps_history.obs_history[eps_step],
-        force_stack,
+        force,
         eps_history.obs_history[eps_step+1],
-        force_stack_,
+        force_,
         eps_history.action_history[eps_step+1]
       )
       #obs = eps_history.obs_history[eps_step]
@@ -129,10 +117,10 @@ class ReplayBuffer(object):
       index_batch.append([eps_id, eps_step])
       state_batch.append(eps_history.state_history[eps_step])
       obs_batch.append(obs)
-      force_batch.append(force_stack)
+      force_batch.append(force)
       next_state_batch.append(eps_history.state_history[eps_step+1])
       next_obs_batch.append(obs_)
-      next_force_batch.append(force_stack_)
+      next_force_batch.append(force_)
       action_batch.append(action)
       reward_batch.append(eps_history.reward_history[eps_step+1])
       done_batch.append(eps_history.done_history[eps_step+1])
