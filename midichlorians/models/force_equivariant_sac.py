@@ -27,16 +27,18 @@ class ForceEncoder(nn.Module):
   def __init__(self, n_out):
     super().__init__()
     self.conv = nn.Sequential(
-      CausalConv1d(6, 16, kernel_size=2, stride=2),
-      nn.ReLU(inplace=True),
+      CausalConv1d(6, 8, kernel_size=2, stride=2),
+      nn.LeakyReLU(0.1, inplace=True),
+      CausalConv1d(8, 16, kernel_size=2, stride=2),
+      nn.LeakyReLU(0.1, inplace=True),
       CausalConv1d(16, 32, kernel_size=2, stride=2),
-      nn.ReLU(inplace=True),
+      nn.LeakyReLU(0.1, inplace=True),
       CausalConv1d(32, 64, kernel_size=2, stride=2),
-      nn.ReLU(inplace=True),
+      nn.LeakyReLU(0.1, inplace=True),
       CausalConv1d(64, 128, kernel_size=2, stride=2),
-      nn.ReLU(inplace=True),
+      nn.LeakyReLU(0.1, inplace=True),
       CausalConv1d(128, n_out, kernel_size=2, stride=2),
-      nn.ReLU(inplace=True),
+      nn.LeakyReLU(0.1, inplace=True),
     )
 
   def forward(self, x):
@@ -82,7 +84,7 @@ class EquivariantForceEncoder(nn.Module):
 class EquivariantEncoder(nn.Module):
   '''
   '''
-  def __init__(self, xy_channels, z_channels, depth_channels, n_out=64, initialize=True, N=8):
+  def __init__(self, depth_channels, n_out=64, initialize=True, N=8):
     super().__init__()
 
     #self.force_enc = EquivariantForceEncoder(xy_channels, z_channels, n_out=n_out, initialize=initialize, N=N)
@@ -109,7 +111,7 @@ class EquivariantEncoder(nn.Module):
     #xy_force = torch.cat((force[:,:,:2], force[:,:,3:5])).view(batch_size, -1, 1, 1)
     #z_force = torch.cat((force[:,:,2], force[:,:,5])).view(batch_size, -1, 1, 1)
     #force_geo = enn.GeometricTensor(torch.cat((xy_force, z_force), dim=1), self.force_enc.in_type)
-    force_feat = self.force_enc(force.view(batch_size, 6, 32))
+    force_feat = self.force_enc(force.view(batch_size, 6, 64))
 
     depth_geo = enn.GeometricTensor(depth, self.depth_enc.in_type)
     depth_feat = self.depth_enc(depth_geo)
@@ -126,15 +128,12 @@ class ForceEquivariantCritic(EquivariantCritic):
   def __init__(self, depth_channels, action_dim, n_out=64, initialize=True, N=8):
     super().__init__(depth_channels, action_dim, n_out=n_out, initialize=initialize, N=N)
 
-    xy_channels = 2 * 32
-    z_channels = 2 * 32
-    self.enc = EquivariantEncoder(xy_channels, z_channels, depth_channels, n_out=n_out, initialize=initialize, N=N)
+    self.enc = EquivariantEncoder(depth_channels, n_out=n_out, initialize=initialize, N=N)
 
   def forward(self, depth, act):
     depth, force = depth
     batch_size = depth.size(0)
 
-    depth = torch.cat((depth[:,0].unsqueeze(1), depth[:,2].unsqueeze(1)), dim=1)
     feat = self.enc(depth, force)
 
     dxy = act[:, 1:3].reshape(batch_size,  2, 1, 1)
@@ -157,15 +156,12 @@ class ForceEquivariantGaussianPolicy(EquivariantGaussianPolicy):
   def __init__(self, depth_channels, action_dim, n_out=64, initialize=True, N=8):
     super().__init__(depth_channels, action_dim, n_out=n_out, initialize=initialize, N=N)
 
-    xy_channels = 2 * 32
-    z_channels = 2 * 32
-    self.enc = EquivariantEncoder(xy_channels, z_channels, depth_channels, n_out=n_out, initialize=initialize, N=N)
+    self.enc = EquivariantEncoder(depth_channels, n_out=n_out, initialize=initialize, N=N)
 
   def forward(self, depth):
     depth, force = depth
     batch_size = depth.size(0)
 
-    depth = torch.cat((depth[:,0].unsqueeze(1), depth[:,2].unsqueeze(1)), dim=1)
     feat = self.enc(depth, force)
     out = self.conv(feat).tensor.reshape(batch_size, -1)
 

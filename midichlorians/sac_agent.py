@@ -49,7 +49,7 @@ class SACAgent(object):
     Returns:
       (numpy.array, double) : (Action, Q-Value)
     '''
-    obs = torch.Tensor(obs.astype(np.float32)).view(len(state), 2, self.config.obs_size, self.config.obs_size).to(self.device)
+    obs = torch.Tensor(obs.astype(np.float32)).view(len(state), 1, self.config.obs_size, self.config.obs_size).to(self.device)
     state = torch.Tensor(state).view(len(state), 1, 1, 1).to(self.device)
     state_tile = state.repeat(1, 1, obs.size(2), obs.size(3))
     obs = torch.cat((obs, state_tile), dim=1)

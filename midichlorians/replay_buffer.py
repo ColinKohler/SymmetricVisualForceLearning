@@ -106,13 +106,8 @@ class ReplayBuffer(object):
         force_,
         eps_history.action_history[eps_step+1]
       )
-      #obs = eps_history.obs_history[eps_step]
-      #obs_ = eps_history.obs_history[eps_step+1]
-      #action = eps_history.action_history[eps_step+1]
-      #obs = torch_utils.unnormalizeObs(obs)
-      obs = np.stack((torch_utils.unnormalizeObs(obs[0,0]), obs[0,1])).reshape(1, 2, 128, 128)
-      #obs_ = torch_utils.unnormalizeObs(obs_)
-      obs_ = np.stack((torch_utils.unnormalizeObs(obs_[0,0]), obs_[0,1])).reshape(1, 2, 128, 128)
+      obs = torch_utils.unnormalizeObs(obs)
+      obs_ = torch_utils.unnormalizeObs(obs_)
 
       index_batch.append([eps_id, eps_step])
       state_batch.append(eps_history.state_history[eps_step])
@@ -129,10 +124,10 @@ class ReplayBuffer(object):
       weight = (1 / (self.total_samples * eps_prob * step_prob)) ** self.config.getPerBeta(training_step)
 
     state_batch = torch.tensor(state_batch).long()
-    obs_batch = torch.tensor(np.stack(obs_batch)).float().squeeze()
+    obs_batch = torch.tensor(np.stack(obs_batch)).float()
     force_batch = torch.tensor(np.stack(force_batch)).float()
     next_state_batch = torch.tensor(next_state_batch).long()
-    next_obs_batch = torch.tensor(np.stack(next_obs_batch)).float().squeeze()
+    next_obs_batch = torch.tensor(np.stack(next_obs_batch)).float()
     next_force_batch = torch.tensor(np.stack(next_force_batch)).float()
     action_batch = torch.tensor(np.stack(action_batch)).float()
     reward_batch = torch.tensor(reward_batch).float()

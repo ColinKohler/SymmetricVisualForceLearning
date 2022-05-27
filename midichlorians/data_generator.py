@@ -199,8 +199,9 @@ class EpisodeHistory(object):
 
   def logStep(self, state, obs, force, action, value, reward, done, max_force):
     self.state_history.append(state)
-    obs = np.stack((torch_utils.normalizeObs(obs[0]), obs[1]))
-    self.obs_history.append(obs)
+    self.obs_history.append(
+      torch_utils.normalizeObs(obs)
+    )
     self.force_history.append(
       torch_utils.normalizeForce(force, max_force)
     )
