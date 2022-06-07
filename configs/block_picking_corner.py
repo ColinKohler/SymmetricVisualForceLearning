@@ -54,7 +54,6 @@ class BlockPickingCornerConfig(Config):
     self.eval_interval = 500
     self.num_eval_intervals = int(self.training_steps / self.eval_interval)
 
-
     # LR schedule
     self.actor_lr_init = 1e-3
     self.critic_lr_init = 1e-3

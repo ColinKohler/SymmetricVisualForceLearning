@@ -4,9 +4,9 @@ import numpy as np
 
 from configs.config import Config
 
-class PegInsertionConfig(Config):
+class BlockReachingConfig(Config):
   '''
-  Task config for peg insertion.
+  Task config for block reaching.
 
   Args:
     num_gpus (int):
@@ -19,30 +19,30 @@ class PegInsertionConfig(Config):
     # Env
     self.obs_size = 128
     self.robot = 'panda'
-    self.env_type = 'force_peg_insertion'
+    self.env_type = 'force_block_reaching'
     self.max_steps = 100
     self.dpos = 0.05
     self.drot = np.pi / 8
-    self.max_force = 30
+    self.max_force = 15
 
     # Data Gen
     self.num_data_gen_envs = 5
-    self.num_expert_episodes = 20
+    self.num_expert_episodes = 0
 
     # Training
     if results_path:
       self.results_path = os.path.join(self.root_path,
-                                       'peg_insertion',
+                                       'block_reaching',
                                        results_path)
     else:
       self.results_path = os.path.join(self.root_path,
-                                       'peg_insertion',
+                                       'block_reaching',
                                        datetime.datetime.now().strftime('%Y-%m-%d--%H-%M-%S'))
     self.save_model = True
     self.training_steps = 20000
     self.batch_size = 64
     self.target_update_interval = 1
-    self.checkpoint_interval = 500
+    self.checkpoint_interval = 100
     self.init_temp = 1e-2
     self.tau = 1e-2
     self.discount = 0.99
@@ -82,11 +82,11 @@ class PegInsertionConfig(Config):
       'max_steps' : self.max_steps,
       'obs_size' : self.obs_size,
       'fast_mode' : True,
-      'physics_mode' : 'force',
+      'physics_mode' : 'slow',
       'action_sequence' : self.action_sequence,
       'robot' : self.robot,
       'num_objects' : 1,
-      'object_scale_range' : (0.1, 0.1),
+      'object_scale_range' : (1.0, 1.0),
       'random_orientation' : self.random_orientation,
       'workspace_check' : 'point',
       'reward_type' : self.reward_type,
@@ -102,6 +102,5 @@ class PegInsertionConfig(Config):
     return {
       'random_orientation': True,
       'dpos' : self.dpos,
-      'drot' : self.drot,
-      'rand_point' : False,
+      'drot' : self.drot
     }

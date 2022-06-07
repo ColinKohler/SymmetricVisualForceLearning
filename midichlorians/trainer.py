@@ -90,6 +90,21 @@ class Trainer(object):
       complete_eps = self.data_generator.stepEnvsWait(shared_storage, replay_buffer, logger, expert=True)
       num_expert_eps += complete_eps
 
+  def generateData(self, num_eps, replay_buffer, shared_storage, logger):
+    '''
+    Generate the amount of expert data defined in the task config.
+
+    Args:
+      replay_buffer (ray.worker): Replay buffer worker containing data samples.
+      shared_storage (ray.worker): Shared storage worker, shares data across workers.
+      logger (ray.worker): Logger worker, logs training data across workers.
+    '''
+    current_eps = 0
+    while current_eps < num_eps:
+      self.data_generator.stepEnvsAsync(shared_storage, replay_buffer, logger)
+      complete_eps = self.data_generator.stepEnvsWait(shared_storage, replay_buffer, logger)
+      current_eps += complete_eps
+
   def continuousUpdateWeights(self, replay_buffer, shared_storage, logger):
     '''
     Continuously sample batches from the replay buffer and perform weight updates.
@@ -102,6 +117,7 @@ class Trainer(object):
     '''
     self.data_generator.resetEnvs()
 
+    is_data = True if self.config.num_expert_episodes > 0 else False
     next_batch = replay_buffer.sample.remote(shared_storage)
     while self.training_step < self.config.training_steps and \
           not ray.get(shared_storage.getInfo.remote('terminate')):
