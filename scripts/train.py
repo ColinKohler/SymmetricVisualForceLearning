@@ -6,6 +6,7 @@ import ray
 import argparse
 
 from configs.block_picking import BlockPickingConfig
+from configs.block_stacking import BlockStackingConfig
 from configs.block_reaching import BlockReachingConfig
 from configs.block_pulling import BlockPullingConfig
 from configs.block_picking_corner import BlockPickingCornerConfig
@@ -17,6 +18,7 @@ from midichlorians.runner import Runner
 task_configs = {
   'block_reaching' : BlockReachingConfig,
   'block_picking' : BlockPickingConfig,
+  'block_stacking' : BlockStackingConfig,
   'block_pulling' : BlockPullingConfig,
   'block_picking_corner' : BlockPickingCornerConfig,
   'block_pulling_corner' : BlockPullingCornerConfig,

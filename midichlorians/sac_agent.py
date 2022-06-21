@@ -65,7 +65,8 @@ class SACAgent(object):
     action = action.cpu()
     action_idx, action = self.decodeActions(*[action[:,i] for i in range(self.action_shape)])
 
-    return action_idx, action, value[0]
+    value = torch.min(torch.hstack((value[0], value[1])), dim=1)[0]
+    return action_idx, action, value
 
   def decodeActions(self, unscaled_p, unscaled_dx, unscaled_dy, unscaled_dz, unscaled_dtheta):
     '''

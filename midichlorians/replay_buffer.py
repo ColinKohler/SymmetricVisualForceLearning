@@ -93,8 +93,8 @@ class ReplayBuffer(object):
     ) = [list() for _ in range(11)]
 
     for _ in range(self.config.batch_size):
-      eps_id, eps_history, eps_prob = self.sampleEps(uniform=True)
-      eps_step, step_prob = self.sampleStep(eps_history, uniform=True)
+      eps_id, eps_history, eps_prob = self.sampleEps(uniform=False)
+      eps_step, step_prob = self.sampleStep(eps_history, uniform=False)
 
       force = eps_history.force_history[eps_step].reshape(self.config.force_history, self.config.force_dim)
       force_ = eps_history.force_history[eps_step+1].reshape(self.config.force_history, self.config.force_dim)
@@ -121,7 +121,7 @@ class ReplayBuffer(object):
       done_batch.append(eps_history.done_history[eps_step+1])
 
       training_step = ray.get(shared_storage.getInfo.remote('training_step'))
-      weight = (1 / (self.total_samples * eps_prob * step_prob)) ** self.config.getPerBeta(training_step)
+      weight_batch.append((1 / (self.total_samples * eps_prob * step_prob)) ** self.config.getPerBeta(training_step))
 
     state_batch = torch.tensor(state_batch).long()
     obs_batch = torch.tensor(np.stack(obs_batch)).float()
