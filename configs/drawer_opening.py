@@ -4,9 +4,9 @@ import numpy as np
 
 from configs.config import Config
 
-class BlockStackingConfig(Config):
+class DrawerOpeningConfig(Config):
   '''
-  Task config for block stacking.
+  Task config for block picking.
 
   Args:
     num_gpus (int):
@@ -19,7 +19,7 @@ class BlockStackingConfig(Config):
     # Env
     self.obs_size = 128
     self.robot = 'panda'
-    self.env_type = 'force_block_stacking'
+    self.env_type = 'force_drawer_opening'
     self.max_steps = 100
     self.dpos = 0.05
     self.drot = np.pi / 8
@@ -27,16 +27,16 @@ class BlockStackingConfig(Config):
 
     # Data Gen
     self.num_data_gen_envs = 5
-    self.num_expert_episodes = 1000
+    self.num_expert_episodes = 20
 
     # Training
     if results_path:
       self.results_path = os.path.join(self.root_path,
-                                       'block_stacking',
+                                       'drawer_opening',
                                        results_path)
     else:
       self.results_path = os.path.join(self.root_path,
-                                       'block_stacking',
+                                       'drawer_opening',
                                        datetime.datetime.now().strftime('%Y-%m-%d--%H-%M-%S'))
     self.save_model = True
     self.training_steps = 20000
@@ -48,7 +48,7 @@ class BlockStackingConfig(Config):
     self.discount = 0.99
     self.clip_gradient = False
 
-    # Eval
+     # Eval
     self.num_eval_envs = 5
     self.num_eval_episodes = 100
     self.eval_interval = 500
@@ -85,8 +85,8 @@ class BlockStackingConfig(Config):
       'physics_mode' : 'force',
       'action_sequence' : self.action_sequence,
       'robot' : self.robot,
-      'num_objects' : 2,
-      'object_scale_range' : (1.0, 1.0),
+      'num_objects' : 1,
+      'object_scale_range' : (1.2, 1.2),
       'random_orientation' : self.random_orientation,
       'workspace_check' : 'point',
       'reward_type' : self.reward_type,

@@ -9,9 +9,11 @@ from configs.block_picking import BlockPickingConfig
 from configs.block_stacking import BlockStackingConfig
 from configs.block_reaching import BlockReachingConfig
 from configs.block_pulling import BlockPullingConfig
+from configs.block_pushing import BlockPushingConfig
 from configs.block_picking_corner import BlockPickingCornerConfig
 from configs.block_pulling_corner import BlockPullingCornerConfig
 from configs.peg_insertion import PegInsertionConfig
+from configs.drawer_opening import DrawerOpeningConfig
 
 from midichlorians.runner import Runner
 
