@@ -88,7 +88,6 @@ class DataGenerator(object):
       planner_config
     )
     self.obs = None
-    self.force_stack = np.zeros((self.num_envs, self.config.force_history, self.config.force_dim))
     self.current_epsiodes = None
 
   def resetEnvs(self):
@@ -96,7 +95,6 @@ class DataGenerator(object):
     self.obs = self.envs.reset()
     for i, eps_history in enumerate(self.current_episodes):
       eps_history.logStep(self.obs[0][i], self.obs[2][i], self.obs[3][i], np.array([0,0,0,0,0]), 0, 0, 0, self.config.max_force)
-      self.force_stack[i,-1] = self.obs[3][i]
 
   def stepEnvsAsync(self, shared_storage, replay_buffer, logger, expert=False):
     '''
@@ -117,7 +115,7 @@ class DataGenerator(object):
       self.action_idxs, self.actions, self.values = self.agent.getAction(
         self.obs[0],
         self.obs[2],
-        torch_utils.normalizeForce(self.force_stack, self.config.max_force),
+        torch_utils.normalizeForce(self.obs[3], self.config.max_force),
         evaluate=self.eval
       )
 
@@ -148,10 +146,6 @@ class DataGenerator(object):
         dones[i],
         self.config.max_force
       )
-      force_stack = np.zeros((self.config.force_history, self.config.force_dim))
-      force_stack[:-1] = self.force_stack[i,1:]
-      force_stack[-1] = obs_[3][i]
-      self.force_stack[i] = force_stack
 
     done_idxs = np.nonzero(dones)[0]
     if len(done_idxs) != 0:
@@ -183,8 +177,6 @@ class DataGenerator(object):
         obs_[0][done_idx] = new_obs_[0][i]
         obs_[2][done_idx] = new_obs_[2][i]
         obs_[3][done_idx] = new_obs_[3][i]
-        self.force_stack[done_idx] = np.zeros((self.config.force_history, self.config.force_dim))
-        self.force_stack[done_idx,-1] = new_obs_[3][i]
 
     self.obs = obs_
     return len(done_idxs)

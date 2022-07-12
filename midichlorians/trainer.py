@@ -91,6 +91,20 @@ class Trainer(object):
       complete_eps = self.data_generator.stepEnvsWait(shared_storage, replay_buffer, logger, expert=True)
       num_expert_eps += complete_eps
 
+  def generateData(self, num_eps, replay_buffer, shared_storage, logger):
+    '''
+
+    Args:
+      replay_buffer (ray.worker): Replay buffer worker containing data samples.
+      shared_storage (ray.worker): Shared storage worker, shares data across workers.
+      logger (ray.worker): Logger worker, logs training data across workers.
+    '''
+    current_eps = 0
+    while current_eps < num_eps:
+      self.data_generator.stepEnvsAsync(shared_storage, replay_buffer, logger)
+      complete_eps = self.data_generator.stepEnvsWait(shared_storage, replay_buffer, logger)
+      current_eps += complete_eps
+
   def continuousUpdateWeights(self, replay_buffer, shared_storage, logger):
     '''
     Continuously sample batches from the replay buffer and perform weight updates.
@@ -103,6 +117,7 @@ class Trainer(object):
     '''
     self.data_generator.resetEnvs()
 
+    is_data = True if self.config.num_expert_episodes > 0 else False
     next_batch = replay_buffer.sample.remote(shared_storage)
     while self.training_step < self.config.training_steps and \
           not ray.get(shared_storage.getInfo.remote('terminate')):
@@ -112,16 +127,19 @@ class Trainer(object):
         time.sleep(0.5)
         continue
 
-      self.data_generator.stepEnvsAsync(shared_storage, replay_buffer, logger)
+      if self.training_step > self.config.pre_training_steps:
+        self.data_generator.stepEnvsAsync(shared_storage, replay_buffer, logger)
 
       idx_batch, batch = ray.get(next_batch)
       next_batch = replay_buffer.sample.remote(shared_storage)
 
       priorities, loss = self.updateWeights(batch)
       replay_buffer.updatePriorities.remote(priorities.cpu(), idx_batch)
-      self.training_step += 1
 
-      self.data_generator.stepEnvsWait(shared_storage, replay_buffer, logger)
+      if self.training_step > self.config.pre_training_steps:
+        self.data_generator.stepEnvsWait(shared_storage, replay_buffer, logger)
+
+      self.training_step += 1
 
       # Update target critic towards current critic
       if self.training_step % self.config.target_update_interval == 0:
@@ -205,9 +223,9 @@ class Trainer(object):
     qf1 = qf1.squeeze()
     qf2 = qf2.squeeze()
 
-    qf1_loss = F.mse_loss(qf1, next_q_value)
-    qf2_loss = F.mse_loss(qf2, next_q_value)
-    critic_loss = qf1_loss + qf2_loss
+    qf1_loss = F.mse_loss(qf1, next_q_value, reduction='none')
+    qf2_loss = F.mse_loss(qf2, next_q_value, reduction='none')
+    critic_loss = ((qf1_loss + qf2_loss) * weight_batch).mean()
 
     with torch.no_grad():
       td_error = 0.5 * (torch.abs(qf2 - next_q_value) + torch.abs(qf1 - next_q_value))
@@ -224,7 +242,7 @@ class Trainer(object):
     qf1_pi, qf2_pi = self.critic(obs_batch, pi)
     min_qf_pi = torch.min(qf1_pi, qf2_pi)
 
-    actor_loss = ((self.alpha * log_pi) - min_qf_pi).mean()
+    actor_loss = (((self.alpha * log_pi) - min_qf_pi) * weight_batch).mean()
 
     self.actor_optimizer.zero_grad()
     actor_loss.backward()
@@ -232,7 +250,7 @@ class Trainer(object):
       torch_utils.clipGradNorm(self.actor_optimizer)
     self.actor_optimizer.step()
 
-    alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
+    alpha_loss = -((self.log_alpha * (log_pi + self.target_entropy).detach()) * weight_batch).mean()
 
     self.alpha_optimizer.zero_grad()
     alpha_loss.backward()

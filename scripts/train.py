@@ -6,19 +6,31 @@ import ray
 import argparse
 
 from configs.block_picking import BlockPickingConfig
+from configs.block_stacking import BlockStackingConfig
+from configs.block_reaching import BlockReachingConfig
 from configs.block_pulling import BlockPullingConfig
+from configs.block_pushing import BlockPushingConfig
 from configs.block_picking_corner import BlockPickingCornerConfig
 from configs.block_pulling_corner import BlockPullingCornerConfig
 from configs.peg_insertion import PegInsertionConfig
+from configs.drawer_opening import DrawerOpeningConfig
+from configs.block_in_bowl import BlockInBowlConfig
+from configs.clutter_picking import ClutterPickingConfig
 
 from midichlorians.runner import Runner
 
 task_configs = {
+  'block_reaching' : BlockReachingConfig,
   'block_picking' : BlockPickingConfig,
+  'block_stacking' : BlockStackingConfig,
   'block_pulling' : BlockPullingConfig,
+  'block_pushing' : BlockPushingConfig,
   'block_picking_corner' : BlockPickingCornerConfig,
   'block_pulling_corner' : BlockPullingCornerConfig,
-  'peg_insertion' : PegInsertionConfig
+  'peg_insertion' : PegInsertionConfig,
+  'drawer_opening' : DrawerOpeningConfig,
+  'block_in_bowl' : BlockInBowlConfig,
+  'clutter_picking' : ClutterPickingConfig,
 }
 
 if __name__ == '__main__':

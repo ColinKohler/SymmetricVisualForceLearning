@@ -12,7 +12,7 @@ class Config(object):
     self.obs_channels = 2
     self.obs_type = 'pixel'
     self.force_dim = 6
-    self.force_history = 4
+    self.force_history = 64
     self.max_force = 100
 
     self.action_sequence = 'pxyzr'
@@ -30,6 +30,7 @@ class Config(object):
     # Training
     self.root_path = '/home/kohler.c/scratch/midichlorians/'
     self.num_gpus = num_gpus
+    self.pre_training_steps = 0
     self.gen_data_on_gpu = False
     self.per_beta_anneal_steps = None
     self.clip_gradient = False

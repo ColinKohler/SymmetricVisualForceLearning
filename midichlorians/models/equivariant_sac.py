@@ -3,8 +3,36 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal
 
-from e2cnn import gspaces
-from e2cnn import nn as enn
+from escnn import gspaces
+from escnn import nn as enn
+
+class EquivariantLinearBlock(nn.Module):
+  '''
+  A equivariant ResNet block.
+  '''
+  def __init__(self, in_type, out_type, initialize=True, act=True, norm=False):
+    super().__init__()
+    self.norm = norm
+    self.act = act
+
+    self.fc = enn.Linear(
+      in_type,
+      out_type,
+      initialize=initialize
+    )
+    if self.norm:
+      self.bn = enn.InnerBatchNorm(out_type)
+    if self.act:
+      self.relu = enn.ReLU(out_type, inplace=True)
+
+  def forward(self, x):
+    out = self.fc(x)
+    if self.norm:
+      out = self.bn(out)
+    if self.act:
+      out = self.relu(out)
+
+    return out
 
 class EquivariantBlock(nn.Module):
   '''
@@ -37,19 +65,18 @@ class EquivariantBlock(nn.Module):
 
     return out
 
-class EquivariantResNet(nn.Module):
+class EquivariantDepthEncoder(nn.Module):
   '''
-  EquivariantResNet trunk.
   '''
   def __init__(self, obs_channels, n_out=64, initialize=True, N=8):
     super().__init__()
     self.obs_channels = obs_channels
-    self.c4_act = gspaces.Rot2dOnR2(N)
+    self.c4_act = gspaces.rot2dOnR2(N)
     self.layers = list()
 
-    in_type = enn.FieldType(self.c4_act, obs_channels * [self.c4_act.trivial_repr])
+    self.in_type = enn.FieldType(self.c4_act, obs_channels * [self.c4_act.trivial_repr])
     out_type = enn.FieldType(self.c4_act, n_out // 8 * [self.c4_act.regular_repr])
-    self.layers.append(EquivariantBlock(in_type, out_type, kernel_size=3, stride=1, padding=1, initialize=initialize))
+    self.layers.append(EquivariantBlock(self.in_type, out_type, kernel_size=3, stride=1, padding=1, initialize=initialize))
     self.layers.append(enn.PointwiseMaxPool(out_type, 2))
 
     in_type = out_type
@@ -77,8 +104,8 @@ class EquivariantResNet(nn.Module):
     self.layers.append(enn.PointwiseMaxPool(out_type, 2))
 
     in_type = out_type
-    out_type = enn.FieldType(self.c4_act, n_out * [self.c4_act.regular_repr])
-    self.layers.append(EquivariantBlock(in_type, out_type, kernel_size=3, stride=1, padding=0, initialize=initialize))
+    self.out_type = enn.FieldType(self.c4_act, n_out * [self.c4_act.regular_repr])
+    self.layers.append(EquivariantBlock(in_type, self.out_type, kernel_size=3, stride=1, padding=0, initialize=initialize))
 
     self.conv_1 = nn.Sequential(*self.layers)
 
@@ -96,7 +123,7 @@ class EquivariantCritic(nn.Module):
     self.action_dim = action_dim
     self.N = N
 
-    self.c4_act = gspaces.Rot2dOnR2(self.N)
+    self.c4_act = gspaces.rot2dOnR2(self.N)
     self.n_rho1 = 1
     self.feat_repr = self.n_out * [self.c4_act.regular_repr]
     self.invariant_action_repr = (self.action_dim - 2) * [self.c4_act.trivial_repr]
@@ -107,7 +134,7 @@ class EquivariantCritic(nn.Module):
     self.inner_type_2 = enn.FieldType(self.c4_act, self.n_out * [self.c4_act.trivial_repr])
     self.out_type = enn.FieldType(self.c4_act, 1 * [self.c4_act.trivial_repr])
 
-    self.resnet = EquivariantResNet(obs_channels, n_out=n_out, initialize=initialize, N=N)
+    self.enc = EquivariantDepthEncoder(obs_channels, n_out=n_out, initialize=initialize, N=N)
 
     self.conv_1 = nn.Sequential(
       EquivariantBlock(self.in_type, self.inner_type, kernel_size=1, stride=1, padding=0, initialize=initialize),
@@ -125,7 +152,7 @@ class EquivariantCritic(nn.Module):
     batch_size = obs.size(0)
 
     obs_geo = enn.GeometricTensor(obs, enn.FieldType(self.c4_act, self.obs_channels * [self.c4_act.trivial_repr]))
-    feat = self.resnet(obs_geo)
+    feat = self.enc(obs_geo)
 
     dxy = act[:, 1:3].reshape(batch_size,  2, 1, 1)
 
@@ -155,7 +182,7 @@ class EquivariantGaussianPolicy(nn.Module):
     self.n_out = n_out
     self.initialize = initialize
 
-    self.c4_act = gspaces.Rot2dOnR2(N)
+    self.c4_act = gspaces.rot2dOnR2(N)
     self.n_rho1 = 1
     self.feat_repr = self.n_out * [self.c4_act.regular_repr]
     self.invariant_action_repr = (self.action_dim * 2 - 2) * [self.c4_act.trivial_repr]
@@ -164,14 +191,14 @@ class EquivariantGaussianPolicy(nn.Module):
     self.in_type = enn.FieldType(self.c4_act, self.feat_repr)
     self.out_type = enn.FieldType(self.c4_act, self.invariant_action_repr + self.equivariant_action_repr)
 
-    self.resnet = EquivariantResNet(obs_channels, n_out=n_out, initialize=initialize, N=N)
+    self.enc = EquivariantDepthEncoder(obs_channels, n_out=n_out, initialize=initialize, N=N)
     self.conv = EquivariantBlock(self.in_type, self.out_type, kernel_size=1, stride=1, padding=0, initialize=initialize, act=False)
 
   def forward(self, obs):
     batch_size = obs.size(0)
 
     obs_geo = enn.GeometricTensor(obs, enn.FieldType(self.c4_act, self.obs_channels * [self.c4_act.trivial_repr]))
-    feat = self.resnet(obs_geo)
+    feat = self.enc(obs_geo)
     out = self.conv(feat).tensor.reshape(batch_size, -1)
 
     dxy = out[:, 0:2]

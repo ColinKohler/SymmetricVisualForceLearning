@@ -21,9 +21,9 @@ class BlockPickingCornerConfig(Config):
     self.robot = 'panda'
     self.env_type = 'force_block_picking_corner'
     self.max_steps = 100
-    self.dpos = 0.025
+    self.dpos = 0.05
     self.drot = np.pi / 8
-    self.max_force = 10
+    self.max_force = 30
 
     # Data Gen
     self.num_data_gen_envs = 5
@@ -53,7 +53,6 @@ class BlockPickingCornerConfig(Config):
     self.num_eval_episodes = 100
     self.eval_interval = 500
     self.num_eval_intervals = int(self.training_steps / self.eval_interval)
-
 
     # LR schedule
     self.actor_lr_init = 1e-3
