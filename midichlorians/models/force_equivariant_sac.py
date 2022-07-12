@@ -128,13 +128,16 @@ class ForceEquivariantCritic(EquivariantCritic):
   def __init__(self, depth_channels, action_dim, n_out=64, initialize=True, N=8):
     super().__init__(depth_channels, action_dim, n_out=n_out, initialize=initialize, N=N)
 
-    self.enc = EquivariantEncoder(depth_channels, n_out=n_out, initialize=initialize, N=N)
+    #self.enc = EquivariantEncoder(depth_channels, n_out=n_out, initialize=initialize, N=N)
+    self.enc = EquivariantDepthEncoder(depth_channels, n_out=n_out, initialize=initialize, N=N)
 
   def forward(self, depth, act):
     depth, force = depth
     batch_size = depth.size(0)
 
-    feat = self.enc(depth, force)
+    #feat = self.enc(depth, force)
+    depth_geo = enn.GeometricTensor(depth, self.enc.in_type)
+    feat = self.enc(depth_geo)
 
     dxy = act[:, 1:3].reshape(batch_size,  2, 1, 1)
 
@@ -156,13 +159,16 @@ class ForceEquivariantGaussianPolicy(EquivariantGaussianPolicy):
   def __init__(self, depth_channels, action_dim, n_out=64, initialize=True, N=8):
     super().__init__(depth_channels, action_dim, n_out=n_out, initialize=initialize, N=N)
 
-    self.enc = EquivariantEncoder(depth_channels, n_out=n_out, initialize=initialize, N=N)
+    #self.enc = EquivariantEncoder(depth_channels, n_out=n_out, initialize=initialize, N=N)
+    self.enc = EquivariantDepthEncoder(depth_channels, n_out=n_out, initialize=initialize, N=N)
 
   def forward(self, depth):
     depth, force = depth
     batch_size = depth.size(0)
 
-    feat = self.enc(depth, force)
+    #feat = self.enc(depth, force)
+    depth_geo = enn.GeometricTensor(depth, self.enc.in_type)
+    feat = self.enc(depth_geo)
     out = self.conv(feat).tensor.reshape(batch_size, -1)
 
     dxy = out[:, 0:2]

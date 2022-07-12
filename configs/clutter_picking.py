@@ -27,7 +27,7 @@ class ClutterPickingConfig(Config):
 
     # Data Gen
     self.num_data_gen_envs = 5
-    self.num_expert_episodes = 0
+    self.num_expert_episodes = 20
 
     # Training
     if results_path:
@@ -50,7 +50,7 @@ class ClutterPickingConfig(Config):
 
      # Eval
     self.num_eval_envs = 5
-    self.num_eval_episodes = 25
+    self.num_eval_episodes = 100
     self.eval_interval = 500
     self.num_eval_intervals = int(self.training_steps / self.eval_interval)
 
