@@ -92,7 +92,6 @@ class Trainer(object):
 
   def generateData(self, num_eps, replay_buffer, shared_storage, logger):
     '''
-    Generate the amount of expert data defined in the task config.
 
     Args:
       replay_buffer (ray.worker): Replay buffer worker containing data samples.
