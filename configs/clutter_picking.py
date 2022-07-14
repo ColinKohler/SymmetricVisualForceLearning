@@ -26,8 +26,8 @@ class ClutterPickingConfig(Config):
     self.max_force = 30
 
     # Data Gen
-    self.num_data_gen_envs = 5
-    self.num_expert_episodes = 0
+    self.num_data_gen_envs = 1
+    self.num_expert_episodes = 1
 
     # Training
     if results_path:
