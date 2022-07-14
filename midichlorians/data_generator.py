@@ -91,7 +91,7 @@ class DataGenerator(object):
     self.current_epsiodes = None
 
   def resetEnvs(self):
-    self.current_episodes = [EpisodeHistory() for _ in range(self.config.num_data_gen_envs)]
+    self.current_episodes = [EpisodeHistory() for _ in range(self.num_envs)]
     self.obs = self.envs.reset()
     for i, eps_history in enumerate(self.current_episodes):
       eps_history.logStep(self.obs[0][i], self.obs[2][i], self.obs[3][i], np.array([0,0,0,0,0]), 0, 0, 0, self.config.max_force)
