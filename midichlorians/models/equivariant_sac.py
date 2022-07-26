@@ -74,38 +74,53 @@ class EquivariantDepthEncoder(nn.Module):
     self.c4_act = gspaces.rot2dOnR2(N)
     self.layers = list()
 
-    self.in_type = enn.FieldType(self.c4_act, obs_channels * [self.c4_act.trivial_repr])
+    in_type = enn.FieldType(self.c4_act, obs_channels * [self.c4_act.trivial_repr])
+    self.in_type = in_type
     out_type = enn.FieldType(self.c4_act, n_out // 8 * [self.c4_act.regular_repr])
-    self.layers.append(EquivariantBlock(self.in_type, out_type, kernel_size=3, stride=1, padding=1, initialize=initialize))
+    self.layers.append(
+      EquivariantBlock(in_type, out_type, kernel_size=3, stride=1, padding=1, initialize=initialize)
+    )
     self.layers.append(enn.PointwiseMaxPool(out_type, 2))
 
     in_type = out_type
     out_type = enn.FieldType(self.c4_act, n_out // 4 * [self.c4_act.regular_repr])
-    self.layers.append(EquivariantBlock(in_type, out_type, kernel_size=3, stride=1, padding=1, initialize=initialize))
+    self.layers.append(
+      EquivariantBlock(in_type, out_type, kernel_size=3, stride=1, padding=1, initialize=initialize)
+    )
     self.layers.append(enn.PointwiseMaxPool(out_type, 2))
 
     in_type = out_type
     out_type = enn.FieldType(self.c4_act, n_out // 2 * [self.c4_act.regular_repr])
-    self.layers.append(EquivariantBlock(in_type, out_type, kernel_size=3, stride=1, padding=1, initialize=initialize))
+    self.layers.append(
+      EquivariantBlock(in_type, out_type, kernel_size=3, stride=1, padding=1, initialize=initialize)
+    )
     self.layers.append(enn.PointwiseMaxPool(out_type, 2))
 
     in_type = out_type
     out_type = enn.FieldType(self.c4_act, n_out * [self.c4_act.regular_repr])
-    self.layers.append(EquivariantBlock(in_type, out_type, kernel_size=3, stride=1, padding=1, initialize=initialize))
+    self.layers.append(
+      EquivariantBlock(in_type, out_type, kernel_size=3, stride=1, padding=1, initialize=initialize)
+    )
     self.layers.append(enn.PointwiseMaxPool(out_type, 2))
 
     in_type = out_type
     out_type = enn.FieldType(self.c4_act, 2 * n_out * [self.c4_act.regular_repr])
-    self.layers.append(EquivariantBlock(in_type, out_type, kernel_size=3, stride=1, padding=1, initialize=initialize))
+    self.layers.append(
+      EquivariantBlock(in_type, out_type, kernel_size=3, stride=1, padding=1, initialize=initialize)
+    )
 
     in_type = out_type
     out_type = enn.FieldType(self.c4_act, n_out * [self.c4_act.regular_repr])
-    self.layers.append(EquivariantBlock(in_type, out_type, kernel_size=3, stride=1, padding=0, initialize=initialize))
+    self.layers.append(
+      EquivariantBlock(in_type, out_type, kernel_size=3, stride=1, padding=0, initialize=initialize)
+    )
     self.layers.append(enn.PointwiseMaxPool(out_type, 2))
 
     in_type = out_type
     self.out_type = enn.FieldType(self.c4_act, n_out * [self.c4_act.regular_repr])
-    self.layers.append(EquivariantBlock(in_type, self.out_type, kernel_size=3, stride=1, padding=0, initialize=initialize))
+    self.layers.append(
+      EquivariantBlock(in_type, self.out_type, kernel_size=3, stride=1, padding=0, initialize=initialize)
+    )
 
     self.conv_1 = nn.Sequential(*self.layers)
 
@@ -157,7 +172,8 @@ class EquivariantCritic(nn.Module):
     dxy = act[:, 1:3].reshape(batch_size,  2, 1, 1)
 
     inv_act = torch.cat((act[:,0:1], act[:,3:]), dim=1)
-    inv_act = inv_act.reshape(batch_size, self.action_dim - 2, 1, 1)
+    n_inv = inv_act.shape[1]
+    inv_act = inv_act.reshape(batch_size, n_inv, 1, 1)
 
     cat = torch.cat((feat.tensor, inv_act, dxy), dim=1)
     cat_geo = enn.GeometricTensor(cat, self.in_type)
@@ -189,7 +205,7 @@ class EquivariantGaussianPolicy(nn.Module):
     self.equivariant_action_repr = self.n_rho1 * [self.c4_act.irrep(1)]
 
     self.in_type = enn.FieldType(self.c4_act, self.feat_repr)
-    self.out_type = enn.FieldType(self.c4_act, self.invariant_action_repr + self.equivariant_action_repr)
+    self.out_type = enn.FieldType(self.c4_act, self.equivariant_action_repr + self.invariant_action_repr)
 
     self.enc = EquivariantDepthEncoder(obs_channels, n_out=n_out, initialize=initialize, N=N)
     self.conv = EquivariantBlock(self.in_type, self.out_type, kernel_size=1, stride=1, padding=0, initialize=initialize, act=False)

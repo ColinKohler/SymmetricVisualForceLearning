@@ -108,9 +108,6 @@ class EquivariantEncoder(nn.Module):
   def forward(self, depth, force):
     batch_size = force.size(0)
 
-    #xy_force = torch.cat((force[:,:,:2], force[:,:,3:5])).view(batch_size, -1, 1, 1)
-    #z_force = torch.cat((force[:,:,2], force[:,:,5])).view(batch_size, -1, 1, 1)
-    #force_geo = enn.GeometricTensor(torch.cat((xy_force, z_force), dim=1), self.force_enc.in_type)
     force_feat = self.force_enc(force.view(batch_size, 6, 64))
 
     depth_geo = enn.GeometricTensor(depth, self.depth_enc.in_type)

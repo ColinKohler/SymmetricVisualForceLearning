@@ -20,14 +20,14 @@ class ClutterPickingConfig(Config):
     self.obs_size = 128
     self.robot = 'panda'
     self.env_type = 'force_clutter_picking'
-    self.max_steps = 100
+    self.max_steps = 50
     self.dpos = 0.05
-    self.drot = np.pi / 8
+    self.drot = np.pi / 4
     self.max_force = 30
 
     # Data Gen
-    self.num_data_gen_envs = 1
-    self.num_expert_episodes = 1
+    self.num_data_gen_envs = 5
+    self.num_expert_episodes = 20
 
     # Training
     if results_path:
@@ -39,7 +39,7 @@ class ClutterPickingConfig(Config):
                                        'clutter_picking',
                                        datetime.datetime.now().strftime('%Y-%m-%d--%H-%M-%S'))
     self.save_model = True
-    self.training_steps = 20000
+    self.training_steps = 10000
     self.batch_size = 64
     self.target_update_interval = 1
     self.checkpoint_interval = 100
@@ -50,7 +50,7 @@ class ClutterPickingConfig(Config):
 
      # Eval
     self.num_eval_envs = 5
-    self.num_eval_episodes = 25
+    self.num_eval_episodes = 100
     self.eval_interval = 500
     self.num_eval_intervals = int(self.training_steps / self.eval_interval)
 
@@ -85,7 +85,7 @@ class ClutterPickingConfig(Config):
       'physics_mode' : 'force',
       'action_sequence' : self.action_sequence,
       'robot' : self.robot,
-      'num_objects' : 5,
+      'num_objects' : 15,
       'object_scale_range' : (0.8, 0.8),
       'random_orientation' : self.random_orientation,
       'workspace_check' : 'point',

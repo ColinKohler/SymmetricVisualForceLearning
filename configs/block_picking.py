@@ -20,14 +20,14 @@ class BlockPickingConfig(Config):
     self.obs_size = 128
     self.robot = 'panda'
     self.env_type = 'force_block_picking'
-    self.max_steps = 100
+    self.max_steps = 50
     self.dpos = 0.05
-    self.drot = np.pi / 8
+    self.drot = np.pi / 4
     self.max_force = 15
 
     # Data Gen
     self.num_data_gen_envs = 5
-    self.num_expert_episodes = 0
+    self.num_expert_episodes = 20
 
     # Training
     if results_path:
@@ -39,7 +39,7 @@ class BlockPickingConfig(Config):
                                        'block_picking',
                                        datetime.datetime.now().strftime('%Y-%m-%d--%H-%M-%S'))
     self.save_model = True
-    self.training_steps = 20000
+    self.training_steps = 1000
     self.batch_size = 64
     self.target_update_interval = 1
     self.checkpoint_interval = 100
@@ -51,7 +51,7 @@ class BlockPickingConfig(Config):
     # Eval
     self.num_eval_envs = 5
     self.num_eval_episodes = 100
-    self.eval_interval = 500
+    self.eval_interval = 100
     self.num_eval_intervals = int(self.training_steps / self.eval_interval)
 
     # LR schedule
@@ -82,7 +82,7 @@ class BlockPickingConfig(Config):
       'max_steps' : self.max_steps,
       'obs_size' : self.obs_size,
       'fast_mode' : True,
-      'physics_mode' : 'slow',
+      'physics_mode' : 'force',
       'action_sequence' : self.action_sequence,
       'robot' : self.robot,
       'num_objects' : 1,
