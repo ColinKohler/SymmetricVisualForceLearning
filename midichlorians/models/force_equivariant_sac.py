@@ -37,6 +37,10 @@ class ForceEncoder(nn.Module):
       nn.LeakyReLU(0.1, inplace=True),
       CausalConv1d(64, 128, kernel_size=2, stride=2),
       nn.LeakyReLU(0.1, inplace=True),
+      CausalConv1d(128, 128, kernel_size=2, stride=2),
+      nn.LeakyReLU(0.1, inplace=True),
+      CausalConv1d(128, 128, kernel_size=2, stride=2),
+      nn.LeakyReLU(0.1, inplace=True),
       CausalConv1d(128, n_out, kernel_size=2, stride=2),
       nn.LeakyReLU(0.1, inplace=True),
     )
@@ -108,7 +112,7 @@ class EquivariantEncoder(nn.Module):
   def forward(self, depth, force):
     batch_size = force.size(0)
 
-    force_feat = self.force_enc(force.view(batch_size, 6, 64))
+    force_feat = self.force_enc(force.view(batch_size, 6, 256))
 
     depth_geo = enn.GeometricTensor(depth, self.depth_enc.in_type)
     depth_feat = self.depth_enc(depth_geo)
@@ -139,7 +143,8 @@ class ForceEquivariantCritic(EquivariantCritic):
     dxy = act[:, 1:3].reshape(batch_size,  2, 1, 1)
 
     inv_act = torch.cat((act[:,0:1], act[:,3:]), dim=1)
-    inv_act = inv_act.reshape(batch_size, self.action_dim - 2, 1, 1)
+    n_inv = inv_act.shape[1]
+    inv_act = inv_act.reshape(batch_size, n_inv, 1, 1)
 
     cat = torch.cat((feat.tensor, inv_act, dxy), dim=1)
     cat_geo = enn.GeometricTensor(cat, self.in_type)

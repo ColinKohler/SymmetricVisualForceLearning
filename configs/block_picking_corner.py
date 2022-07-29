@@ -23,7 +23,7 @@ class BlockPickingCornerConfig(Config):
     self.max_steps = 50
     self.dpos = 0.05
     self.drot = np.pi / 4
-    self.max_force = 30
+    self.max_force = 100
 
     # Data Gen
     self.num_data_gen_envs = 5
@@ -58,7 +58,7 @@ class BlockPickingCornerConfig(Config):
     self.actor_lr_init = 1e-3
     self.critic_lr_init = 1e-3
     self.lr_decay = 0.95
-    self.lr_decay_interval = 500
+    self.lr_decay_interval = 1000
 
     # Replay Buffer
     self.replay_buffer_size = 100000
