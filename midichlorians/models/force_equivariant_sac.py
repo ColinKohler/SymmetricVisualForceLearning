@@ -28,21 +28,17 @@ class ForceEncoder(nn.Module):
     super().__init__()
     self.conv = nn.Sequential(
       CausalConv1d(6, 8, kernel_size=2, stride=2),
-      nn.LeakyReLU(0.1, inplace=True),
+      nn.ReLU(inplace=True),
       CausalConv1d(8, 16, kernel_size=2, stride=2),
-      nn.LeakyReLU(0.1, inplace=True),
+      nn.ReLU(inplace=True),
       CausalConv1d(16, 32, kernel_size=2, stride=2),
-      nn.LeakyReLU(0.1, inplace=True),
+      nn.ReLU(inplace=True),
       CausalConv1d(32, 64, kernel_size=2, stride=2),
-      nn.LeakyReLU(0.1, inplace=True),
+      nn.ReLU(inplace=True),
       CausalConv1d(64, 128, kernel_size=2, stride=2),
-      nn.LeakyReLU(0.1, inplace=True),
-      CausalConv1d(128, 128, kernel_size=2, stride=2),
-      nn.LeakyReLU(0.1, inplace=True),
-      CausalConv1d(128, 128, kernel_size=2, stride=2),
-      nn.LeakyReLU(0.1, inplace=True),
+      nn.ReLU(inplace=True),
       CausalConv1d(128, n_out, kernel_size=2, stride=2),
-      nn.LeakyReLU(0.1, inplace=True),
+      nn.ReLU(inplace=True),
     )
 
   def forward(self, x):
@@ -99,7 +95,7 @@ class EquivariantEncoder(nn.Module):
     self.layers = list()
 
     self.force_out_type = enn.FieldType(self.c4_act, n_out * [self.c4_act.trivial_repr])
-    in_type = self.force_out_type + self.depth_enc.out_type
+    in_type = self.depth_enc.out_type + self.force_out_type
     out_type = enn.FieldType(self.c4_act, n_out // 2 * [self.c4_act.regular_repr])
     self.layers.append(EquivariantBlock(in_type, out_type, kernel_size=1, stride=1, padding=0, initialize=initialize))
 
@@ -112,13 +108,13 @@ class EquivariantEncoder(nn.Module):
   def forward(self, depth, force):
     batch_size = force.size(0)
 
-    force_feat = self.force_enc(force.view(batch_size, 6, 256))
+    force_feat = self.force_enc(force.view(batch_size, 6, 64))
 
     depth_geo = enn.GeometricTensor(depth, self.depth_enc.in_type)
     depth_feat = self.depth_enc(depth_geo)
 
     feat = torch.cat((depth_feat.tensor, force_feat.reshape(batch_size, -1, 1, 1)), dim=1)
-    feat = enn.GeometricTensor(feat, self.force_out_type + self.depth_enc.out_type)
+    feat = enn.GeometricTensor(feat, self.depth_enc.out_type + self.force_out_type)
 
     return self.conv(feat)
 
