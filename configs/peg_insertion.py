@@ -100,7 +100,7 @@ class PegInsertionConfig(Config):
 
     '''
     return {
-      'random_orientation': True,
+      'random_orientation': self.random_orientation,
       'dpos' : self.dpos,
       'drot' : self.drot,
     }

@@ -44,6 +44,9 @@ def normalizeForce(force, max_force):
   force = force / max_force
   return force
 
+#def normalizeForce(force, max_force):
+#  return np.tanh(force)
+
 def perturb(obs, fxy_1, fxy_2, obs_, fxy_1_, fxy_2_, dxy, set_theta_zero=False, set_trans_zero=False):
   '''
 

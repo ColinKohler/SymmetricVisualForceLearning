@@ -28,17 +28,17 @@ class ForceEncoder(nn.Module):
     super().__init__()
     self.conv = nn.Sequential(
       CausalConv1d(6, 8, kernel_size=2, stride=2),
-      nn.ReLU(inplace=True),
+      nn.LeakyReLU(0.1, inplace=True),
       CausalConv1d(8, 16, kernel_size=2, stride=2),
-      nn.ReLU(inplace=True),
+      nn.LeakyReLU(0.1, inplace=True),
       CausalConv1d(16, 32, kernel_size=2, stride=2),
-      nn.ReLU(inplace=True),
+      nn.LeakyReLU(0.1, inplace=True),
       CausalConv1d(32, 64, kernel_size=2, stride=2),
-      nn.ReLU(inplace=True),
+      nn.LeakyReLU(0.1, inplace=True),
       CausalConv1d(64, 128, kernel_size=2, stride=2),
-      nn.ReLU(inplace=True),
+      nn.LeakyReLU(0.1, inplace=True),
       CausalConv1d(128, n_out, kernel_size=2, stride=2),
-      nn.ReLU(inplace=True),
+      nn.LeakyReLU(0.1, inplace=True),
     )
 
   def forward(self, x):
@@ -87,7 +87,6 @@ class EquivariantEncoder(nn.Module):
   def __init__(self, depth_channels, n_out=64, initialize=True, N=8):
     super().__init__()
 
-    #self.force_enc = EquivariantForceEncoder(xy_channels, z_channels, n_out=n_out, initialize=initialize, N=N)
     self.force_enc = ForceEncoder(n_out)
     self.depth_enc = EquivariantDepthEncoder(depth_channels, n_out=n_out, initialize=initialize, N=N)
     self.c4_act = gspaces.rot2dOnR2(N)
@@ -96,7 +95,7 @@ class EquivariantEncoder(nn.Module):
 
     self.force_out_type = enn.FieldType(self.c4_act, n_out * [self.c4_act.trivial_repr])
     in_type = self.depth_enc.out_type + self.force_out_type
-    out_type = enn.FieldType(self.c4_act, n_out // 2 * [self.c4_act.regular_repr])
+    out_type = enn.FieldType(self.c4_act, n_out * [self.c4_act.regular_repr])
     self.layers.append(EquivariantBlock(in_type, out_type, kernel_size=1, stride=1, padding=0, initialize=initialize))
 
     in_type = out_type
@@ -108,7 +107,7 @@ class EquivariantEncoder(nn.Module):
   def forward(self, depth, force):
     batch_size = force.size(0)
 
-    force_feat = self.force_enc(force.view(batch_size, 6, 64))
+    force_feat = self.force_enc(torch.permute(force, (0,2,1)))
 
     depth_geo = enn.GeometricTensor(depth, self.depth_enc.in_type)
     depth_feat = self.depth_enc(depth_geo)
