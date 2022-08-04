@@ -116,7 +116,6 @@ class Trainer(object):
     '''
     self.data_generator.resetEnvs()
 
-    is_data = True if self.config.num_expert_episodes > 0 else False
     next_batch = replay_buffer.sample.remote(shared_storage)
     while self.training_step < self.config.training_steps and \
           not ray.get(shared_storage.getInfo.remote('terminate')):
@@ -126,23 +125,20 @@ class Trainer(object):
         time.sleep(0.5)
         continue
 
-      if self.training_step > self.config.pre_training_steps:
-        self.data_generator.stepEnvsAsync(shared_storage, replay_buffer, logger)
+      self.data_generator.stepEnvsAsync(shared_storage, replay_buffer, logger)
 
       idx_batch, batch = ray.get(next_batch)
       next_batch = replay_buffer.sample.remote(shared_storage)
 
       priorities, loss = self.updateWeights(batch)
       replay_buffer.updatePriorities.remote(priorities.cpu(), idx_batch)
-
-      if self.training_step > self.config.pre_training_steps:
-        self.data_generator.stepEnvsWait(shared_storage, replay_buffer, logger)
-
       self.training_step += 1
 
+      self.data_generator.stepEnvsWait(shared_storage, replay_buffer, logger)
+
       # Update target critic towards current critic
-      if self.training_step % self.config.target_update_interval == 0:
-        self.softTargetUpdate()
+      #if self.training_step % self.config.target_update_interval == 0:
+      self.softTargetUpdate()
 
       # Update LRs
       if self.training_step > 0 and self.training_step % self.config.lr_decay_interval == 0:
@@ -171,7 +167,7 @@ class Trainer(object):
       shared_storage.setInfo.remote(
         {
           'training_step' : self.training_step,
-          'run_eval_interval' : self.training_step % self.config.eval_interval == 0
+          'run_eval_interval' : self.training_step > 0 and self.training_step % self.config.eval_interval == 0
         }
       )
       logger.updateScalars.remote(
@@ -254,8 +250,8 @@ class Trainer(object):
       torch_utils.clipGradNorm(self.actor_optimizer)
     self.actor_optimizer.step()
 
-    #alpha_loss = -((self.log_alpha * (log_pi + self.target_entropy).detach()) * weight_batch).mean()
     alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
+    #alpha_loss = -((self.log_alpha * (log_pi + self.target_entropy).detach()) * weight_batch).mean()
 
     self.alpha_optimizer.zero_grad()
     alpha_loss.backward()

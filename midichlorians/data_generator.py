@@ -7,7 +7,7 @@ import numpy.random as npr
 from midichlorians.sac_agent import SACAgent
 from midichlorians import torch_utils
 
-from helping_hands_rl_envs import env_factory
+from bulletarm import env_factory
 
 @ray.remote
 class EvalDataGenerator(object):
@@ -200,7 +200,7 @@ class EpisodeHistory(object):
   def logStep(self, state, obs, force, action, value, reward, done, max_force):
     self.state_history.append(state)
     self.obs_history.append(
-      torch_utils.normalizeObs(obs)
+      torch_utils.normalizeObs(obs).squeeze()
     )
     self.force_history.append(
       torch_utils.normalizeForce(force, max_force)

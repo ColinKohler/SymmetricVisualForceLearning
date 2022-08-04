@@ -6,7 +6,7 @@ from torch.distributions import Normal
 from escnn import gspaces
 from escnn import nn as enn
 
-from midichlorians.models.equivariant_sac import EquivariantBlock, EquivariantLinearBlock, EquivariantDepthEncoder, EquivariantCritic, EquivariantGaussianPolicy
+from midichlorians.models.equivariant_sac import EquivariantBlock, EquivariantDepthEncoder, EquivariantCritic, EquivariantGaussianPolicy
 
 class CausalConv1d(nn.Conv1d):
   def __init__(self, in_channels, out_channels, kernel_size, stride=1, dilation=1, bias=True):
@@ -44,43 +44,6 @@ class ForceEncoder(nn.Module):
   def forward(self, x):
     return self.conv(x)
 
-class EquivariantForceEncoder(nn.Module):
-  '''
-
-  '''
-  def __init__(self, xy_channels, z_channels, n_out=64, initialize=True, N=8):
-    super().__init__()
-
-    self.c4_act = gspaces.rot2dOnR2(N)
-    self.layers = list()
-
-    self.xy_force_type = xy_channels * [self.c4_act.irrep(1)]
-    self.z_force_type = z_channels * [self.c4_act.trivial_repr]
-
-    self.in_type = enn.FieldType(
-      self.c4_act,
-      xy_channels * [self.c4_act.irrep(1)] + z_channels * [self.c4_act.trivial_repr]
-    )
-    out_type = enn.FieldType(self.c4_act, n_out // 8 * [self.c4_act.regular_repr])
-    self.layers.append(EquivariantBlock(self.in_type, out_type, kernel_size=1, stride=1, padding=0, initialize=initialize))
-
-    in_type = out_type
-    out_type = enn.FieldType(self.c4_act, n_out // 4 * [self.c4_act.regular_repr])
-    self.layers.append(EquivariantBlock(in_type, out_type, kernel_size=1, stride=1, padding=0, initialize=initialize))
-
-    in_type = out_type
-    out_type = enn.FieldType(self.c4_act, n_out // 2 * [self.c4_act.regular_repr])
-    self.layers.append(EquivariantBlock(in_type, out_type, kernel_size=1, stride=1, padding=0, initialize=initialize))
-
-    in_type = out_type
-    self.out_type = enn.FieldType(self.c4_act, n_out * [self.c4_act.regular_repr])
-    self.layers.append(EquivariantBlock(in_type, self.out_type, kernel_size=1, stride=1, padding=0, initialize=initialize))
-
-    self.conv = nn.Sequential(*self.layers)
-
-  def forward(self, x):
-    return self.conv(x)
-
 class EquivariantEncoder(nn.Module):
   '''
   '''
@@ -91,18 +54,10 @@ class EquivariantEncoder(nn.Module):
     self.depth_enc = EquivariantDepthEncoder(depth_channels, n_out=n_out, initialize=initialize, N=N)
     self.c4_act = gspaces.rot2dOnR2(N)
 
-    self.layers = list()
-
-    self.force_out_type = enn.FieldType(self.c4_act, n_out * [self.c4_act.trivial_repr])
-    in_type = self.depth_enc.out_type + self.force_out_type
-    out_type = enn.FieldType(self.c4_act, n_out * [self.c4_act.regular_repr])
-    self.layers.append(EquivariantBlock(in_type, out_type, kernel_size=1, stride=1, padding=0, initialize=initialize))
-
-    in_type = out_type
+    self.force_feat_type = enn.FieldType(self.c4_act, n_out * [self.c4_act.trivial_repr])
+    in_type = self.depth_enc.out_type + self.force_feat_type
     self.out_type = enn.FieldType(self.c4_act, n_out * [self.c4_act.regular_repr])
-    self.layers.append(EquivariantBlock(in_type, self.out_type, kernel_size=1, stride=1, padding=0, initialize=initialize))
-
-    self.conv = nn.Sequential(*self.layers)
+    self.conv = EquivariantBlock(in_type, self.out_type, kernel_size=1, stride=1, padding=0, initialize=initialize)
 
   def forward(self, depth, force):
     batch_size = force.size(0)
@@ -113,7 +68,7 @@ class EquivariantEncoder(nn.Module):
     depth_feat = self.depth_enc(depth_geo)
 
     feat = torch.cat((depth_feat.tensor, force_feat.reshape(batch_size, -1, 1, 1)), dim=1)
-    feat = enn.GeometricTensor(feat, self.depth_enc.out_type + self.force_out_type)
+    feat = enn.GeometricTensor(feat, self.depth_enc.out_type + self.force_feat_type)
 
     return self.conv(feat)
 
@@ -127,8 +82,8 @@ class ForceEquivariantCritic(EquivariantCritic):
     self.enc = EquivariantEncoder(depth_channels, n_out=n_out, initialize=initialize, N=N)
     #self.enc = EquivariantDepthEncoder(depth_channels, n_out=n_out, initialize=initialize, N=N)
 
-  def forward(self, depth, act):
-    depth, force = depth
+  def forward(self, obs, act):
+    depth, force = obs
     batch_size = depth.size(0)
 
     feat = self.enc(depth, force)
@@ -144,8 +99,8 @@ class ForceEquivariantCritic(EquivariantCritic):
     cat = torch.cat((feat.tensor, inv_act, dxy), dim=1)
     cat_geo = enn.GeometricTensor(cat, self.in_type)
 
-    out_1 = self.conv_1(cat_geo).tensor.reshape(batch_size, 1)
-    out_2 = self.conv_2(cat_geo).tensor.reshape(batch_size, 1)
+    out_1 = self.critic_1(cat_geo).tensor.reshape(batch_size, 1)
+    out_2 = self.critic_2(cat_geo).tensor.reshape(batch_size, 1)
 
     return out_1, out_2
 
@@ -159,8 +114,8 @@ class ForceEquivariantGaussianPolicy(EquivariantGaussianPolicy):
     self.enc = EquivariantEncoder(depth_channels, n_out=n_out, initialize=initialize, N=N)
     #self.enc = EquivariantDepthEncoder(depth_channels, n_out=n_out, initialize=initialize, N=N)
 
-  def forward(self, depth):
-    depth, force = depth
+  def forward(self, obs):
+    depth, force = obs
     batch_size = depth.size(0)
 
     feat = self.enc(depth, force)
