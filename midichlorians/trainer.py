@@ -223,9 +223,13 @@ class Trainer(object):
     qf1 = qf1.squeeze()
     qf2 = qf2.squeeze()
 
-    qf1_loss = F.mse_loss(qf1, next_q_value, reduction='none')
-    qf2_loss = F.mse_loss(qf2, next_q_value, reduction='none')
-    critic_loss = ((qf1_loss + qf2_loss) * weight_batch).mean()
+    qf1_loss = F.mse_loss(qf1, next_q_value)
+    qf2_loss = F.mse_loss(qf2, next_q_value)
+    critic_loss = qf1_loss + qf2_loss
+
+    #qf1_loss = F.mse_loss(qf1, next_q_value, reduction='none')
+    #qf2_loss = F.mse_loss(qf2, next_q_value, reduction='none')
+    #critic_loss = ((qf1_loss + qf2_loss) * weight_batch).mean()
 
     with torch.no_grad():
       td_error = 0.5 * (torch.abs(qf2 - next_q_value) + torch.abs(qf1 - next_q_value))
@@ -242,7 +246,8 @@ class Trainer(object):
     qf1_pi, qf2_pi = self.critic(obs_batch, pi)
     min_qf_pi = torch.min(qf1_pi, qf2_pi)
 
-    actor_loss = (((self.alpha * log_pi) - min_qf_pi) * weight_batch).mean()
+    actor_loss = ((self.alpha * log_pi) - min_qf_pi).mean()
+    #actor_loss = (((self.alpha * log_pi) - min_qf_pi) * weight_batch).mean()
 
     self.actor_optimizer.zero_grad()
     actor_loss.backward()
@@ -250,7 +255,8 @@ class Trainer(object):
       torch_utils.clipGradNorm(self.actor_optimizer)
     self.actor_optimizer.step()
 
-    alpha_loss = -((self.log_alpha * (log_pi + self.target_entropy).detach()) * weight_batch).mean()
+    #alpha_loss = -((self.log_alpha * (log_pi + self.target_entropy).detach()) * weight_batch).mean()
+    alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
 
     self.alpha_optimizer.zero_grad()
     alpha_loss.backward()

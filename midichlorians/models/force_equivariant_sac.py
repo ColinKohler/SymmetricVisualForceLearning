@@ -87,7 +87,6 @@ class EquivariantEncoder(nn.Module):
   def __init__(self, depth_channels, n_out=64, initialize=True, N=8):
     super().__init__()
 
-    #self.force_enc = EquivariantForceEncoder(xy_channels, z_channels, n_out=n_out, initialize=initialize, N=N)
     self.force_enc = ForceEncoder(n_out)
     self.depth_enc = EquivariantDepthEncoder(depth_channels, n_out=n_out, initialize=initialize, N=N)
     self.c4_act = gspaces.rot2dOnR2(N)
@@ -95,8 +94,8 @@ class EquivariantEncoder(nn.Module):
     self.layers = list()
 
     self.force_out_type = enn.FieldType(self.c4_act, n_out * [self.c4_act.trivial_repr])
-    in_type = self.force_out_type + self.depth_enc.out_type
-    out_type = enn.FieldType(self.c4_act, n_out // 2 * [self.c4_act.regular_repr])
+    in_type = self.depth_enc.out_type + self.force_out_type
+    out_type = enn.FieldType(self.c4_act, n_out * [self.c4_act.regular_repr])
     self.layers.append(EquivariantBlock(in_type, out_type, kernel_size=1, stride=1, padding=0, initialize=initialize))
 
     in_type = out_type
@@ -108,16 +107,13 @@ class EquivariantEncoder(nn.Module):
   def forward(self, depth, force):
     batch_size = force.size(0)
 
-    #xy_force = torch.cat((force[:,:,:2], force[:,:,3:5])).view(batch_size, -1, 1, 1)
-    #z_force = torch.cat((force[:,:,2], force[:,:,5])).view(batch_size, -1, 1, 1)
-    #force_geo = enn.GeometricTensor(torch.cat((xy_force, z_force), dim=1), self.force_enc.in_type)
-    force_feat = self.force_enc(force.view(batch_size, 6, 64))
+    force_feat = self.force_enc(torch.permute(force, (0,2,1)))
 
     depth_geo = enn.GeometricTensor(depth, self.depth_enc.in_type)
     depth_feat = self.depth_enc(depth_geo)
 
     feat = torch.cat((depth_feat.tensor, force_feat.reshape(batch_size, -1, 1, 1)), dim=1)
-    feat = enn.GeometricTensor(feat, self.force_out_type + self.depth_enc.out_type)
+    feat = enn.GeometricTensor(feat, self.depth_enc.out_type + self.force_out_type)
 
     return self.conv(feat)
 
@@ -142,7 +138,8 @@ class ForceEquivariantCritic(EquivariantCritic):
     dxy = act[:, 1:3].reshape(batch_size,  2, 1, 1)
 
     inv_act = torch.cat((act[:,0:1], act[:,3:]), dim=1)
-    inv_act = inv_act.reshape(batch_size, self.action_dim - 2, 1, 1)
+    n_inv = inv_act.shape[1]
+    inv_act = inv_act.reshape(batch_size, n_inv, 1, 1)
 
     cat = torch.cat((feat.tensor, inv_act, dxy), dim=1)
     cat_geo = enn.GeometricTensor(cat, self.in_type)

@@ -20,9 +20,9 @@ class PegInsertionConfig(Config):
     self.obs_size = 128
     self.robot = 'panda'
     self.env_type = 'force_peg_insertion'
-    self.max_steps = 100
+    self.max_steps = 50
     self.dpos = 0.05
-    self.drot = np.pi / 8
+    self.drot = np.pi / 4
     self.max_force = 30
 
     # Data Gen
@@ -100,8 +100,7 @@ class PegInsertionConfig(Config):
 
     '''
     return {
-      'random_orientation': True,
+      'random_orientation': self.random_orientation,
       'dpos' : self.dpos,
       'drot' : self.drot,
-      'rand_point' : False,
     }

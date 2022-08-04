@@ -20,9 +20,9 @@ class DrawerOpeningConfig(Config):
     self.obs_size = 128
     self.robot = 'panda'
     self.env_type = 'force_drawer_opening'
-    self.max_steps = 100
+    self.max_steps = 50
     self.dpos = 0.05
-    self.drot = np.pi / 8
+    self.drot = np.pi / 4
     self.max_force = 30
 
     # Data Gen
@@ -39,7 +39,7 @@ class DrawerOpeningConfig(Config):
                                        'drawer_opening',
                                        datetime.datetime.now().strftime('%Y-%m-%d--%H-%M-%S'))
     self.save_model = True
-    self.training_steps = 20000
+    self.training_steps = 10000
     self.batch_size = 64
     self.target_update_interval = 1
     self.checkpoint_interval = 100
@@ -86,7 +86,7 @@ class DrawerOpeningConfig(Config):
       'action_sequence' : self.action_sequence,
       'robot' : self.robot,
       'num_objects' : 1,
-      'object_scale_range' : (1.2, 1.2),
+      'object_scale_range' : (1.0, 1.0),
       'random_orientation' : self.random_orientation,
       'workspace_check' : 'point',
       'reward_type' : self.reward_type,
