@@ -40,12 +40,10 @@ def unnormalizeObs(obs):
   return obs / 255 * 0.4
 
 def normalizeForce(force, max_force):
-  force = np.clip(force, -max_force, max_force)
-  force = force / max_force
   return force
-
-#def normalizeForce(force, max_force):
-#  return np.tanh(force)
+#  force = np.clip(force, -max_force, max_force) / max_force
+#  force = scipy.ndimage.uniform_filter1d(force, size=256, axis=0)
+#  return force[-64:]
 
 def perturb(obs, fxy_1, fxy_2, obs_, fxy_1_, fxy_2_, dxy, set_theta_zero=False, set_trans_zero=False):
   '''
