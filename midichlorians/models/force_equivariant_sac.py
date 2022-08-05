@@ -24,9 +24,7 @@ class CausalConvBlock(nn.Module):
   def __init__(self):
     super().__init__()
     self.conv = nn.Sequential(
-      CausalConv1d(1, 2, kernel_size=2, stride=2),
-      nn.LeakyReLU(0.1, inplace=True),
-      CausalConv1d(2, 4, kernel_size=2, stride=2),
+      CausalConv1d(1, 4, kernel_size=2, stride=2),
       nn.LeakyReLU(0.1, inplace=True),
       CausalConv1d(4, 8, kernel_size=2, stride=2),
       nn.LeakyReLU(0.1, inplace=True),
@@ -34,7 +32,9 @@ class CausalConvBlock(nn.Module):
       nn.LeakyReLU(0.1, inplace=True),
       CausalConv1d(16, 32, kernel_size=2, stride=2),
       nn.LeakyReLU(0.1, inplace=True),
-      CausalConv1d(32, 16, kernel_size=2, stride=2),
+      CausalConv1d(32, 64, kernel_size=2, stride=2),
+      nn.LeakyReLU(0.1, inplace=True),
+      CausalConv1d(64, 64, kernel_size=2, stride=2),
       nn.LeakyReLU(0.1, inplace=True),
     )
 
@@ -77,8 +77,8 @@ class EquivariantEncoder(nn.Module):
     self.c4_act = gspaces.rot2dOnR2(N)
 
     self.depth_repr = n_out * [self.c4_act.regular_repr]
-    self.equivariant_force_repr = 2 * 16 * [self.c4_act.irrep(1)]
-    self.invariant_force_repr = 2 * 16 * [self.c4_act.trivial_repr]
+    self.equivariant_force_repr = 2 * 64 * [self.c4_act.irrep(1)]
+    self.invariant_force_repr = 2 * 64 * [self.c4_act.trivial_repr]
 
     self.in_type = enn.FieldType(self.c4_act, self.depth_repr + self.equivariant_force_repr + self.invariant_force_repr)
     self.out_type = enn.FieldType(self.c4_act, n_out * [self.c4_act.regular_repr])
