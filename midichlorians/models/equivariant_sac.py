@@ -53,7 +53,7 @@ class EquivariantDepthEncoder(nn.Module):
     self.layers.append(
       EquivariantBlock(in_type, out_type, kernel_size=3, stride=1, padding=1, initialize=initialize)
     )
-    self.layers.append(enn.PointwiseMaxPool(out_type, 2))
+    #self.layers.append(enn.PointwiseMaxPool(out_type, 2))
 
     # 64x64
     in_type = out_type
@@ -61,7 +61,7 @@ class EquivariantDepthEncoder(nn.Module):
     self.layers.append(
       EquivariantBlock(in_type, out_type, kernel_size=3, stride=1, padding=1, initialize=initialize)
     )
-    self.layers.append(enn.PointwiseMaxPool(out_type, 2))
+    #self.layers.append(enn.PointwiseMaxPool(out_type, 2))
 
     # 32x32
     in_type = out_type
@@ -69,7 +69,7 @@ class EquivariantDepthEncoder(nn.Module):
     self.layers.append(
       EquivariantBlock(in_type, out_type, kernel_size=3, stride=1, padding=1, initialize=initialize)
     )
-    self.layers.append(enn.PointwiseMaxPool(out_type, 2))
+    #self.layers.append(enn.PointwiseMaxPool(out_type, 2))
 
     # 16x16
     in_type = out_type
