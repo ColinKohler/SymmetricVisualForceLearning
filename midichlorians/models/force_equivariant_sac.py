@@ -20,29 +20,51 @@ class CausalConv1d(nn.Conv1d):
       return res[:, :, :-self.__padding]
     return res
 
+class CausalConvBlock(nn.Module):
+  def __init__(self):
+    super().__init__()
+    self.conv = nn.Sequential(
+      CausalConv1d(1, 4, kernel_size=2, stride=2),
+      nn.LeakyReLU(0.1, inplace=True),
+      CausalConv1d(4, 8, kernel_size=2, stride=2),
+      nn.LeakyReLU(0.1, inplace=True),
+      CausalConv1d(8, 16, kernel_size=2, stride=2),
+      nn.LeakyReLU(0.1, inplace=True),
+      CausalConv1d(16, 32, kernel_size=2, stride=2),
+      nn.LeakyReLU(0.1, inplace=True),
+      CausalConv1d(32, 32, kernel_size=2, stride=2),
+      nn.LeakyReLU(0.1, inplace=True),
+      CausalConv1d(32, 16, kernel_size=2, stride=2),
+      nn.LeakyReLU(0.1, inplace=True),
+    )
+
+  def forward(self, x):
+    return self.conv(x)
+
 class ForceEncoder(nn.Module):
   '''
 
   '''
   def __init__(self, n_out):
     super().__init__()
-    self.conv = nn.Sequential(
-      CausalConv1d(6, 8, kernel_size=2, stride=2),
-      nn.LeakyReLU(0.1, inplace=True),
-      CausalConv1d(8, 16, kernel_size=2, stride=2),
-      nn.LeakyReLU(0.1, inplace=True),
-      CausalConv1d(16, 32, kernel_size=2, stride=2),
-      nn.LeakyReLU(0.1, inplace=True),
-      CausalConv1d(32, 64, kernel_size=2, stride=2),
-      nn.LeakyReLU(0.1, inplace=True),
-      CausalConv1d(64, 128, kernel_size=2, stride=2),
-      nn.LeakyReLU(0.1, inplace=True),
-      CausalConv1d(128, n_out, kernel_size=2, stride=2),
-      nn.LeakyReLU(0.1, inplace=True),
-    )
+    self.fx_conv = CausalConvBlock()
+    self.fy_conv = CausalConvBlock()
+    self.fz_conv = CausalConvBlock()
+    self.mx_conv = CausalConvBlock()
+    self.my_conv = CausalConvBlock()
+    self.mz_conv = CausalConvBlock()
 
   def forward(self, x):
-    return self.conv(x)
+    batch_size =  x.size(0)
+
+    fx_feat = self.fx_conv(x[:,0].view(batch_size, 1, -1))
+    fy_feat = self.fy_conv(x[:,1].view(batch_size, 1, -1))
+    fz_feat = self.fz_conv(x[:,2].view(batch_size, 1, -1))
+    mx_feat = self.mx_conv(x[:,3].view(batch_size, 1, -1))
+    my_feat = self.my_conv(x[:,4].view(batch_size, 1, -1))
+    mz_feat = self.mz_conv(x[:,5].view(batch_size, 1, -1))
+
+    return fx_feat, fy_feat, fz_feat, mx_feat, my_feat, mz_feat
 
 class EquivariantEncoder(nn.Module):
   '''
@@ -54,21 +76,29 @@ class EquivariantEncoder(nn.Module):
     self.depth_enc = EquivariantDepthEncoder(depth_channels, n_out=n_out, initialize=initialize, N=N)
     self.c4_act = gspaces.rot2dOnR2(N)
 
-    self.force_feat_type = enn.FieldType(self.c4_act, n_out * [self.c4_act.trivial_repr])
-    in_type = self.depth_enc.out_type + self.force_feat_type
+    self.depth_repr = n_out * [self.c4_act.regular_repr]
+    self.equivariant_force_repr = 2 * 16 * [self.c4_act.irrep(1)]
+    self.invariant_force_repr = 2 * 16 * [self.c4_act.trivial_repr]
+
+    self.in_type = enn.FieldType(self.c4_act, self.depth_repr + self.equivariant_force_repr + self.invariant_force_repr)
     self.out_type = enn.FieldType(self.c4_act, n_out * [self.c4_act.regular_repr])
-    self.conv = EquivariantBlock(in_type, self.out_type, kernel_size=1, stride=1, padding=0, initialize=initialize)
+    self.conv = EquivariantBlock(self.in_type, self.out_type, kernel_size=1, stride=1, padding=0, initialize=initialize)
 
   def forward(self, depth, force):
     batch_size = force.size(0)
 
     force_feat = self.force_enc(torch.permute(force, (0,2,1)))
+    fx, fy, mx, my = force_feat[0], force_feat[1], force_feat[3], force_feat[4]
+    equiv_force = torch.cat((fx, fy, mx, my), dim=1).reshape(batch_size, -1, 1, 1)
+
+    fz, mz = force_feat[2], force_feat[5]
+    inv_force = torch.cat((fz, mz), dim=1).reshape(batch_size, -1, 1, 1)
 
     depth_geo = enn.GeometricTensor(depth, self.depth_enc.in_type)
     depth_feat = self.depth_enc(depth_geo)
 
-    feat = torch.cat((depth_feat.tensor, force_feat.reshape(batch_size, -1, 1, 1)), dim=1)
-    feat = enn.GeometricTensor(feat, self.depth_enc.out_type + self.force_feat_type)
+    feat = torch.cat((depth_feat.tensor, equiv_force, inv_force), dim=1)
+    feat = enn.GeometricTensor(feat, self.in_type)
 
     return self.conv(feat)
 
@@ -80,15 +110,12 @@ class ForceEquivariantCritic(EquivariantCritic):
     super().__init__(depth_channels, action_dim, n_out=n_out, initialize=initialize, N=N)
 
     self.enc = EquivariantEncoder(depth_channels, n_out=n_out, initialize=initialize, N=N)
-    #self.enc = EquivariantDepthEncoder(depth_channels, n_out=n_out, initialize=initialize, N=N)
 
   def forward(self, obs, act):
     depth, force = obs
     batch_size = depth.size(0)
 
     feat = self.enc(depth, force)
-    #depth_geo = enn.GeometricTensor(depth, self.enc.in_type)
-    #feat = self.enc(depth_geo)
 
     dxy = act[:, 1:3].reshape(batch_size,  2, 1, 1)
 
@@ -112,15 +139,12 @@ class ForceEquivariantGaussianPolicy(EquivariantGaussianPolicy):
     super().__init__(depth_channels, action_dim, n_out=n_out, initialize=initialize, N=N)
 
     self.enc = EquivariantEncoder(depth_channels, n_out=n_out, initialize=initialize, N=N)
-    #self.enc = EquivariantDepthEncoder(depth_channels, n_out=n_out, initialize=initialize, N=N)
 
   def forward(self, obs):
     depth, force = obs
     batch_size = depth.size(0)
 
     feat = self.enc(depth, force)
-    #depth_geo = enn.GeometricTensor(depth, self.enc.in_type)
-    #feat = self.enc(depth_geo)
     out = self.conv(feat).tensor.reshape(batch_size, -1)
 
     dxy = out[:, 0:2]
