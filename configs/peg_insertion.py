@@ -21,8 +21,8 @@ class PegInsertionConfig(Config):
     self.robot = 'panda'
     self.env_type = 'force_peg_insertion'
     self.max_steps = 50
-    self.dpos = 0.05
-    self.drot = np.pi / 4
+    self.dpos = 0.025
+    self.drot = np.pi / 8
     self.max_force = 30
 
     # Data Gen
