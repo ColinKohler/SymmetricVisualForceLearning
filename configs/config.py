@@ -19,7 +19,7 @@ class Config(object):
     self.action_dim =  len(self.action_sequence)
 
     self.workspace = np.array([[0.25, 0.65], [-0.2, 0.2], [0.01, 0.25]])
-    self.view_type = 'camera_center_xyz'
+    self.view_type = 'render_center'
     self.random_orientation = True
     self.robot = 'panda'
     self.reward_type = 'sparse'

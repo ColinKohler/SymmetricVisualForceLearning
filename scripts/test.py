@@ -7,13 +7,15 @@ import argparse
 import torch
 import numpy as np
 import numpy.random as npr
+import matplotlib
+matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
 
 from midichlorians.sac_agent import SACAgent
 from midichlorians import torch_utils
 from configs.block_picking import BlockPickingConfig
 from scripts.train import task_configs
-from helping_hands_rl_envs import env_factory
+from bulletarm import env_factory
 
 if __name__ == '__main__':
   parser=  argparse.ArgumentParser()
@@ -51,30 +53,39 @@ if __name__ == '__main__':
   for i in range(args.num_eps):
     done = False
     obs = env.reset()
-    force_stack = np.zeros((4, 6))
-    force_stack[-1] = obs[3]
     while not done:
-      #print(np.round(force_stack, 2))
-      #print(np.round(torch_utils.normalizeForce(force_stack, task_config.max_force), 2))
-      #print()
-      #plt.imshow(obs[2].squeeze(), cmap='gray'); plt.show()
       action_idx, action, value = agent.getAction(
         [obs[0]],
         obs[2],
-        torch_utils.normalizeForce(force_stack, task_config.max_force),
+        torch_utils.normalizeForce(obs[3], task_config.max_force),
         evaluate=True
       )
-      #expert_action = torch.tensor(env.getNextAction()).float()
-      #action_idx, action = agent.convertPlanAction(expert_action.view(1, -1))
+
+      if args.render:
+        zero_action_idx, zero_action, zero_value = agent.getAction(
+          [obs[0]],
+          obs[2],
+          np.zeros_like(obs[3]),
+          evaluate=True
+        )
+
+        print('Zero: {:.3f}'.format(zero_value.item()))
+        print(zero_action)
+        print('Real: {:.3f}'.format(value.item()))
+        print(action)
+
+        fig, ax = plt.subplots(nrows=1, ncols=2)
+        ax[0].imshow(obs[2].squeeze(), cmap='gray')
+        ax[1].plot(obs[3][:,0], label='Fx')
+        ax[1].plot(obs[3][:,1], label='Fy')
+        ax[1].plot(obs[3][:,2], label='Fz')
+        ax[1].plot(obs[3][:,3], label='Mx')
+        ax[1].plot(obs[3][:,4], label='My')
+        ax[1].plot(obs[3][:,5], label='Mz')
+        plt.legend()
+        plt.show()
 
       obs, reward, done = env.step(action.cpu().squeeze().numpy(), auto_reset=False)
-      force_stack_ = np.zeros((4, 6))
-      force_stack_[:-1] = force_stack[1:]
-      force_stack_[-1] = obs[3]
-      force_stack = force_stack_
-
-    #if reward != 1:
-    #  plt.imshow(obs[2].squeeze(), cmap='gray'); plt.show()
 
     num_success += reward
     pbar.set_description('SR: {}%'.format(int((num_success / (i+1)) * 100)))
