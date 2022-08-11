@@ -13,7 +13,6 @@ import matplotlib.pyplot as plt
 
 from midichlorians.sac_agent import SACAgent
 from midichlorians import torch_utils
-from configs.block_picking import BlockPickingConfig
 from scripts.train import task_configs
 from bulletarm import env_factory
 
@@ -68,11 +67,13 @@ if __name__ == '__main__':
           np.zeros_like(obs[3]),
           evaluate=True
         )
-
-        print('Zero: {:.3f}'.format(zero_value.item()))
+        print('Zero')
         print(zero_action)
-        print('Real: {:.3f}'.format(value.item()))
+        print('Force: {:.3f}'.format(zero_value.item()))
+
+        print('Real')
         print(action)
+        print('Force: {:.3f}'.format(value.item()))
 
         fig, ax = plt.subplots(nrows=1, ncols=2)
         ax[0].imshow(obs[2].squeeze(), cmap='gray')
@@ -85,6 +86,11 @@ if __name__ == '__main__':
         plt.legend()
         plt.show()
 
+        c = input()
+        if c == 'q':
+          break
+        elif c == 'z':
+          action = zero_action
       obs, reward, done = env.step(action.cpu().squeeze().numpy(), auto_reset=False)
 
     num_success += reward
