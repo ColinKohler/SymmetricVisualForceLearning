@@ -64,7 +64,19 @@ class ForceEncoder(nn.Module):
     my_feat = self.my_conv(x[:,4].view(batch_size, 1, -1))
     mz_feat = self.mz_conv(x[:,5].view(batch_size, 1, -1))
 
-    return fx_feat, fy_feat, fz_feat, mx_feat, my_feat, mz_feat
+    # Gate output depending on the force signal
+    gate = torch.ones(batch_size).cuda()
+    gate *= torch.mean(torch.abs(x).reshape(batch_size, -1), dim=1) > 2e-2
+    gate = gate.view(batch_size, 1, 1)
+
+    gated_fx_feat = gate * fx_feat
+    gated_fy_feat = gate * fy_feat
+    gated_fz_feat = gate * fz_feat
+    gated_mx_feat = gate * mx_feat
+    gated_my_feat = gate * my_feat
+    gated_mz_feat = gate * mz_feat
+
+    return gated_fx_feat, gated_fy_feat, gated_fz_feat, gated_mx_feat, gated_my_feat, gated_mz_feat
 
 class EquivariantEncoder(nn.Module):
   '''
