@@ -8,7 +8,6 @@ import torch
 import numpy as np
 import numpy.random as npr
 import matplotlib
-matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
 
 from midichlorians.sac_agent import SACAgent
@@ -43,7 +42,7 @@ if __name__ == '__main__':
   env = env_factory.createEnvs(0, task_config.env_type, env_config, planner_config)
 
   device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-  agent = SACAgent(task_config, device)
+  agent = SACAgent(task_config, device, initialize_models=False)
   agent.setWeights(checkpoint['weights'])
 
   num_success = 0

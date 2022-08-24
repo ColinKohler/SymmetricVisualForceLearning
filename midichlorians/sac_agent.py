@@ -12,7 +12,7 @@ class SACAgent(object):
     config (dict): Task config.
     device (torch.Device): Device to use for inference (cpu or gpu)
   '''
-  def __init__(self, config, device, actor=None, critic=None):
+  def __init__(self, config, device, actor=None, critic=None, initialize_models=True):
     self.config = config
     self.device = device
 
@@ -26,14 +26,14 @@ class SACAgent(object):
     if actor:
       self.actor = actor
     else:
-      self.actor = ForceEquivariantGaussianPolicy(self.config.obs_channels, self.config.action_dim)
+      self.actor = ForceEquivariantGaussianPolicy(self.config.obs_channels, self.config.action_dim, initialize=initialize_models)
       self.actor.to(self.device)
       self.actor.train()
 
     if critic:
       self.critic = critic
     else:
-      self.critic = ForceEquivariantCritic(self.config.obs_channels, self.config.action_dim)
+      self.critic = ForceEquivariantCritic(self.config.obs_channels, self.config.action_dim, initialize=initialize_models)
       self.critic.to(self.device)
       self.critic.train()
 
