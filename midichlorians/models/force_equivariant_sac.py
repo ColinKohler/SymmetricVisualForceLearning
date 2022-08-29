@@ -24,18 +24,18 @@ class CausalConvBlock(nn.Module):
   def __init__(self):
     super().__init__()
     self.conv = nn.Sequential(
-      CausalConv1d(1, 4, kernel_size=4, stride=4),
+      CausalConv1d(1, 4, kernel_size=2, stride=2),
       nn.LeakyReLU(0.1, inplace=True),
-      CausalConv1d(4, 8, kernel_size=4, stride=4),
+      CausalConv1d(4, 8, kernel_size=2, stride=2),
       nn.LeakyReLU(0.1, inplace=True),
       CausalConv1d(8, 16, kernel_size=2, stride=2),
       nn.LeakyReLU(0.1, inplace=True),
       CausalConv1d(16, 32, kernel_size=2, stride=2),
       nn.LeakyReLU(0.1, inplace=True),
+      CausalConv1d(32, 32, kernel_size=2, stride=2),
+      nn.LeakyReLU(0.1, inplace=True),
       CausalConv1d(32, 16, kernel_size=2, stride=2),
       nn.LeakyReLU(0.1, inplace=True),
-      #CausalConv1d(64, 32, kernel_size=2, stride=2),
-      #nn.LeakyReLU(0.1, inplace=True),
     )
 
   def forward(self, x):
@@ -66,7 +66,7 @@ class ForceEncoder(nn.Module):
 
     # Gate output depending on the force signal
     gate = torch.ones(batch_size).cuda()
-    gate *= torch.mean(torch.abs(x).reshape(batch_size, -1), dim=1) > 2e-2
+    gate *= torch.mean(torch.abs(x).reshape(batch_size, -1), dim=1) > 1e-1
     gate = gate.view(batch_size, 1, 1)
 
     gated_fx_feat = gate * fx_feat
