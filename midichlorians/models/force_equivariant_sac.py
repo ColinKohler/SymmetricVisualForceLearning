@@ -65,7 +65,9 @@ class ForceEncoder(nn.Module):
     mz_feat = self.mz_conv(x[:,5].view(batch_size, 1, -1))
 
     # Gate output depending on the force signal
-    gate = torch.ones(batch_size).cuda()
+    gate = torch.ones(batch_size)
+    if torch.cuda.is_available():
+      gate = gate.cuda()
     gate *= torch.mean(torch.abs(x).reshape(batch_size, -1), dim=1) > 1e-1
     gate = gate.view(batch_size, 1, 1)
 
