@@ -17,7 +17,7 @@ class BlockPickingConfig(Config):
     self.seed = None
 
     # Env
-    self.obs_size = 128
+    self.obs_size = 16
     self.robot = 'panda'
     self.env_type = 'force_block_picking'
     self.max_steps = 50

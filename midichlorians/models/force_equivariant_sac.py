@@ -66,7 +66,7 @@ class ForceEncoder(nn.Module):
 
     # Gate output depending on the force signal
     gate = torch.ones(batch_size).cuda()
-    gate *= torch.mean(torch.abs(x).reshape(batch_size, -1), dim=1) > 1e-1
+    gate *= torch.mean(torch.abs(x).reshape(batch_size, -1), dim=1) > 1e-2
     gate = gate.view(batch_size, 1, 1)
 
     gated_fx_feat = gate * fx_feat
