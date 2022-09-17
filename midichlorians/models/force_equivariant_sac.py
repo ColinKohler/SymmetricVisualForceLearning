@@ -85,14 +85,19 @@ class EquivariantEncoder(nn.Module):
     super().__init__()
 
     self.wrist_force_enc = ForceEncoder(n_out)
-    self.finger_1_force_enc = ForceEncoder(n_out)
-    self.finger_2_force_enc = ForceEncoder(n_out)
+    if False:
+      self.finger_1_force_enc = ForceEncoder(n_out)
+      self.finger_2_force_enc = ForceEncoder(n_out)
     self.depth_enc = EquivariantDepthEncoder(depth_channels, n_out=n_out, initialize=initialize, N=N)
     self.c4_act = gspaces.rot2dOnR2(N)
 
     self.depth_repr = n_out * [self.c4_act.regular_repr]
-    self.equivariant_force_repr = 2 * 3 * 16 * [self.c4_act.irrep(1)]
-    self.invariant_force_repr = 2 * 3 * 16 * [self.c4_act.trivial_repr]
+    if False:
+      self.equivariant_force_repr = 2 * 3 * 16 * [self.c4_act.irrep(1)]
+      self.invariant_force_repr = 2 * 3 * 16 * [self.c4_act.trivial_repr]
+    else:
+      self.equivariant_force_repr = 2 * 16 * [self.c4_act.irrep(1)]
+      self.invariant_force_repr = 2 * 16 * [self.c4_act.trivial_repr]
 
     self.in_type = enn.FieldType(self.c4_act, self.depth_repr + self.equivariant_force_repr + self.invariant_force_repr)
     self.out_type = enn.FieldType(self.c4_act, n_out * [self.c4_act.regular_repr])
@@ -103,17 +108,21 @@ class EquivariantEncoder(nn.Module):
     force = torch.permute(force, (0,2,1))
 
     wrist_force_feat = self.wrist_force_enc(force[:,:6])
-    finger_1_force_feat = self.finger_1_force_enc(force[:,6:12])
-    finger_2_force_feat = self.finger_2_force_enc(force[:,12:])
     wfx, wfy, wmx, wmy = wrist_force_feat[0], wrist_force_feat[1], wrist_force_feat[3], wrist_force_feat[4]
-    f1fx, f1fy, f1mx, f1my = finger_1_force_feat[0], finger_1_force_feat[1], finger_1_force_feat[3], finger_1_force_feat[4]
-    f2fx, f2fy, f2mx, f2my = finger_2_force_feat[0], finger_2_force_feat[1], finger_2_force_feat[3], finger_2_force_feat[4]
-    equiv_force = torch.cat((wfx, wfy, wmx, wmy, f1fx, f1fy, f1mx, f1my, f2fx, f2fy, f2mx, f2my,), dim=1).reshape(batch_size, -1, 1, 1)
-
     wfz, wmz = wrist_force_feat[2], wrist_force_feat[5]
-    f1fz, f1mz = finger_1_force_feat[2], finger_1_force_feat[5]
-    f2fz, f2mz = finger_2_force_feat[2], finger_2_force_feat[5]
-    inv_force = torch.cat((wfz, wmz, f1fz, f1mz, f2fz, f2mz), dim=1).reshape(batch_size, -1, 1, 1)
+    if False:
+      finger_1_force_feat = self.finger_1_force_enc(force[:,6:12])
+      finger_2_force_feat = self.finger_2_force_enc(force[:,12:])
+      f1fx, f1fy, f1mx, f1my = finger_1_force_feat[0], finger_1_force_feat[1], finger_1_force_feat[3], finger_1_force_feat[4]
+      f2fx, f2fy, f2mx, f2my = finger_2_force_feat[0], finger_2_force_feat[1], finger_2_force_feat[3], finger_2_force_feat[4]
+      equiv_force = torch.cat((wfx, wfy, wmx, wmy, f1fx, f1fy, f1mx, f1my, f2fx, f2fy, f2mx, f2my,), dim=1).reshape(batch_size, -1, 1, 1)
+
+      f1fz, f1mz = finger_1_force_feat[2], finger_1_force_feat[5]
+      f2fz, f2mz = finger_2_force_feat[2], finger_2_force_feat[5]
+      inv_force = torch.cat((wfz, wmz, f1fz, f1mz, f2fz, f2mz), dim=1).reshape(batch_size, -1, 1, 1)
+    else:
+      equiv_force = torch.cat((wfx, wfy, wmx, wmy), dim=1).reshape(batch_size, -1, 1, 1)
+      inv_force = torch.cat((wfz, wmz), dim=1).reshape(batch_size, -1, 1, 1)
 
     depth_geo = enn.GeometricTensor(depth, self.depth_enc.in_type)
     depth_feat = self.depth_enc(depth_geo)
