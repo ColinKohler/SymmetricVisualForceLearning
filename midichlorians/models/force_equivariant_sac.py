@@ -24,18 +24,18 @@ class CausalConvBlock(nn.Module):
   def __init__(self):
     super().__init__()
     self.conv = nn.Sequential(
-      CausalConv1d(1, 4, kernel_size=2, stride=2),
+      CausalConv1d(1, 4, kernel_size=4, stride=4),
       nn.LeakyReLU(0.1, inplace=True),
-      CausalConv1d(4, 8, kernel_size=2, stride=2),
+      CausalConv1d(4, 8, kernel_size=4, stride=4),
       nn.LeakyReLU(0.1, inplace=True),
       CausalConv1d(8, 16, kernel_size=2, stride=2),
       nn.LeakyReLU(0.1, inplace=True),
       CausalConv1d(16, 32, kernel_size=2, stride=2),
       nn.LeakyReLU(0.1, inplace=True),
-      CausalConv1d(32, 32, kernel_size=2, stride=2),
-      nn.LeakyReLU(0.1, inplace=True),
       CausalConv1d(32, 16, kernel_size=2, stride=2),
       nn.LeakyReLU(0.1, inplace=True),
+      #CausalConv1d(32, 16, kernel_size=2, stride=2),
+      #nn.LeakyReLU(0.1, inplace=True),
     )
 
   def forward(self, x):
