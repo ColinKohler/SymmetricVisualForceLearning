@@ -17,7 +17,7 @@ class BlockPullingConfig(Config):
     self.seed = 1234
 
     # Env
-    self.obs_size = 128
+    self.obs_size = 16
     self.robot = 'panda'
     self.env_type = 'force_block_pulling'
     self.max_steps = 50
@@ -39,7 +39,7 @@ class BlockPullingConfig(Config):
                                        'block_pulling',
                                        datetime.datetime.now().strftime('%Y-%m-%d--%H-%M-%S'))
     self.save_model = True
-    self.training_steps = 2000
+    self.training_steps = 10000
     self.batch_size = 64
     self.target_update_interval = 1
     self.checkpoint_interval = 100
@@ -51,7 +51,7 @@ class BlockPullingConfig(Config):
      # Eval
     self.num_eval_envs = 5
     self.num_eval_episodes = 100
-    self.eval_interval = 100
+    self.eval_interval = 500
     self.num_eval_intervals = int(self.training_steps / self.eval_interval)
 
     # LR schedule

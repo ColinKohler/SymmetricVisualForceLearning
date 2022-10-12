@@ -99,6 +99,7 @@ class EquivariantDepthEncoder(nn.Module):
     self.layers.append(
       EquivariantBlock(in_type, self.out_type, kernel_size=3, stride=1, padding=0, initialize=initialize)
     )
+    #self.layers.append(enn.PointwiseDropout(self.out_type, p=0.9))
 
     self.conv_1 = nn.Sequential(*self.layers)
 
