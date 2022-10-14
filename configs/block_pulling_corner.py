@@ -20,7 +20,7 @@ class BlockPullingCornerConfig(Config):
     self.obs_size = 128
     self.robot = 'panda'
     self.env_type = 'force_block_pulling_corner'
-    self.max_steps = 100
+    self.max_steps = 50
     self.dpos = 0.05
     self.drot = np.pi / 8
     self.max_force = 30
@@ -39,7 +39,7 @@ class BlockPullingCornerConfig(Config):
                                        'block_pulling_corner',
                                        datetime.datetime.now().strftime('%Y-%m-%d--%H-%M-%S'))
     self.save_model = True
-    self.training_steps = 20000
+    self.training_steps = 10000
     self.batch_size = 64
     self.target_update_interval = 1
     self.checkpoint_interval = 100
