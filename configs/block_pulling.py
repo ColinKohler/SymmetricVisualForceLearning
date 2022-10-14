@@ -17,7 +17,7 @@ class BlockPullingConfig(Config):
     self.seed = 1234
 
     # Env
-    self.obs_size = 16
+    self.obs_size = 128
     self.robot = 'panda'
     self.env_type = 'force_block_pulling'
     self.max_steps = 50
