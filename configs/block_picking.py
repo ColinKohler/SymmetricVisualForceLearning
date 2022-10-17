@@ -17,7 +17,7 @@ class BlockPickingConfig(Config):
     self.seed = None
 
     # Env
-    self.obs_size = 16
+    self.obs_size = 128
     self.robot = 'panda'
     self.env_type = 'force_block_picking'
     self.max_steps = 50
@@ -91,6 +91,7 @@ class BlockPickingConfig(Config):
       'workspace_check' : 'point',
       'reward_type' : self.reward_type,
       'view_type' : self.view_type,
+      'occlusion_prob' : 0.25,
       'obs_type' : self.obs_type,
       'render': render
     }

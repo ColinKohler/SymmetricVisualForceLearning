@@ -41,9 +41,6 @@ def unnormalizeObs(obs):
 
 def normalizeForce(force, max_force):
   return force
-#  force = np.clip(force, -max_force, max_force) / max_force
-#  force = scipy.ndimage.uniform_filter1d(force, size=256, axis=0)
-#  return force[-64:]
 
 def perturb(obs, fxy_1, fxy_2, obs_, fxy_1_, fxy_2_, dxy, set_theta_zero=False, set_trans_zero=False):
   '''
@@ -65,10 +62,10 @@ def perturb(obs, fxy_1, fxy_2, obs_, fxy_1_, fxy_2_, dxy, set_theta_zero=False, 
   rotated_dxy = rot.dot(dxy)
   rotated_dxy = np.clip(rotated_dxy, -1, 1)
 
-  rotated_fxy_1 = rot.dot(fxy_1.T).T
-  rotated_fxy_2 = rot.dot(fxy_2.T).T
-  rotated_fxy_1_ = rot.dot(fxy_1_.T).T
-  rotated_fxy_2_ = rot.dot(fxy_2_.T).T
+  rotated_fxy_1 = np.clip(rot.dot(fxy_1.T).T, -1, 1)
+  rotated_fxy_2 = np.clip(rot.dot(fxy_2.T).T, -1, 1)
+  rotated_fxy_1_ = np.clip(rot.dot(fxy_1_.T).T, -1, 1)
+  rotated_fxy_2_ = np.clip(rot.dot(fxy_2_.T).T, -1, 1)
 
   # Apply rigid transform to obs
   obs = scipy.ndimage.affine_transform(obs, np.linalg.inv(transform), mode='nearest', order=1)
