@@ -35,6 +35,10 @@ class Config(object):
     self.per_beta_anneal_steps = None
     self.clip_gradient = False
 
+    # Occlusions
+    self.occlusion_size = 0
+    self.num_occlusions = 0
+
   def getPerBeta(self, step):
     if self.per_beta_anneal_steps:
       anneal_steps = self.per_beta_anneal_steps
