@@ -91,7 +91,8 @@ class BlockPickingConfig(Config):
       'workspace_check' : 'point',
       'reward_type' : self.reward_type,
       'view_type' : self.view_type,
-      'occlusion_prob' : 0.35,
+      'occlusion_prob' : 0.1,
+      'num_occlusions' : 1,
       'obs_type' : self.obs_type,
       'render': render
     }
