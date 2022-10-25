@@ -14,10 +14,10 @@ class BlockPullingConfig(Config):
   '''
   def __init__(self, num_gpus=1, results_path=None):
     super().__init__(num_gpus=num_gpus)
-    self.seed = 1234
+    self.seed = None
 
     # Env
-    self.obs_size = 128
+    self.obs_size = 16
     self.robot = 'panda'
     self.env_type = 'force_block_pulling'
     self.max_steps = 50

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=train
+#SBATCH --job-name=force
 #SBATCH --output=scripts/outputs/%j.out
 #SBATCH --error=scripts/outputs/%j.err
 
