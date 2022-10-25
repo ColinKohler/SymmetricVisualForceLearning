@@ -12,7 +12,7 @@ class Config(object):
     self.obs_channels = 2
     self.obs_type = 'pixel'
     self.force_dim = 6# * 3
-    self.force_history = 256#64
+    self.force_history = 64
     self.max_force = 100
 
     self.action_sequence = 'pxyzr'
@@ -34,6 +34,10 @@ class Config(object):
     self.gen_data_on_gpu = False
     self.per_beta_anneal_steps = None
     self.clip_gradient = False
+
+    # Occlusions
+    self.occlusion_size = 0
+    self.num_occlusions = 0
 
   def getPerBeta(self, step):
     if self.per_beta_anneal_steps:

@@ -67,6 +67,10 @@ class BlockPickingConfig(Config):
     self.end_per_beta = 1.0
     self.per_eps = 1e-6
 
+    # Occlusions
+    self.occlusion_size = 0.1
+    self.num_occlusions = 1
+
   def getEnvConfig(self, render=False):
     '''
     Gets the environment config required by the simulator for this task.
@@ -91,6 +95,8 @@ class BlockPickingConfig(Config):
       'workspace_check' : 'point',
       'reward_type' : self.reward_type,
       'view_type' : self.view_type,
+      'occlusion_prob' : self.occlusion_size,
+      'num_occlusions' : self.num_occlusions,
       'obs_type' : self.obs_type,
       'occlusion_prob' : 0.1,
       'num_occlusions' : 10,

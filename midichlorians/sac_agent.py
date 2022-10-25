@@ -60,10 +60,11 @@ class SACAgent(object):
         _, _, action = self.actor.sample((obs, force))
       else:
         action, _, _ = self.actor.sample((obs, force))
-      value = self.critic((obs, force), action)
 
     action = action.cpu()
     action_idx, action = self.decodeActions(*[action[:,i] for i in range(self.action_shape)])
+    with torch.no_grad():
+      value = self.critic((obs, force), action_idx.to(self.device))
 
     value = torch.min(torch.hstack((value[0], value[1])), dim=1)[0]
     return action_idx, action, value
