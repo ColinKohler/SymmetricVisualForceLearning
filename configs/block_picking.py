@@ -98,8 +98,8 @@ class BlockPickingConfig(Config):
       'occlusion_prob' : self.occlusion_size,
       'num_occlusions' : self.num_occlusions,
       'obs_type' : self.obs_type,
-      'occlusion_prob' : 0.1,
-      'num_occlusions' : 10,
+      'occlusion_prob' : self.occlusion_size,
+      'num_occlusions' : self.num_occlusions,
       'render': render
     }
 
