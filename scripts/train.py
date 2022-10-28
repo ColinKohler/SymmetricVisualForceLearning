@@ -16,6 +16,7 @@ from configs.peg_insertion import PegInsertionConfig
 from configs.drawer_opening import DrawerOpeningConfig
 from configs.block_in_bowl import BlockInBowlConfig
 from configs.clutter_picking import ClutterPickingConfig
+from configs.mug_picking import MugPickingConfig
 
 from midichlorians.runner import Runner
 
@@ -31,6 +32,7 @@ task_configs = {
   'drawer_opening' : DrawerOpeningConfig,
   'block_in_bowl' : BlockInBowlConfig,
   'clutter_picking' : ClutterPickingConfig,
+  'mug_picking' : MugPickingConfig,
 }
 
 if __name__ == '__main__':
