@@ -4,9 +4,9 @@ import numpy as np
 
 from configs.config import Config
 
-class BlockPullingConfig(Config):
+class MugPickingConfig(Config):
   '''
-  Task config for block picking.
+  Task config for mug picking.
 
   Args:
     num_gpus (int):
@@ -17,13 +17,13 @@ class BlockPullingConfig(Config):
     self.seed = None
 
     # Env
-    self.obs_size = 16
+    self.obs_size = 128
     self.robot = 'panda'
-    self.env_type = 'force_block_pulling'
+    self.env_type = 'force_mug_picking'
     self.max_steps = 50
     self.dpos = 0.05
     self.drot = np.pi / 4
-    self.max_force = 20
+    self.max_force = 15
 
     # Data Gen
     self.num_data_gen_envs = 5
@@ -32,11 +32,11 @@ class BlockPullingConfig(Config):
     # Training
     if results_path:
       self.results_path = os.path.join(self.root_path,
-                                       'block_pulling',
+                                       'mug_picking',
                                        results_path)
     else:
       self.results_path = os.path.join(self.root_path,
-                                       'block_pulling',
+                                       'mug_picking',
                                        datetime.datetime.now().strftime('%Y-%m-%d--%H-%M-%S'))
     self.save_model = True
     self.training_steps = 10000
@@ -48,7 +48,7 @@ class BlockPullingConfig(Config):
     self.discount = 0.99
     self.clip_gradient = False
 
-     # Eval
+    # Eval
     self.num_eval_envs = 5
     self.num_eval_episodes = 100
     self.eval_interval = 500
@@ -69,7 +69,7 @@ class BlockPullingConfig(Config):
 
     # Occlusions
     self.occlusion_size = 0.1
-    self.num_occlusions = 3
+    self.num_occlusions = 0
 
   def getEnvConfig(self, render=False):
     '''
