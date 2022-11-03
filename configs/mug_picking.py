@@ -69,7 +69,7 @@ class MugPickingConfig(Config):
 
     # Occlusions
     self.occlusion_size = 0.1
-    self.num_occlusions = 1
+    self.num_occlusions = 0
 
   def getEnvConfig(self, render=False):
     '''
