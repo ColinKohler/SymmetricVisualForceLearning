@@ -14,6 +14,7 @@ from configs.block_picking_corner import BlockPickingCornerConfig
 from configs.block_pulling_corner import BlockPullingCornerConfig
 from configs.peg_insertion import PegInsertionConfig
 from configs.drawer_opening import DrawerOpeningConfig
+from configs.drawer_closing import DrawerClosingConfig
 from configs.block_in_bowl import BlockInBowlConfig
 from configs.clutter_picking import ClutterPickingConfig
 from configs.mug_picking import MugPickingConfig
@@ -29,7 +30,7 @@ task_configs = {
   'block_picking_corner' : BlockPickingCornerConfig,
   'block_pulling_corner' : BlockPullingCornerConfig,
   'peg_insertion' : PegInsertionConfig,
-  'drawer_opening' : DrawerOpeningConfig,
+  'drawer_closing' : DrawerClosingConfig,
   'block_in_bowl' : BlockInBowlConfig,
   'clutter_picking' : ClutterPickingConfig,
   'mug_picking' : MugPickingConfig,
