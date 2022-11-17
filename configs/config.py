@@ -10,9 +10,9 @@ class Config(object):
     # Env
     self.obs_size = 128
     self.obs_channels = 2
-    self.obs_type = 'pixel'
-    self.force_dim = 6# * 3
-    self.force_history = 64
+    self.obs_type = 'pixel+force'
+    self.force_dim = 6
+    self.force_history = 32
     self.max_force = 100
 
     self.action_sequence = 'pxyzr'

@@ -18,7 +18,7 @@ class BlockPullingCornerConfig(Config):
 
     # Env
     self.robot = 'panda'
-    self.env_type = 'force_block_pulling_corner'
+    self.env_type = 'close_loop_block_pulling_corner'
     self.max_steps = 50
     self.dpos = 0.05
     self.drot = np.pi / 8

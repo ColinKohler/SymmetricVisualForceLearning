@@ -19,7 +19,7 @@ class DrawerClosingConfig(Config):
     # Env
     self.obs_size = 128
     self.robot = 'panda'
-    self.env_type = 'force_drawer_closing'
+    self.env_type = 'close_loop_drawer_closing'
     self.max_steps = 50
     self.dpos = 0.05
     self.drot = np.pi / 4

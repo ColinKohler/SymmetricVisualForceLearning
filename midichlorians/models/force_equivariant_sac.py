@@ -8,6 +8,69 @@ from escnn import nn as enn
 
 from midichlorians.models.equivariant_sac import EquivariantBlock, EquivariantDepthEncoder, EquivariantCritic, EquivariantGaussianPolicy
 
+class ScaledDotProductAttention(nn.Module):
+  def __init__(self, temperature, attn_dropout=0.1):
+    super().__init__()
+    self.temperature = temperature
+    self.dropout = nn.Dropout(attn_dropout)
+
+  def forward(self, q, k, v, mask=None):
+    attn = torch.matmul(q / self.temperature, k.transpose(2,3))
+
+    if mask is not None:
+      attn = attn.masked_fill(mask == 0, -1e9)
+
+    attn = self.dropout(F.softmax(attn, dim=-1))
+    output = torch.matmul(attn, v)
+
+    return output, attn
+
+class SelfAttention(nn.Module):
+  def __init__(self, n_head, d_model, d_k, d_v, dropout=0.1):
+    super().__init__()
+    self.n_head = n_head
+    self.d_k = d_k
+    self.d_v = d_v
+
+    self.w_qs = nn.Linear(d_model, n_head * d_k, bias=False)
+    self.w_ks = nn.Linear(d_model, n_head * d_k, bias=False)
+    self.w_vs = nn.Linear(d_model, n_head * d_k, bias=False)
+    self.fc = nn.Linear(n_head * d_v, d_model, bias=False)
+
+    self.attention = ScaledDotProductAttention(temperature=d_k ** 0.5)
+
+    self.dropout = nn.Dropout(dropout)
+    self.layer_norm = nn.LayerNorm(d_model, eps=1e-6)
+
+  def forward(self, q, k, v, mask=None):
+    d_k, d_v, n_head = self.d_k, self.d_v, self.n_head
+    sz_b, len_q, len_k, len_v = q.size(0), q.size(1), k.size(1), v.size(1)
+
+    residual = q
+
+    # Pass through  the pre-attention projection: b x lq x (n*dv)
+    # Seperate different heads: b x lq x n x dv
+    q = self.w_qs(q).view(sz_b, len_q, n_head, d_k)
+    k = self.w_ks(k).view(sz_b, len_k, n_head, d_k)
+    v = self.w_vs(v).view(sz_b, len_v, n_head, d_k)
+
+    # Transpose for attention dot product: b x n x lq x dv
+    q, k, v = q.transpose(1,2), k.transpose(1,2), v.transpose(1,2)
+
+    if mask is not None:
+      mask.unsqueeze(1)  # For head axis broadcasting
+
+    q, attn = self.attention(q, k, v, mask=mask)
+
+    # Transpose to move the head dimension back: b x lq x n x dv
+    # Combine the last two dimensions to concatenate all the heads together: b x lq x (n*dv)
+    q = q.transpose(1,2).contiguous().view(sz_b, len_q, -1)
+    q = self.dropout(self.fc(q))
+    q += residual
+
+    q = self.layer_norm(q)
+    return q, attn
+
 class CausalConv1d(nn.Conv1d):
   def __init__(self, in_channels, out_channels, kernel_size, stride=1, dilation=1, bias=True):
     self.__padding = (kernel_size - 1) * dilation
@@ -24,17 +87,15 @@ class CausalConvBlock(nn.Module):
   def __init__(self):
     super().__init__()
     self.conv = nn.Sequential(
-      CausalConv1d(1, 4, kernel_size=2, stride=2),
-      nn.LeakyReLU(0.1, inplace=True),
-      CausalConv1d(4, 8, kernel_size=2, stride=2),
-      nn.LeakyReLU(0.1, inplace=True),
-      CausalConv1d(8, 16, kernel_size=2, stride=2),
+      CausalConv1d(1, 16, kernel_size=2, stride=2),
       nn.LeakyReLU(0.1, inplace=True),
       CausalConv1d(16, 32, kernel_size=2, stride=2),
       nn.LeakyReLU(0.1, inplace=True),
-      CausalConv1d(32, 32, kernel_size=2, stride=2),
+      CausalConv1d(32, 64, kernel_size=2, stride=2),
       nn.LeakyReLU(0.1, inplace=True),
-      CausalConv1d(32, 16, kernel_size=2, stride=2),
+      CausalConv1d(64, 128, kernel_size=2, stride=2),
+      nn.LeakyReLU(0.1, inplace=True),
+      CausalConv1d(128, 16, kernel_size=2, stride=2),
       nn.LeakyReLU(0.1, inplace=True),
     )
 
@@ -47,6 +108,14 @@ class ForceEncoder(nn.Module):
   '''
   def __init__(self, n_out):
     super().__init__()
+
+    n_head = 2
+    d_model = 6
+    d_k = 64
+    d_v = 64
+    dropout = 0.0
+    self.self_attn = SelfAttention(n_head, d_model, d_k, d_v, dropout=dropout)
+
     self.fx_conv = CausalConvBlock()
     self.fy_conv = CausalConvBlock()
     self.fz_conv = CausalConvBlock()
@@ -57,6 +126,14 @@ class ForceEncoder(nn.Module):
   def forward(self, x):
     batch_size =  x.size(0)
 
+    x, attn = self.self_attn(
+      torch.permute(x, (0, 2, 1)),
+      torch.permute(x, (0, 2, 1)),
+      torch.permute(x, (0, 2, 1)),
+      mask=None,
+    )
+    x = torch.permute(x, (0, 2, 1))
+
     fx_feat = self.fx_conv(x[:,0].view(batch_size, 1, -1))
     fy_feat = self.fy_conv(x[:,1].view(batch_size, 1, -1))
     fz_feat = self.fz_conv(x[:,2].view(batch_size, 1, -1))
@@ -66,7 +143,7 @@ class ForceEncoder(nn.Module):
 
     # Gate output depending on the force signal
     gate = torch.ones(batch_size).cuda()
-    gate *= torch.mean(torch.abs(x).reshape(batch_size, -1), dim=1) > 1e-2
+    gate *= torch.mean(torch.abs(x).reshape(batch_size, -1), dim=1) > 1e-1
     gate = gate.view(batch_size, 1, 1)
 
     gated_fx_feat = gate * fx_feat
