@@ -126,25 +126,27 @@ class ForceEncoder(nn.Module):
   def forward(self, x):
     batch_size =  x.size(0)
 
-    x, attn = self.self_attn(
+    x_attend, attn = self.self_attn(
       torch.permute(x, (0, 2, 1)),
       torch.permute(x, (0, 2, 1)),
       torch.permute(x, (0, 2, 1)),
       mask=None,
     )
-    x = torch.permute(x, (0, 2, 1))
+    x_attend = torch.permute(x_attend, (0, 2, 1))
 
-    fx_feat = self.fx_conv(x[:,0].view(batch_size, 1, -1))
-    fy_feat = self.fy_conv(x[:,1].view(batch_size, 1, -1))
-    fz_feat = self.fz_conv(x[:,2].view(batch_size, 1, -1))
-    mx_feat = self.mx_conv(x[:,3].view(batch_size, 1, -1))
-    my_feat = self.my_conv(x[:,4].view(batch_size, 1, -1))
-    mz_feat = self.mz_conv(x[:,5].view(batch_size, 1, -1))
+    fx_feat = self.fx_conv(x_attend[:,0].view(batch_size, 1, -1))
+    fy_feat = self.fy_conv(x_attend[:,1].view(batch_size, 1, -1))
+    fz_feat = self.fz_conv(x_attend[:,2].view(batch_size, 1, -1))
+    mx_feat = self.mx_conv(x_attend[:,3].view(batch_size, 1, -1))
+    my_feat = self.my_conv(x_attend[:,4].view(batch_size, 1, -1))
+    mz_feat = self.mz_conv(x_attend[:,5].view(batch_size, 1, -1))
 
     # Gate output depending on the force signal
     gate = torch.ones(batch_size).cuda()
     gate *= torch.mean(torch.abs(x).reshape(batch_size, -1), dim=1) > 1e-1
     gate = gate.view(batch_size, 1, 1)
+    print(torch.mean(torch.abs(x).reshape(batch_size, -1), dim=1))
+    print(gate)
 
     gated_fx_feat = gate * fx_feat
     gated_fy_feat = gate * fy_feat

@@ -76,12 +76,12 @@ if __name__ == '__main__':
 
         fig, ax = plt.subplots(nrows=1, ncols=2)
         ax[0].imshow(obs[2].squeeze(), cmap='gray')
-        ax[1].plot(obs[3][:,0], label='Fx')
-        ax[1].plot(obs[3][:,1], label='Fy')
-        ax[1].plot(obs[3][:,2], label='Fz')
-        ax[1].plot(obs[3][:,3], label='Mx')
-        ax[1].plot(obs[3][:,4], label='My')
-        ax[1].plot(obs[3][:,5], label='Mz')
+        ax[1].plot(np.tanh(obs[3][:,0]), label='Fx')
+        ax[1].plot(np.tanh(obs[3][:,1]), label='Fy')
+        ax[1].plot(np.tanh(obs[3][:,2]), label='Fz')
+        ax[1].plot(np.tanh(obs[3][:,3]), label='Mx')
+        ax[1].plot(np.tanh(obs[3][:,4]), label='My')
+        ax[1].plot(np.tanh(obs[3][:,5]), label='Mz')
         plt.legend()
         plt.show()
 
