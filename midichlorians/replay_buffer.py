@@ -98,8 +98,8 @@ class ReplayBuffer(object):
 
       force = eps_history.force_history[eps_step].reshape(self.config.force_history, self.config.force_dim)
       force_ = eps_history.force_history[eps_step+1].reshape(self.config.force_history, self.config.force_dim)
-      force = np.tanh(force)
-      force_ = np.tanh(force_)
+      force = np.clip(force, -30, 30) / 30
+      force_ = np.clip(force_, -30, 30) / 30
 
       obs, force, obs_, force_, action = self.augmentTransitionSO2(
         eps_history.obs_history[eps_step],

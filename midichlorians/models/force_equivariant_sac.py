@@ -95,6 +95,8 @@ class CausalConvBlock(nn.Module):
       nn.LeakyReLU(0.1, inplace=True),
       CausalConv1d(64, 128, kernel_size=2, stride=2),
       nn.LeakyReLU(0.1, inplace=True),
+      CausalConv1d(128, 128, kernel_size=2, stride=2),
+      nn.LeakyReLU(0.1, inplace=True),
       CausalConv1d(128, 16, kernel_size=2, stride=2),
       nn.LeakyReLU(0.1, inplace=True),
     )
@@ -145,8 +147,6 @@ class ForceEncoder(nn.Module):
     gate = torch.ones(batch_size).cuda()
     gate *= torch.mean(torch.abs(x).reshape(batch_size, -1), dim=1) > 1e-1
     gate = gate.view(batch_size, 1, 1)
-    print(torch.mean(torch.abs(x).reshape(batch_size, -1), dim=1))
-    print(gate)
 
     gated_fx_feat = gate * fx_feat
     gated_fy_feat = gate * fy_feat

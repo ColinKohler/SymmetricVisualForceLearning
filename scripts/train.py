@@ -30,6 +30,7 @@ task_configs = {
   'block_picking_corner' : BlockPickingCornerConfig,
   'block_pulling_corner' : BlockPullingCornerConfig,
   'peg_insertion' : PegInsertionConfig,
+  'drawer_opening' : DrawerOpeningConfig,
   'drawer_closing' : DrawerClosingConfig,
   'block_in_bowl' : BlockInBowlConfig,
   'clutter_picking' : ClutterPickingConfig,
