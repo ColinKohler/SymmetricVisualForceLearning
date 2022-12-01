@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from escnn import gspaces
 from escnn import nn as enn
 
-from midichlorians.models.layers import CausalConvBlock1, EquivariantBlock, SelfAttention
+from midichlorians.models.layers import CausalConv1d, EquivariantBlock, SelfAttention
 
 class CausalConvBlock(nn.Module):
   def __init__(self, in_dim, out_dim):

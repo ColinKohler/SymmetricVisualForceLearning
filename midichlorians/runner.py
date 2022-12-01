@@ -88,9 +88,9 @@ class Runner(object):
     '''
     device = torch.device('cpu')
 
-    actor = ForceEquivariantGaussianPolicy(self.config.obs_channels, self.config.action_dim)
+    actor = ForceEquivariantGaussianPolicy(self.config.action_dim)
     actor.train()
-    critic = ForceEquivariantCritic(self.config.obs_channels, self.config.action_dim)
+    critic = ForceEquivariantCritic(self.config.action_dim)
     critic.train()
 
     self.checkpoint['weights'] = (

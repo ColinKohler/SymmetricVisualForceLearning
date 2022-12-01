@@ -7,7 +7,7 @@ from escnn import gspaces
 from escnn import nn as enn
 
 from midichlorians.models.equivariant_sac import EquivariantCritic, EquivariantGaussianPolicy
-from midichlorians.models.encoders.equiv_sensor_fusion import EquivariantSensorFusion()
+from midichlorians.models.encoders.equiv_sensor_fusion import EquivariantSensorFusion
 
 class ForceEquivariantCritic(EquivariantCritic):
   '''
@@ -16,13 +16,13 @@ class ForceEquivariantCritic(EquivariantCritic):
   def __init__(self, action_dim, z_dim=64, initialize=True, N=8):
     super().__init__(action_dim, z_dim=z_dim, initialize=initialize, N=N)
 
-    self.fusion_enc = (z_dim=z_dim, initialize=initialize, N=N)
+    self.fusion_enc = EquivariantSensorFusion(z_dim=z_dim, initialize=initialize, N=N)
 
   def forward(self, obs, act):
     depth, force = obs
     batch_size = depth.size(0)
 
-    feat = self.enc(depth, force)
+    feat = self.fusion_enc(depth, force)
 
     dxy = act[:, 1:3].reshape(batch_size,  2, 1, 1)
 
@@ -45,13 +45,13 @@ class ForceEquivariantGaussianPolicy(EquivariantGaussianPolicy):
   def __init__(self, action_dim, z_dim=64, initialize=True, N=8):
     super().__init__( action_dim, z_dim=z_dim, initialize=initialize, N=N)
 
-    self.enc = EquivariantEncoder(z_dim=z_dim, initialize=initialize, N=N)
+    self.fusion_enc = EquivariantSensorFusion(z_dim=z_dim, initialize=initialize, N=N)
 
   def forward(self, obs):
     depth, force = obs
     batch_size = depth.size(0)
 
-    feat = self.enc(depth, force)
+    feat = self.fusion_enc(depth, force)
     out = self.conv(feat).tensor.reshape(batch_size, -1)
 
     dxy = out[:, 0:2]

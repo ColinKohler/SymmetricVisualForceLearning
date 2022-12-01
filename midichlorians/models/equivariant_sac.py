@@ -7,6 +7,7 @@ from escnn import gspaces
 from escnn import nn as enn
 
 from midichlorians.models.encoders.equiv_depth_encoder import EquivariantDepthEncoder
+from midichlorians.models.layers import EquivariantBlock
 
 class EquivariantCritic(nn.Module):
   '''
