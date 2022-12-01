@@ -9,7 +9,7 @@ from escnn import nn as enn
 from midichlorians.models.equivariant_sac import EquivariantCritic, EquivariantGaussianPolicy
 from midichlorians.models.encoders.equiv_sensor_fusion import EquivariantSensorFusion
 
-class ForceEquivariantCritic(EquivariantCritic):
+class EquivariantFusionCritic(EquivariantCritic):
   '''
   Force equivariant critic model.
   '''
@@ -38,12 +38,12 @@ class ForceEquivariantCritic(EquivariantCritic):
 
     return out_1, out_2
 
-class ForceEquivariantGaussianPolicy(EquivariantGaussianPolicy):
+class EquivariantFusionGaussianPolicy(EquivariantGaussianPolicy):
   '''
   Equivariant actor model that uses a Normal distribution to sample actions.
   '''
   def __init__(self, action_dim, z_dim=64, initialize=True, N=8):
-    super().__init__( action_dim, z_dim=z_dim, initialize=initialize, N=N)
+    super().__init__(action_dim, z_dim=z_dim, initialize=initialize, N=N)
 
     self.fusion_enc = EquivariantSensorFusion(z_dim=z_dim, initialize=initialize, N=N)
 

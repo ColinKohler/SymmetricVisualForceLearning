@@ -15,7 +15,7 @@ from midichlorians.trainer import Trainer
 from midichlorians.replay_buffer import ReplayBuffer
 from midichlorians.data_generator import DataGenerator, EvalDataGenerator
 from midichlorians.shared_storage import SharedStorage
-from midichlorians.models.force_equivariant_sac import ForceEquivariantCritic, ForceEquivariantGaussianPolicy
+from midichlorians.models.equivariant_fusion_sac import EquivariantFusionCritic, EquivariantFusionGaussianPolicy
 from midichlorians import torch_utils
 
 from helping_hands_rl_baselines.logger.ray_logger import RayLogger
@@ -88,9 +88,9 @@ class Runner(object):
     '''
     device = torch.device('cpu')
 
-    actor = ForceEquivariantGaussianPolicy(self.config.action_dim)
+    actor = EquivariantFusionGaussianPolicy(self.config.action_dim)
     actor.train()
-    critic = ForceEquivariantCritic(self.config.action_dim)
+    critic = EquivariantFusionCritic(self.config.action_dim)
     critic.train()
 
     self.checkpoint['weights'] = (

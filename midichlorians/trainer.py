@@ -8,7 +8,7 @@ import numpy.random as npr
 
 from midichlorians.sac_agent import SACAgent
 from midichlorians.data_generator import DataGenerator, EvalDataGenerator
-from midichlorians.models.force_equivariant_sac import ForceEquivariantCritic, ForceEquivariantGaussianPolicy
+from midichlorians.models.equivariant_fusion_sac import EquivariantFusionCritic, EquivariantFusionGaussianPolicy
 from midichlorians import torch_utils
 
 @ray.remote
@@ -30,17 +30,17 @@ class Trainer(object):
     self.alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=1e-3)
 
     # Initialize actor and critic models
-    self.actor = ForceEquivariantGaussianPolicy(self.config.action_dim)
+    self.actor = EquivariantFusionGaussianPolicy(self.config.action_dim)
     self.actor.train()
     self.actor.load_state_dict(initial_checkpoint['weights'][0])
     self.actor.to(self.device)
 
-    self.critic = ForceEquivariantCritic(self.config.action_dim)
+    self.critic = EquivariantFusionCritic(self.config.action_dim)
     self.critic.train()
     self.critic.load_state_dict(initial_checkpoint['weights'][1])
     self.critic.to(self.device)
 
-    self.critic_target = ForceEquivariantCritic(self.config.action_dim)
+    self.critic_target = EquivariantFusionCritic(self.config.action_dim)
     self.critic_target.train()
     self.critic_target.load_state_dict(initial_checkpoint['weights'][1])
     self.critic_target.to(self.device)
