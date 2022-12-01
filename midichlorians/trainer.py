@@ -30,17 +30,17 @@ class Trainer(object):
     self.alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=1e-3)
 
     # Initialize actor and critic models
-    self.actor = ForceEquivariantGaussianPolicy(self.config.obs_channels, self.config.action_dim)
+    self.actor = ForceEquivariantGaussianPolicy(self.config.action_dim)
     self.actor.train()
     self.actor.load_state_dict(initial_checkpoint['weights'][0])
     self.actor.to(self.device)
 
-    self.critic = ForceEquivariantCritic(self.config.obs_channels, self.config.action_dim)
+    self.critic = ForceEquivariantCritic(self.config.action_dim)
     self.critic.train()
     self.critic.load_state_dict(initial_checkpoint['weights'][1])
     self.critic.to(self.device)
 
-    self.critic_target = ForceEquivariantCritic(self.config.obs_channels, self.config.action_dim)
+    self.critic_target = ForceEquivariantCritic(self.config.action_dim)
     self.critic_target.train()
     self.critic_target.load_state_dict(initial_checkpoint['weights'][1])
     self.critic_target.to(self.device)

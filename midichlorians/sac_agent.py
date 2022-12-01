@@ -26,14 +26,14 @@ class SACAgent(object):
     if actor:
       self.actor = actor
     else:
-      self.actor = ForceEquivariantGaussianPolicy(self.config.obs_channels, self.config.action_dim, initialize=initialize_models)
+      self.actor = ForceEquivariantGaussianPolicy(self.config.action_dim, initialize=initialize_models)
       self.actor.to(self.device)
       self.actor.train()
 
     if critic:
       self.critic = critic
     else:
-      self.critic = ForceEquivariantCritic(self.config.obs_channels, self.config.action_dim, initialize=initialize_models)
+      self.critic = ForceEquivariantCritic(self.config.action_dim, initialize=initialize_models)
       self.critic.to(self.device)
       self.critic.train()
 
