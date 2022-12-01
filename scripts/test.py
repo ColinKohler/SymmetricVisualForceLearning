@@ -60,36 +60,42 @@ if __name__ == '__main__':
       )
 
       if args.render:
-        zero_action_idx, zero_action, zero_value = agent.getAction(
-          [obs[0]],
-          obs[2],
-          np.zeros_like(obs[3]),
-          evaluate=True
-        )
-        print('Zero')
-        print(zero_action)
-        print('Force: {:.3f}'.format(zero_value.item()))
+        #zero_action_idx, zero_action, zero_value = agent.getAction(
+        #  [obs[0]],
+        #  obs[2],
+        #  np.zeros_like(obs[3]),
+        #  evaluate=True
+        #)
+        #print('Zero')
+        #print(zero_action)
+        #print('Force: {:.3f}'.format(zero_value.item()))
 
-        print('Real')
+        #print('Real')
         print(action)
-        print('Force: {:.3f}'.format(value.item()))
+        #print('Force: {:.3f}'.format(value.item()))
 
-        fig, ax = plt.subplots(nrows=1, ncols=2)
-        ax[0].imshow(obs[2].squeeze(), cmap='gray')
-        ax[1].plot(np.tanh(obs[3][:,0]), label='Fx')
-        ax[1].plot(np.tanh(obs[3][:,1]), label='Fy')
-        ax[1].plot(np.tanh(obs[3][:,2]), label='Fz')
-        ax[1].plot(np.tanh(obs[3][:,3]), label='Mx')
-        ax[1].plot(np.tanh(obs[3][:,4]), label='My')
-        ax[1].plot(np.tanh(obs[3][:,5]), label='Mz')
-        plt.legend()
-        plt.show()
+        #fig, ax = plt.subplots(nrows=2, ncols=1)
+        ##ax[0].imshow(obs[2].squeeze(), cmap='gray')
+        #ax[0].plot(np.clip(obs[3][:,0], -30, 30) / 30, label='Fx')
+        #ax[0].plot(np.clip(obs[3][:,1], -30, 30) / 30, label='Fy')
+        #ax[0].plot(np.clip(obs[3][:,2], -30, 30) / 30, label='Fz')
+        #ax[0].plot(np.clip(obs[3][:,3], -30, 30) / 30, label='Mx')
+        #ax[0].plot(np.clip(obs[3][:,4], -30, 30) / 30, label='My')
+        #ax[0].plot(np.clip(obs[3][:,5], -30, 30) / 30, label='Mz')
+        #ax[1].plot(np.tanh(obs[3][:,0]), label='Fx')
+        #ax[1].plot(np.tanh(obs[3][:,1]), label='Fy')
+        #ax[1].plot(np.tanh(obs[3][:,2]), label='Fz')
+        #ax[1].plot(np.tanh(obs[3][:,3]), label='Mx')
+        #ax[1].plot(np.tanh(obs[3][:,4]), label='My')
+        #ax[1].plot(np.tanh(obs[3][:,5]), label='Mz')
+        #plt.legend()
+        #plt.show()
 
-        c = input()
-        if c == 'q':
-          break
-        elif c == 'z':
-          action = zero_action
+        #c = input()
+        #if c == 'q':
+        #  break
+        #elif c == 'z':
+        #  action = zero_action
       obs, reward, done = env.step(action.cpu().squeeze().numpy(), auto_reset=False)
 
     num_success += reward
