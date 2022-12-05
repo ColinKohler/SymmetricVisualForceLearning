@@ -93,6 +93,10 @@ class Runner(object):
     critic = EquivariantFusionCritic(self.config.action_dim)
     critic.train()
 
+    #pretrain = torch.load('data/pretrained_weight.pt')
+    #actor.fusion_enc.load_state_dict(pretrain)
+    #critic.fusion_enc.load_state_dict(pretrain)
+
     self.checkpoint['weights'] = (
       torch_utils.dictToCpu(actor.state_dict()),
       torch_utils.dictToCpu(critic.state_dict())
@@ -145,7 +149,7 @@ class Runner(object):
           if info['generating_eval_eps']:
             self.shared_storage_worker.setInfo.remote('pause_training', True)
           while(ray.get(self.shared_storage_worker.getInfo.remote('generating_eval_eps'))):
-            time.sleep(0.5)
+            time.sleep(0.1)
           self.shared_storage_worker.setInfo.remote('pause_training', False)
           self.eval_worker.generateEpisodes.remote(self.config.num_eval_episodes, self.shared_storage_worker, self.replay_buffer_worker, self.logger_worker)
 

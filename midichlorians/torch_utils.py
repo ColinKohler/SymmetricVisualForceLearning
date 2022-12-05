@@ -40,7 +40,7 @@ def unnormalizeObs(obs):
   return obs / 255 * 0.4
 
 def normalizeForce(force, max_force):
-  return force
+  return np.clip(force, -max_force, max_force) / max_force
 
 def perturb(obs, fxy_1, fxy_2, obs_, fxy_1_, fxy_2_, dxy, set_theta_zero=False, set_trans_zero=False):
   '''

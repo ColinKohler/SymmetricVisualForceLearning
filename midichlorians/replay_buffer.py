@@ -5,6 +5,7 @@ import numpy as np
 import numpy.random as npr
 
 from midichlorians import torch_utils
+from functools import partial
 
 @ray.remote
 class ReplayBuffer(object):
@@ -15,6 +16,8 @@ class ReplayBuffer(object):
     self.config = config
     if self.config.seed:
       npr.seed(self.config.seed)
+
+    self.normalizeForce = partial(torch_utils.normalizeForce, max_force=self.config.max_force)
 
     self.buffer = copy.deepcopy(initial_buffer)
     self.num_eps = initial_checkpoint['num_eps']
@@ -97,9 +100,9 @@ class ReplayBuffer(object):
       eps_step, step_prob = self.sampleStep(eps_history, uniform=False)
 
       force = eps_history.force_history[eps_step].reshape(self.config.force_history, self.config.force_dim)
+      force = self.normalizeForce(force)
       force_ = eps_history.force_history[eps_step+1].reshape(self.config.force_history, self.config.force_dim)
-      force = np.clip(force, -30, 30) / 30
-      force_ = np.clip(force_, -30, 30) / 30
+      force_ = self.normalizeForce(force_)
 
       obs, force, obs_, force_, action = self.augmentTransitionSO2(
         eps_history.obs_history[eps_step],

@@ -22,7 +22,7 @@ class PegInsertionConfig(Config):
     self.env_type = 'close_loop_peg_insertion'
     self.max_steps = 50
     self.dpos = 0.025
-    self.drot = np.pi / 8
+    self.drot = np.pi / 16
     self.max_force = 10
 
     # Data Gen

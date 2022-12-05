@@ -1,7 +1,9 @@
 import torch
 import numpy as np
 import numpy.random as npr
+from functools import partial
 
+from midichlorians import torch_utils
 from midichlorians.models.equivariant_fusion_sac import EquivariantFusionCritic, EquivariantFusionGaussianPolicy
 
 class SACAgent(object):
@@ -15,6 +17,8 @@ class SACAgent(object):
   def __init__(self, config, device, actor=None, critic=None, initialize_models=True):
     self.config = config
     self.device = device
+
+    self.normalizeForce = partial(torch_utils.normalizeForce, max_force=self.config.max_force)
 
     self.p_range = torch.tensor([0, 1])
     self.dx_range = torch.tensor([-self.config.dpos, self.config.dpos])
