@@ -39,7 +39,7 @@ class EquivariantSensorFusion(nn.Module):
     depth_feat = self.depth_encoder(depth)
     force_feat = self.force_encoder(force)
 
-    gate = (torch.mean(torch.abs(force.view(batch_size, -1)), dim=1) > 1e-3).float().cuda()
+    gate = (torch.mean(torch.abs(force.view(batch_size, -1)), dim=1) > 18e-3).float().cuda()
     gated_force_feat = force_feat.tensor.squeeze() * gate.view(batch_size, 1)
     force_feat = enn.GeometricTensor(gated_force_feat.view(batch_size, 512, 1, 1), enn.FieldType(self.c4_act, self.force_repr))
 

@@ -115,7 +115,7 @@ class DataGenerator(object):
       self.action_idxs, self.actions, self.values = self.agent.getAction(
         self.obs[0],
         self.obs[2],
-        torch_utils.normalizeForce(self.obs[3], self.config.max_force),
+        self.obs[3],
         evaluate=self.eval
       )
 
