@@ -17,8 +17,6 @@ class ReplayBuffer(object):
     if self.config.seed:
       npr.seed(self.config.seed)
 
-    self.normalizeForce = partial(torch_utils.normalizeForce, max_force=self.config.max_force)
-
     self.buffer = copy.deepcopy(initial_buffer)
     self.num_eps = initial_checkpoint['num_eps']
     self.num_steps = initial_checkpoint['num_steps']
@@ -86,23 +84,23 @@ class ReplayBuffer(object):
      state_batch,
      obs_batch,
      force_batch,
+     proprio_batch,
      next_state_batch,
      next_obs_batch,
      next_force_batch,
+     next_proprio_batch,
      action_batch,
      reward_batch,
      done_batch,
      weight_batch
-    ) = [list() for _ in range(11)]
+    ) = [list() for _ in range(13)]
 
     for _ in range(self.config.batch_size):
       eps_id, eps_history, eps_prob = self.sampleEps(uniform=False)
       eps_step, step_prob = self.sampleStep(eps_history, uniform=False)
 
       force = eps_history.force_history[eps_step].reshape(self.config.force_history, self.config.force_dim)
-      force = self.normalizeForce(force)
       force_ = eps_history.force_history[eps_step+1].reshape(self.config.force_history, self.config.force_dim)
-      force_ = self.normalizeForce(force_)
 
       obs, force, obs_, force_, action = self.augmentTransitionSO2(
         eps_history.obs_history[eps_step],
@@ -118,9 +116,11 @@ class ReplayBuffer(object):
       state_batch.append(eps_history.state_history[eps_step])
       obs_batch.append(obs)
       force_batch.append(force)
+      proprio_batch.append(eps_history.proprio_history[eps_step])
       next_state_batch.append(eps_history.state_history[eps_step+1])
       next_obs_batch.append(obs_)
       next_force_batch.append(force_)
+      next_proprio_batch.append(eps_history.proprio_history[eps_step+1])
       action_batch.append(action)
       reward_batch.append(eps_history.reward_history[eps_step+1])
       done_batch.append(eps_history.done_history[eps_step+1])
@@ -131,9 +131,11 @@ class ReplayBuffer(object):
     state_batch = torch.tensor(state_batch).long()
     obs_batch = torch.tensor(np.stack(obs_batch)).float()
     force_batch = torch.tensor(np.stack(force_batch)).float()
+    proprio_batch = torch.tensor(np.stack(proprio_batch)).float()
     next_state_batch = torch.tensor(next_state_batch).long()
     next_obs_batch = torch.tensor(np.stack(next_obs_batch)).float()
     next_force_batch = torch.tensor(np.stack(next_force_batch)).float()
+    next_proprio_batch = torch.tensor(np.stack(next_proprio_batch)).float()
     action_batch = torch.tensor(np.stack(action_batch)).float()
     reward_batch = torch.tensor(reward_batch).float()
     done_batch = torch.tensor(done_batch).int()
@@ -149,8 +151,8 @@ class ReplayBuffer(object):
     return (
       index_batch,
       (
-        (obs_batch, force_batch),
-        (next_obs_batch, next_force_batch),
+        (obs_batch, force_batch, proprio_batch),
+        (next_obs_batch, next_force_batch, next_proprio_batch),
         action_batch,
         reward_batch,
         non_final_mask_batch,

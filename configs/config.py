@@ -10,7 +10,7 @@ class Config(object):
     # Env
     self.obs_size = 128
     self.obs_channels = 2
-    self.obs_type = 'pixel+force'
+    self.obs_type = 'pixel+force+proprio'
     self.force_dim = 6
     self.force_history = 64
     self.max_force = 100

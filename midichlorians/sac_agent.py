@@ -41,7 +41,7 @@ class SACAgent(object):
       self.critic.to(self.device)
       self.critic.train()
 
-  def getAction(self, state, obs, force, evaluate=False):
+  def getAction(self, state, obs, force, proprio, evaluate=False):
     '''
     Get the action from the policy.
 
@@ -58,12 +58,13 @@ class SACAgent(object):
     state_tile = state.repeat(1, 1, obs.size(2), obs.size(3))
     obs = torch.cat((obs, state_tile), dim=1)
     force = torch.Tensor(torch_utils.normalizeForce(force, self.config.max_force)).view(len(state), self.config.force_history, self.config.force_dim).to(self.device)
+    proprio = torch.Tensor(proprio).view(len(state), 4).to(self.device)
 
     with torch.no_grad():
       if evaluate:
-        _, _, action = self.actor.sample((obs, force))
+        _, _, action = self.actor.sample((obs, force, proprio))
       else:
-        action, _, _ = self.actor.sample((obs, force))
+        action, _, _ = self.actor.sample((obs, force, proprio))
 
     action = action.cpu()
     action_idx, action = self.decodeActions(*[action[:,i] for i in range(self.action_shape)])

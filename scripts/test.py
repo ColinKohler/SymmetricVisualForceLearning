@@ -55,41 +55,35 @@ if __name__ == '__main__':
       action_idx, action, value = agent.getAction(
         [obs[0]],
         obs[2],
-        torch_utils.normalizeForce(obs[3], task_config.max_force),
+        obs[3],
         evaluate=True
       )
 
-      if args.render:
-        #zero_action_idx, zero_action, zero_value = agent.getAction(
-        #  [obs[0]],
-        #  obs[2],
-        #  np.zeros_like(obs[3]),
-        #  evaluate=True
-        #)
-        #print('Zero')
-        #print(zero_action)
-        #print('Force: {:.3f}'.format(zero_value.item()))
+      #if args.render:
+      #  zero_action_idx, zero_action, zero_value = agent.getAction(
+      #    [obs[0]],
+      #    obs[2],
+      #    np.zeros_like(obs[3]),
+      #    evaluate=True
+      #  )
+      #  print('Zero')
+      #  print(zero_action)
+      #  print('Force: {:.3f}'.format(zero_value.item()))
 
-        #print('Real')
-        print(action)
-        #print('Force: {:.3f}'.format(value.item()))
+      #  print('Real')
+      #  print(action)
+      #  print('Force: {:.3f}'.format(value.item()))
 
-        #fig, ax = plt.subplots(nrows=2, ncols=1)
-        ##ax[0].imshow(obs[2].squeeze(), cmap='gray')
-        #ax[0].plot(np.clip(obs[3][:,0], -30, 30) / 30, label='Fx')
-        #ax[0].plot(np.clip(obs[3][:,1], -30, 30) / 30, label='Fy')
-        #ax[0].plot(np.clip(obs[3][:,2], -30, 30) / 30, label='Fz')
-        #ax[0].plot(np.clip(obs[3][:,3], -30, 30) / 30, label='Mx')
-        #ax[0].plot(np.clip(obs[3][:,4], -30, 30) / 30, label='My')
-        #ax[0].plot(np.clip(obs[3][:,5], -30, 30) / 30, label='Mz')
-        #ax[1].plot(np.tanh(obs[3][:,0]), label='Fx')
-        #ax[1].plot(np.tanh(obs[3][:,1]), label='Fy')
-        #ax[1].plot(np.tanh(obs[3][:,2]), label='Fz')
-        #ax[1].plot(np.tanh(obs[3][:,3]), label='Mx')
-        #ax[1].plot(np.tanh(obs[3][:,4]), label='My')
-        #ax[1].plot(np.tanh(obs[3][:,5]), label='Mz')
-        #plt.legend()
-        #plt.show()
+      #  fig, ax = plt.subplots(nrows=1, ncols=2)
+      #  ax[0].imshow(obs[2].squeeze(), cmap='gray')
+      #  ax[1].plot(torch_utils.normalizeForce(obs[3][:,0], task_config.max_force), label='Fx')
+      #  ax[1].plot(torch_utils.normalizeForce(obs[3][:,1], task_config.max_force), label='Fy')
+      #  ax[1].plot(torch_utils.normalizeForce(obs[3][:,2], task_config.max_force), label='Fz')
+      #  ax[1].plot(torch_utils.normalizeForce(obs[3][:,3], task_config.max_force), label='Mx')
+      #  ax[1].plot(torch_utils.normalizeForce(obs[3][:,4], task_config.max_force), label='My')
+      #  ax[1].plot(torch_utils.normalizeForce(obs[3][:,5], task_config.max_force), label='Mz')
+      #  plt.legend()
+      #  plt.show()
 
         #c = input()
         #if c == 'q':
