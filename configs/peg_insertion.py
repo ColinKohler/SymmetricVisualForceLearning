@@ -27,7 +27,7 @@ class PegInsertionConfig(Config):
 
     # Data Gen
     self.num_data_gen_envs = 5
-    self.num_expert_episodes = 50
+    self.num_expert_episodes = 20
 
     # Training
     if results_path:
