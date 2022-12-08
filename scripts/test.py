@@ -56,6 +56,7 @@ if __name__ == '__main__':
         [obs[0]],
         obs[2],
         obs[3],
+        obs[4],
         evaluate=True
       )
 
