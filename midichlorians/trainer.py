@@ -196,7 +196,7 @@ class Trainer(object):
     obs_batch, next_obs_batch, action_batch, reward_batch, non_final_mask_batch, weight_batch = batch
 
     obs_batch = (obs_batch[0].to(self.device), obs_batch[1].to(self.device), obs_batch[2].to(self.device))
-    next_obs_batch = (next_obs_batch[0].to(self.device), next_obs_batch[1].to(self.device), next_obs_batch[3].to(self.device))
+    next_obs_batch = (next_obs_batch[0].to(self.device), next_obs_batch[1].to(self.device), next_obs_batch[2].to(self.device))
     action_batch = action_batch.to(self.device)
     reward_batch = reward_batch.to(self.device)
     non_final_mask_batch = non_final_mask_batch.to(self.device)

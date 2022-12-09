@@ -69,7 +69,7 @@ class SACAgent(object):
     action = action.cpu()
     action_idx, action = self.decodeActions(*[action[:,i] for i in range(self.action_shape)])
     with torch.no_grad():
-      value = self.critic((obs, force), action_idx.to(self.device))
+      value = self.critic((obs, force, proprio), action_idx.to(self.device))
 
     value = torch.min(torch.hstack((value[0], value[1])), dim=1)[0]
     return action_idx, action, value

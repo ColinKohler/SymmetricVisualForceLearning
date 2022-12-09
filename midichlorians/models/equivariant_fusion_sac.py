@@ -19,10 +19,10 @@ class EquivariantFusionCritic(EquivariantCritic):
     self.fusion_enc = EquivariantSensorFusion(z_dim=z_dim, initialize=initialize, N=N)
 
   def forward(self, obs, act):
-    depth, force = obs
+    depth, force, proprio = obs
     batch_size = depth.size(0)
 
-    feat = self.fusion_enc(depth, force)
+    feat = self.fusion_enc(depth, force, proprio)
 
     dxy = act[:, 1:3].reshape(batch_size,  2, 1, 1)
 
@@ -48,10 +48,10 @@ class EquivariantFusionGaussianPolicy(EquivariantGaussianPolicy):
     self.fusion_enc = EquivariantSensorFusion(z_dim=z_dim, initialize=initialize, N=N)
 
   def forward(self, obs):
-    depth, force = obs
+    depth, force, proprio = obs
     batch_size = depth.size(0)
 
-    feat = self.fusion_enc(depth, force)
+    feat = self.fusion_enc(depth, force, proprio)
     out = self.conv(feat).tensor.reshape(batch_size, -1)
 
     dxy = out[:, 0:2]

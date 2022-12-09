@@ -37,13 +37,12 @@ class EquivariantSensorFusion(nn.Module):
       initialize=initialize
     )
 
-  def forward(self, proprio, depth, force):
-  #def forward(self, depth, force):
+  def forward(self, depth, force, proprio):
     batch_size = depth.size(0)
 
-    proprio_feat = self.proprio_encoder(proprio).view(batch_size, N, 1, 1)
     depth_feat = self.depth_encoder(depth)
     force_feat = self.force_encoder(force)
+    proprio_feat = self.proprio_encoder(proprio).view(batch_size, self.z_dim, 1, 1)
 
     gate = (torch.mean(torch.abs(force.view(batch_size, -1)), dim=1) > 2e-2).float().cuda()
     gated_force_feat = force_feat.tensor.squeeze() * gate.view(batch_size, 1)
