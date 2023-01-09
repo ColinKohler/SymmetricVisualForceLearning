@@ -62,9 +62,15 @@ class SACAgent(object):
 
     with torch.no_grad():
       if evaluate:
-        _, _, action = self.actor.sample((obs, force, proprio))
+        if self.config.deterministic:
+          _, _, action, _ = self.actor.sample((obs, force, proprio))
+        else:
+          _, _, action, _, _, _, _, _ = self.actor.sample((obs, force, proprio))
       else:
-        action, _, _ = self.actor.sample((obs, force, proprio))
+        if self.config.deterministic:
+          action, _, _ = self.actor.sample((obs, force, proprio))
+        else:
+          action, _, _, _, _, _, _, _ = self.actor.sample((obs, force, proprio))
 
     action = action.cpu()
     action_idx, action = self.decodeActions(*[action[:,i] for i in range(self.action_shape)])

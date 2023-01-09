@@ -204,10 +204,14 @@ class Trainer(object):
 
     # Critic Update
     with torch.no_grad():
-      next_state_action, next_state_log_pi, _ = self.actor.sample(next_obs_batch)
-      next_state_log_pi = next_state_log_pi.squeeze()
+      if self.config.deterministic:
+        next_state_action, next_state_log_pi, _ = self.actor.sample(next_obs_batch)
+        qf1_next_target, qf2_next_target, z = self.critic_target(next_obs_batch, next_state_action)
+      else:
+        next_state_action, next_state_log_pi, _, z, mu_z, var_z, mu_prior, var_prior = self.actor.sample(next_obs_batch)
+        qf1_next_target, qf2_next_target, z, mu_z, var_z, mu_prior, var_prior = self.critic_target(next_obs_batch, next_state_action)
 
-      qf1_next_target, qf2_next_target = self.critic_target(next_obs_batch, next_state_action)
+      next_state_log_pi = next_state_log_pi.squeeze()
       qf1_next_target = qf1_next_target.squeeze()
       qf2_next_target = qf2_next_target.squeeze()
 
@@ -220,7 +224,13 @@ class Trainer(object):
 
     qf1_loss = F.mse_loss(qf1, next_q_value)
     qf2_loss = F.mse_loss(qf2, next_q_value)
-    critic_loss = qf1_loss + qf2_loss
+    if self.config.deterministic:
+      critic_loss = qf1_loss + qf2_loss
+    else:
+      kl_loss = 0.1 * torch.mean(
+        torch_utils.klNormal(mu_z, var_z, mu_prior.squeeze(0), var_prior.squeeze(0))
+      )
+      critic_loss = qf1_loss + qf2_loss + kl_loss
 
     #qf1_loss = F.mse_loss(qf1, next_q_value, reduction='none')
     #qf2_loss = F.mse_loss(qf2, next_q_value, reduction='none')
@@ -236,12 +246,20 @@ class Trainer(object):
     self.critic_optimizer.step()
 
     # Actor update
-    pi, log_pi, _ = self.actor.sample(obs_batch)
+    if self.config.deterministic:
+      pi, log_pi, _, z = self.actor.sample(obs_batch)
+    else:
+      pi, log_pi, _, z, mu_z, var_z, mu_prior, var_prior = self.actor.sample(obs_batch)
 
     qf1_pi, qf2_pi = self.critic(obs_batch, pi)
     min_qf_pi = torch.min(qf1_pi, qf2_pi)
 
     actor_loss = ((self.alpha * log_pi) - min_qf_pi).mean()
+    if not self.config.deterministic:
+      kl_loss = 0.1 * torch.mean(
+        torch_utils.klNormal(mu_z, var_z, mu_prior.squeeze(0), var_prior.squeeze(0))
+      )
+      actor_loss += kl_loss
     #actor_loss = (((self.alpha * log_pi) - min_qf_pi) * weight_batch).mean()
 
     self.actor_optimizer.zero_grad()

@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torch.distributions import Normal
 import e2cnn.nn as enn
 import numpy as np
 import numpy.random as npr
@@ -41,6 +42,36 @@ def unnormalizeObs(obs):
 
 def normalizeForce(force, max_force):
   return np.clip(force, -max_force, max_force) / max_force
+
+def sampleGaussian(mu, var):
+  eps = Normal(0, 1).sample(mu.size())
+  z = mu + torch.sqrt(var) * eps.cuda()
+
+  return z
+
+def gaussianParameters(h, dim=-1):
+  mu, h = torch.split(h, h.size(dim) // 2, dim=dim)
+  var = F.softplus(h) + 1e-8
+
+  return mu, var
+
+def productOfExperts(mu_vect, var_vect):
+  t_vect = 1.0 / var_vect
+  mu = (mu_vect * t_vect).sum(2) * (1 / t_vect.sum(2))
+  var = 1 / t_vect.sum(2)
+
+  return mu, var
+
+def duplicate(x, rep):
+  return x.expand(rep, *x.shape).reshape(-1, *x.shape[1:])
+
+def klNormal(qm, qv, pm, pv):
+  element_wise = 0.5 * (
+    torch.log(pv) - torch.log(qv) + qv / pv + (qm - pm).pow(2) / pv - 1
+  )
+  kl = element_wise.sum(-1)
+
+  return kl
 
 def perturb(obs, fxy_1, fxy_2, obs_, fxy_1_, fxy_2_, dxy, set_theta_zero=False, set_trans_zero=False):
   '''

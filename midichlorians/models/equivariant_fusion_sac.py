@@ -13,16 +13,19 @@ class EquivariantFusionCritic(EquivariantCritic):
   '''
   Force equivariant critic model.
   '''
-  def __init__(self, action_dim, z_dim=64, initialize=True, N=8):
-    super().__init__(action_dim, z_dim=z_dim, initialize=initialize, N=N)
+  def __init__(self, action_dim, z_dim=64, deterministic=True, initialize=True, N=8):
+    super().__init__(action_dim, z_dim=z_dim, deterministic=determinisitc, initialize=initialize, N=N)
 
-    self.fusion_enc = EquivariantSensorFusion(z_dim=z_dim, initialize=initialize, N=N)
+    self.fusion_enc = EquivariantSensorFusion(z_dim=z_dim, deterministic=deterministic, initialize=initialize, N=N)
 
   def forward(self, obs, act):
     depth, force, proprio = obs
     batch_size = depth.size(0)
 
-    feat = self.fusion_enc(depth, force, proprio)
+    if self.deterministic:
+      z = self.fusion_enc(depth, force, proprio)
+    else:
+      z, mu_z, var_z, mu_prior, var_prior = self.fusion_enc(depth, force, proprio)
 
     dxy = act[:, 1:3].reshape(batch_size,  2, 1, 1)
 
@@ -30,29 +33,35 @@ class EquivariantFusionCritic(EquivariantCritic):
     n_inv = inv_act.shape[1]
     inv_act = inv_act.reshape(batch_size, n_inv, 1, 1)
 
-    cat = torch.cat((feat.tensor, inv_act, dxy), dim=1)
+    cat = torch.cat((z.tensor, inv_act, dxy), dim=1)
     cat_geo = enn.GeometricTensor(cat, self.in_type)
 
     out_1 = self.critic_1(cat_geo).tensor.reshape(batch_size, 1)
     out_2 = self.critic_2(cat_geo).tensor.reshape(batch_size, 1)
 
-    return out_1, out_2
+    if self.deterministic:
+      return out_1, out_2, z
+    else:
+      return out_1, out_2, z, mu_z, var_z, mu_prior, var_prior
 
 class EquivariantFusionGaussianPolicy(EquivariantGaussianPolicy):
   '''
   Equivariant actor model that uses a Normal distribution to sample actions.
   '''
-  def __init__(self, action_dim, z_dim=64, initialize=True, N=8):
-    super().__init__(action_dim, z_dim=z_dim, initialize=initialize, N=N)
+  def __init__(self, action_dim, z_dim=64, deterministic=True, initialize=True, N=8):
+    super().__init__(action_dim, z_dim=z_dim, deterministic=determinisitic, initialize=initialize, N=N)
 
-    self.fusion_enc = EquivariantSensorFusion(z_dim=z_dim, initialize=initialize, N=N)
+    self.fusion_enc = EquivariantSensorFusion(z_dim=z_dim, deterministic=deterministic, initialize=initialize, N=N)
 
   def forward(self, obs):
     depth, force, proprio = obs
     batch_size = depth.size(0)
 
-    feat = self.fusion_enc(depth, force, proprio)
-    out = self.conv(feat).tensor.reshape(batch_size, -1)
+    if self.deterministic:
+      z = self.fusion_enc(depth, force, proprio)
+    else:
+      z, mu_z, var_z, mu_prior, var_prior = self.fusion_enc(depth, force, proprio)
+    out = self.conv(z).tensor.reshape(batch_size, -1)
 
     dxy = out[:, 0:2]
     inv_act = out[:, 2:self.action_dim]
@@ -61,4 +70,7 @@ class EquivariantFusionGaussianPolicy(EquivariantGaussianPolicy):
     log_std = out[:, self.action_dim:]
     log_std = torch.clamp(log_std, min=self.log_sig_min, max=self.log_sig_max)
 
-    return mean, log_std
+    if self.deterministic:
+      return mean, log_std, z
+    else:
+      return mean, log_std, z, mu_z, var_z, mu_prior, z_prior
