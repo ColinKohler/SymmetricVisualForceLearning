@@ -27,6 +27,7 @@ class Config(object):
     self.dpos = 1e-3
     self.drot = np.pi / self.dpos
 
+    self.deterministic = True
     # Training
     self.root_path = 'data'
     self.num_gpus = num_gpus
