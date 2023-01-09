@@ -47,7 +47,7 @@ class EquivariantDepthEncoder(nn.Module):
     self.layers.append(enn.PointwiseMaxPool(out_type, 2))
 
     in_type = out_type
-    self.out_type = enn.FieldType(self.c4_act, z_dim * [self.c4_act.regular_repr])
+    self.out_type = enn.FieldType(self.c4_act, 2 * z_dim * [self.c4_act.regular_repr])
     self.layers.append(EquivariantBlock(in_type, self.out_type, kernel_size=3, stride=1, padding=0, initialize=initialize))
 
     self.conv = nn.Sequential(*self.layers)

@@ -48,7 +48,7 @@ class EquivariantBlock(nn.Module):
       kernel_size=kernel_size,
       stride=stride,
       padding=padding,
-      initialize=initialize
+      initialize=initialize,
     )
     if self.norm:
       self.bn = enn.InnerBatchNorm(out_type)

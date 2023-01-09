@@ -14,7 +14,7 @@ class EquivariantFusionCritic(EquivariantCritic):
   Force equivariant critic model.
   '''
   def __init__(self, action_dim, z_dim=64, deterministic=True, initialize=True, N=8):
-    super().__init__(action_dim, z_dim=z_dim, deterministic=determinisitc, initialize=initialize, N=N)
+    super().__init__(action_dim, z_dim=z_dim, deterministic=deterministic, initialize=initialize, N=N)
 
     self.fusion_enc = EquivariantSensorFusion(z_dim=z_dim, deterministic=deterministic, initialize=initialize, N=N)
 
@@ -26,6 +26,7 @@ class EquivariantFusionCritic(EquivariantCritic):
       z = self.fusion_enc(depth, force, proprio)
     else:
       z, mu_z, var_z, mu_prior, var_prior = self.fusion_enc(depth, force, proprio)
+    z_geo = enn.GeometricTensor(z, self.in_type)
 
     dxy = act[:, 1:3].reshape(batch_size,  2, 1, 1)
 
@@ -33,7 +34,7 @@ class EquivariantFusionCritic(EquivariantCritic):
     n_inv = inv_act.shape[1]
     inv_act = inv_act.reshape(batch_size, n_inv, 1, 1)
 
-    cat = torch.cat((z.tensor, inv_act, dxy), dim=1)
+    cat = torch.cat((z_geo.tensor, inv_act, dxy), dim=1)
     cat_geo = enn.GeometricTensor(cat, self.in_type)
 
     out_1 = self.critic_1(cat_geo).tensor.reshape(batch_size, 1)
@@ -49,7 +50,7 @@ class EquivariantFusionGaussianPolicy(EquivariantGaussianPolicy):
   Equivariant actor model that uses a Normal distribution to sample actions.
   '''
   def __init__(self, action_dim, z_dim=64, deterministic=True, initialize=True, N=8):
-    super().__init__(action_dim, z_dim=z_dim, deterministic=determinisitic, initialize=initialize, N=N)
+    super().__init__(action_dim, z_dim=z_dim, deterministic=deterministic, initialize=initialize, N=N)
 
     self.fusion_enc = EquivariantSensorFusion(z_dim=z_dim, deterministic=deterministic, initialize=initialize, N=N)
 
@@ -61,7 +62,9 @@ class EquivariantFusionGaussianPolicy(EquivariantGaussianPolicy):
       z = self.fusion_enc(depth, force, proprio)
     else:
       z, mu_z, var_z, mu_prior, var_prior = self.fusion_enc(depth, force, proprio)
-    out = self.conv(z).tensor.reshape(batch_size, -1)
+    z = z.view(batch_size, self.z_dim, 1, 1)
+    z_geo = enn.GeometricTensor(z, self.in_type)
+    out = self.conv_2(self.conv_1(z_geo)).tensor.reshape(batch_size, -1)
 
     dxy = out[:, 0:2]
     inv_act = out[:, 2:self.action_dim]

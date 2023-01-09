@@ -92,7 +92,7 @@ class BlockPushingConfig(Config):
       'workspace_check' : 'point',
       'reward_type' : self.reward_type,
       'view_type' : self.view_type,
-      'num_sensors' : 2,
+      'num_sensors' : 1,
       'obs_type' : self.obs_type,
       'render': render
     }

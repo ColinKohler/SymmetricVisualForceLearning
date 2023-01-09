@@ -15,7 +15,7 @@ class ProprioEncoder(nn.Module):
       nn.LeakyReLU(0.1, inplace=True),
       nn.Linear(z_dim // 4, z_dim // 2),
       nn.LeakyReLU(0.1, inplace=True),
-      nn.Linear(z_dim // 2, z_dim),
+      nn.Linear(z_dim // 2, 2 * z_dim),
       nn.LeakyReLU(0.1, inplace=True),
     )
 
