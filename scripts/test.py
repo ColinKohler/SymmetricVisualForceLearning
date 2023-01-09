@@ -48,9 +48,11 @@ if __name__ == '__main__':
   num_success = 0
   pbar = tqdm.tqdm(total=args.num_eps)
   pbar.set_description('SR: 0%')
+  eps_lens = list()
   for i in range(args.num_eps):
     done = False
     obs = env.reset()
+    eps_lens.append(0)
     while not done:
       action_idx, action, value = agent.getAction(
         [obs[0]],
@@ -60,40 +62,25 @@ if __name__ == '__main__':
         evaluate=True
       )
 
-      #if args.render:
-      #  zero_action_idx, zero_action, zero_value = agent.getAction(
-      #    [obs[0]],
-      #    obs[2],
-      #    np.zeros_like(obs[3]),
-      #    evaluate=True
-      #  )
-      #  print('Zero')
-      #  print(zero_action)
-      #  print('Force: {:.3f}'.format(zero_value.item()))
+      #print(value)
+      #if np.mean(np.abs(obs[3])) > 2e-2:
+      if False:
+        fig, ax = plt.subplots(nrows=1, ncols=2)
+        ax[0].imshow(obs[2].squeeze(), cmap='gray')
+        ax[1].plot(torch_utils.normalizeForce(obs[3][:,0], task_config.max_force), label='Fx')
+        ax[1].plot(torch_utils.normalizeForce(obs[3][:,1], task_config.max_force), label='Fy')
+        ax[1].plot(torch_utils.normalizeForce(obs[3][:,2], task_config.max_force), label='Fz')
+        ax[1].plot(torch_utils.normalizeForce(obs[3][:,3], task_config.max_force), label='Mx')
+        ax[1].plot(torch_utils.normalizeForce(obs[3][:,4], task_config.max_force), label='My')
+        ax[1].plot(torch_utils.normalizeForce(obs[3][:,5], task_config.max_force), label='Mz')
+        plt.legend()
+        plt.show()
 
-      #  print('Real')
-      #  print(action)
-      #  print('Force: {:.3f}'.format(value.item()))
-
-      #  fig, ax = plt.subplots(nrows=1, ncols=2)
-      #  ax[0].imshow(obs[2].squeeze(), cmap='gray')
-      #  ax[1].plot(torch_utils.normalizeForce(obs[3][:,0], task_config.max_force), label='Fx')
-      #  ax[1].plot(torch_utils.normalizeForce(obs[3][:,1], task_config.max_force), label='Fy')
-      #  ax[1].plot(torch_utils.normalizeForce(obs[3][:,2], task_config.max_force), label='Fz')
-      #  ax[1].plot(torch_utils.normalizeForce(obs[3][:,3], task_config.max_force), label='Mx')
-      #  ax[1].plot(torch_utils.normalizeForce(obs[3][:,4], task_config.max_force), label='My')
-      #  ax[1].plot(torch_utils.normalizeForce(obs[3][:,5], task_config.max_force), label='Mz')
-      #  plt.legend()
-      #  plt.show()
-
-        #c = input()
-        #if c == 'q':
-        #  break
-        #elif c == 'z':
-        #  action = zero_action
       obs, reward, done = env.step(action.cpu().squeeze().numpy(), auto_reset=False)
+      eps_lens[-1] += 1
 
-    num_success += reward
+    num_success += int(reward >= 1)
     pbar.set_description('SR: {}%'.format(int((num_success / (i+1)) * 100)))
     pbar.update(1)
+  print(eps_lens)
   pbar.close()
