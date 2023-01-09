@@ -21,8 +21,8 @@ class BlockPickingConfig(Config):
     self.robot = 'panda'
     self.env_type = 'close_loop_block_picking'
     self.max_steps = 50
-    self.dpos = 0.05
-    self.drot = np.pi / 4
+    self.dpos = 0.025
+    self.drot = np.pi / 16
     self.max_force = 15
 
     # Data Gen
