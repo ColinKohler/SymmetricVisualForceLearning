@@ -30,17 +30,17 @@ class Trainer(object):
     self.alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=1e-3)
 
     # Initialize actor and critic models
-    self.actor = EquivariantFusionGaussianPolicy(self.config.action_dim)
+    self.actor = EquivariantFusionGaussianPolicy(self.config.action_dim, deterministic=self.config.deterministic)
     self.actor.train()
     self.actor.load_state_dict(initial_checkpoint['weights'][0])
     self.actor.to(self.device)
 
-    self.critic = EquivariantFusionCritic(self.config.action_dim)
+    self.critic = EquivariantFusionCritic(self.config.action_dim, deterministic=self.config.deterministic)
     self.critic.train()
     self.critic.load_state_dict(initial_checkpoint['weights'][1])
     self.critic.to(self.device)
 
-    self.critic_target = EquivariantFusionCritic(self.config.action_dim)
+    self.critic_target = EquivariantFusionCritic(self.config.action_dim, deterministic=self.config.deterministic)
     self.critic_target.train()
     self.critic_target.load_state_dict(initial_checkpoint['weights'][1])
     self.critic_target.to(self.device)

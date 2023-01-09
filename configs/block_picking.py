@@ -47,6 +47,7 @@ class BlockPickingConfig(Config):
     self.tau = 1e-2
     self.discount = 0.99
     self.clip_gradient = False
+    self.determinisitc = False
 
     # Eval
     self.num_eval_envs = 5

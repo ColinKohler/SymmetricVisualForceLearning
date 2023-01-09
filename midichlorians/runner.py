@@ -88,9 +88,9 @@ class Runner(object):
     '''
     device = torch.device('cpu')
 
-    actor = EquivariantFusionGaussianPolicy(self.config.action_dim)
+    actor = EquivariantFusionGaussianPolicy(self.config.action_dim, deterministic=self.config.deterministic)
     actor.train()
-    critic = EquivariantFusionCritic(self.config.action_dim)
+    critic = EquivariantFusionCritic(self.config.action_dim, deterministic=self.config.deterministic)
     critic.train()
 
     #pretrain = torch.load('data/pretrained_weight.pt')
