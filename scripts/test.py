@@ -62,7 +62,7 @@ if __name__ == '__main__':
         evaluate=True
       )
 
-      #print(value)
+      print(value)
       #if np.mean(np.abs(obs[3])) > 2e-2:
       if False:
         fig, ax = plt.subplots(nrows=1, ncols=2)

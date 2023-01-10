@@ -18,25 +18,26 @@ class EquivariantSensorFusion(nn.Module):
     self.N = N
     self.deterministic = deterministic
 
-    self.proprio_encoder = ProprioEncoder(z_dim=self.z_dim)
+    #self.proprio_encoder = ProprioEncoder(z_dim=self.z_dim)
     self.depth_encoder = EquivariantDepthEncoder(z_dim=self.z_dim, N=self.N, initialize=initialize)
     self.force_encoder = EquivariantForceEncoder(z_dim=self.z_dim, N=self.N, initialize=initialize)
 
     self.c4_act = gspaces.rot2dOnR2(self.N)
-    self.proprio_repr = 2 * self.z_dim * [self.c4_act.trivial_repr]
+    #self.proprio_repr = 2 * self.z_dim * [self.c4_act.regular_repr]
     self.depth_repr = 2 * self.z_dim * [self.c4_act.regular_repr]
     self.force_repr = 2 * self.z_dim * [self.c4_act.regular_repr]
 
     self.z_prior_mu = nn.Parameter(
-      torch.zeros(1, self.z_dim), requires_grad=False
+      torch.zeros(1, self.z_dim * N), requires_grad=False
     )
     self.z_prior_var = nn.Parameter(
-      torch.ones(1, self.z_dim), requires_grad=False
+      torch.ones(1, self.z_dim * N), requires_grad=False
     )
     self.z_prior = [self.z_prior_mu, self.z_prior_var]
 
     if self.deterministic:
-      self.in_type = enn.FieldType(self.c4_act, self.proprio_repr + self.depth_repr + self.force_repr)
+      #self.in_type = enn.FieldType(self.c4_act, self.proprio_repr + self.depth_repr + self.force_repr)
+      self.in_type = enn.FieldType(self.c4_act, self.depth_repr + self.force_repr)
       self.out_type = enn.FieldType(self.c4_act, self.z_dim * [self.c4_act.regular_repr])
       self.conv = EquivariantBlock(
         self.in_type,
@@ -46,9 +47,6 @@ class EquivariantSensorFusion(nn.Module):
         padding=0,
         initialize=initialize
       )
-    else:
-      self.depth_pool = enn.GroupPooling(enn.FieldType(self.c4_act, self.depth_repr))
-      self.force_pool = enn.GroupPooling(enn.FieldType(self.c4_act, self.force_repr))
 
   def forward(self, depth, force, proprio):
     batch_size = depth.size(0)
@@ -75,17 +73,13 @@ class EquivariantSensorFusion(nn.Module):
       mu_prior_resized = torch_utils.duplicate(mu_prior, batch_size).unsqueeze(2)
       var_prior_resized = torch_utils.duplicate(var_prior, batch_size).unsqueeze(2)
 
-      # Depth and force mean and variances
-      depth_feat = self.depth_pool(depth_feat)
-      force_feat = self.force_pool(force_feat)
-
-      mu_z_proprio, var_z_proprio = torch_utils.gaussianParameters(proprio_feat.squeeze(-1), dim=1)
+      #mu_z_proprio, var_z_proprio = torch_utils.gaussianParameters(proprio_feat.squeeze(-1), dim=1)
       mu_z_depth, var_z_depth = torch_utils.gaussianParameters(depth_feat.tensor.squeeze(-1), dim=1)
       mu_z_force, var_z_force = torch_utils.gaussianParameters(force_feat.tensor.squeeze(-1), dim=1)
 
       # Tile distribution parameters
-      mu_vect = torch.cat([mu_z_proprio, mu_z_depth, mu_z_force, mu_prior_resized], dim=2)
-      var_vect = torch.cat([var_z_proprio, var_z_depth, var_z_force, var_prior_resized], dim=2)
+      mu_vect = torch.cat([mu_z_depth, mu_z_force, mu_prior_resized], dim=2)
+      var_vect = torch.cat([var_z_depth, var_z_force, var_prior_resized], dim=2)
 
       # Sample gaussian to get latent encoding
       mu_z, var_z = torch_utils.productOfExperts(mu_vect, var_vect)

@@ -26,7 +26,7 @@ class EquivariantFusionCritic(EquivariantCritic):
       z = self.fusion_enc(depth, force, proprio)
     else:
       z, mu_z, var_z, mu_prior, var_prior = self.fusion_enc(depth, force, proprio)
-    z = z.view(batch_size, self.z_dim, 1, 1)
+    z = z.view(batch_size, self.N * self.z_dim, 1, 1)
 
     dxy = act[:, 1:3].reshape(batch_size,  2, 1, 1)
 
@@ -62,9 +62,9 @@ class EquivariantFusionGaussianPolicy(EquivariantGaussianPolicy):
       z = self.fusion_enc(depth, force, proprio)
     else:
       z, mu_z, var_z, mu_prior, var_prior = self.fusion_enc(depth, force, proprio)
-    z = z.view(batch_size, self.z_dim, 1, 1)
+    z = z.view(batch_size, self.N * self.z_dim, 1, 1)
     z_geo = enn.GeometricTensor(z, self.in_type)
-    out = self.conv_2(self.conv_1(z_geo)).tensor.reshape(batch_size, -1)
+    out = self.conv(z_geo)).tensor.reshape(batch_size, -1)
 
     dxy = out[:, 0:2]
     inv_act = out[:, 2:self.action_dim]
