@@ -47,7 +47,7 @@ class BlockPickingConfig(Config):
     self.tau = 1e-2
     self.discount = 0.99
     self.clip_gradient = False
-    self.determinisitc = False
+    self.deterministic = False
 
     # Eval
     self.num_eval_envs = 5
@@ -96,6 +96,7 @@ class BlockPickingConfig(Config):
       'workspace_check' : 'point',
       'reward_type' : self.reward_type,
       'view_type' : self.view_type,
+      'num_sensors' : 1,
       'occlusion_prob' : self.occlusion_size,
       'num_occlusions' : self.num_occlusions,
       'obs_type' : self.obs_type,
