@@ -218,7 +218,10 @@ class Trainer(object):
       min_qf_next_target = torch.min(qf1_next_target, qf2_next_target) - self.alpha * next_state_log_pi
       next_q_value = reward_batch + non_final_mask_batch * self.config.discount * min_qf_next_target
 
-    qf1, qf2 = self.critic(obs_batch, action_batch)
+    if self.config.deterministic:
+      qf1, qf2, z = self.critic(obs_batch, action_batch)
+    else:
+      qf1, qf2, z, mu_z, var_z, mu_prior, var_prior = self.critic(obs_batch, action_batch)
     qf1 = qf1.squeeze()
     qf2 = qf2.squeeze()
 
@@ -248,10 +251,11 @@ class Trainer(object):
     # Actor update
     if self.config.deterministic:
       pi, log_pi, _, z = self.actor.sample(obs_batch)
+      qf1_pi, qf2_pi, _ = self.critic(obs_batch, pi)
     else:
       pi, log_pi, _, z, mu_z, var_z, mu_prior, var_prior = self.actor.sample(obs_batch)
+      qf1_pi, qf2_pi, _, _, _, _, _ = self.critic(obs_batch, pi)
 
-    qf1_pi, qf2_pi = self.critic(obs_batch, pi)
     min_qf_pi = torch.min(qf1_pi, qf2_pi)
 
     actor_loss = ((self.alpha * log_pi) - min_qf_pi).mean()

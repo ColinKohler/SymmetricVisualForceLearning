@@ -111,7 +111,7 @@ class EquivariantGaussianPolicy(nn.Module):
     if self.deterministic:
       return mean, log_std, z
     else:
-      return mean, log_std, z, mu_z, var_z, mu_prior, z_prior
+      return mean, log_std, z, mu_z, var_z, mu_prior, var_prior
 
   def sample(self, x):
     '''
@@ -120,7 +120,7 @@ class EquivariantGaussianPolicy(nn.Module):
     if self.deterministic:
       mean, log_std, z = self.forward(x)
     else:
-      mean, log_std, z, mu_z, var_z, mu_prior, z_prior = self.forward(x)
+      mean, log_std, z, mu_z, var_z, mu_prior, var_prior = self.forward(x)
     std = log_std.exp()
 
     normal = Normal(mean, std)
@@ -136,4 +136,4 @@ class EquivariantGaussianPolicy(nn.Module):
     if self.deterministic:
       return action, log_prob, mean, z
     else:
-      return action, log_prob, mean, z, muz_z, var_z, mu_prior, z_prior
+      return action, log_prob, mean, z, mu_z, var_z, mu_prior, var_prior

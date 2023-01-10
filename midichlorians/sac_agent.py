@@ -30,14 +30,14 @@ class SACAgent(object):
     if actor:
       self.actor = actor
     else:
-      self.actor = EquivariantFusionGaussianPolicy(self.config.action_dim, initialize=initialize_models)
+      self.actor = EquivariantFusionGaussianPolicy(self.config.action_dim, deterministic=self.config.deterministic, initialize=initialize_models)
       self.actor.to(self.device)
       self.actor.train()
 
     if critic:
       self.critic = critic
     else:
-      self.critic = EquivariantFusionCritic(self.config.action_dim, initialize=initialize_models)
+      self.critic = EquivariantFusionCritic(self.config.action_dim, deterministic=self.config.deterministic, initialize=initialize_models)
       self.critic.to(self.device)
       self.critic.train()
 
