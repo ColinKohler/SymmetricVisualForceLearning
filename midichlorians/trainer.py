@@ -230,7 +230,7 @@ class Trainer(object):
     if self.config.deterministic:
       critic_loss = qf1_loss + qf2_loss
     else:
-      kl_loss = 0.1 * torch.mean(
+      kl_loss = 0.0 * torch.mean(
         torch_utils.klNormal(mu_z, var_z, mu_prior.squeeze(0), var_prior.squeeze(0))
       )
       critic_loss = qf1_loss + qf2_loss + kl_loss
@@ -260,7 +260,7 @@ class Trainer(object):
 
     actor_loss = ((self.alpha * log_pi) - min_qf_pi).mean()
     if not self.config.deterministic:
-      kl_loss = 0.1 * torch.mean(
+      kl_loss = 0.0 * torch.mean(
         torch_utils.klNormal(mu_z, var_z, mu_prior.squeeze(0), var_prior.squeeze(0))
       )
       actor_loss += kl_loss

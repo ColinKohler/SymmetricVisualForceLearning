@@ -64,7 +64,7 @@ class EquivariantFusionGaussianPolicy(EquivariantGaussianPolicy):
       z, mu_z, var_z, mu_prior, var_prior = self.fusion_enc(depth, force, proprio)
     z = z.view(batch_size, self.N * self.z_dim, 1, 1)
     z_geo = enn.GeometricTensor(z, self.in_type)
-    out = self.conv(z_geo)).tensor.reshape(batch_size, -1)
+    out = self.conv(z_geo).tensor.reshape(batch_size, -1)
 
     dxy = out[:, 0:2]
     inv_act = out[:, 2:self.action_dim]

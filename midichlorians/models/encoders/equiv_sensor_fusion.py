@@ -51,7 +51,7 @@ class EquivariantSensorFusion(nn.Module):
   def forward(self, depth, force, proprio):
     batch_size = depth.size(0)
 
-    proprio_feat = self.proprio_encoder(proprio).view(batch_size, 2 * self.z_dim, 1, 1)
+    #proprio_feat = self.proprio_encoder(proprio).view(batch_size, 2 * self.z_dim, 1, 1)
     depth_feat = self.depth_encoder(depth)
     force_feat = self.force_encoder(force)
 

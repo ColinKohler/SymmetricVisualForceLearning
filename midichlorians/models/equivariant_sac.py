@@ -78,6 +78,7 @@ class EquivariantGaussianPolicy(nn.Module):
     self.z_dim = z_dim
     self.initialize = initialize
     self.deterministic = deterministic
+    self.N = N
 
     self.c4_act = gspaces.rot2dOnR2(N)
     self.n_rho1 = 1
