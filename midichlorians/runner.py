@@ -15,7 +15,7 @@ from midichlorians.trainer import Trainer
 from midichlorians.replay_buffer import ReplayBuffer
 from midichlorians.data_generator import DataGenerator, EvalDataGenerator
 from midichlorians.shared_storage import SharedStorage
-from midichlorians.models.equiv_sensor_fusion import EquivariantSensorFusion
+from midichlorians.models.encoders.equiv_sensor_fusion import EquivariantSensorFusion
 from midichlorians.models.equivariant_fusion_sac import EquivariantFusionCritic, EquivariantFusionGaussianPolicy
 from midichlorians import torch_utils
 
@@ -89,7 +89,7 @@ class Runner(object):
     '''
     device = torch.device('cpu')
 
-    encoder = EquivaraintSensorFusion(deterministic=self.config.deterministic)
+    encoder = EquivariantSensorFusion(deterministic=self.config.deterministic)
     encoder.train()
     actor = EquivariantFusionGaussianPolicy(self.config.action_dim)
     actor.train()

@@ -8,7 +8,7 @@ import numpy.random as npr
 
 from midichlorians.sac_agent import SACAgent
 from midichlorians.data_generator import DataGenerator, EvalDataGenerator
-from midichlorians.models.equivariant_sensor_fusion import EquivariantSensorFusion
+from midichlorians.models.encoders.equiv_sensor_fusion import EquivariantSensorFusion
 from midichlorians.models.equivariant_fusion_sac import EquivariantFusionCritic, EquivariantFusionGaussianPolicy
 from midichlorians import torch_utils
 
@@ -216,9 +216,9 @@ class Trainer(object):
       else:
         next_z, mu_z, var_z, mu_prior, var_prior = self.encoder(next_obs_batch)
 
-      next_action, next_log_pi = self.actor.sample(next_z)
-      next_q1, next_q2, z = self.critic_target(next_z, next_action)
-      next_log_pi, next_q1, next_q2 = next_log_pi.sqeueeze(), next_q1.squeeze(), next_q2.squeeze()
+      next_action, next_log_pi, _ = self.actor.sample(next_z)
+      next_q1, next_q2 = self.critic_target(next_z, next_action)
+      next_log_pi, next_q1, next_q2 = next_log_pi.squeeze(), next_q1.squeeze(), next_q2.squeeze()
 
       next_q = torch.min(next_q1, next_q2) - self.alpha * next_log_pi
       target_q = reward_batch + non_final_mask_batch * self.config.discount * next_q
@@ -241,7 +241,7 @@ class Trainer(object):
     self.critic_optimizer.step()
 
     # Actor update
-    action, log_pi = self.actor.sample(z)
+    action, log_pi, _ = self.actor.sample(z)
     q1, q2 = self.critic(z, action)
 
     actor_loss = -torch.mean(torch.min(q1, q2) - self.alpha * log_pi)

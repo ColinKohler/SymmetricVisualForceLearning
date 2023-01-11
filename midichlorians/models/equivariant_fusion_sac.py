@@ -17,16 +17,15 @@ class EquivariantFusionCritic(EquivariantCritic):
     super().__init__(action_dim, z_dim=z_dim, initialize=initialize, N=N)
 
   def forward(self, z, act):
-    batch_size = z.size(0)
+    batch_size = z.tensor.size(0)
 
-    z = z.view(batch_size, self.N * self.z_dim, 1, 1)
     dxy = act[:, 1:3].reshape(batch_size,  2, 1, 1)
 
     inv_act = torch.cat((act[:,0:1], act[:,3:]), dim=1)
     n_inv = inv_act.shape[1]
     inv_act = inv_act.reshape(batch_size, n_inv, 1, 1)
 
-    cat = torch.cat((z, inv_act, dxy), dim=1)
+    cat = torch.cat((z.tensor, inv_act, dxy), dim=1)
     cat_geo = enn.GeometricTensor(cat, self.in_type)
 
     out_1 = self.critic_1(cat_geo).tensor.reshape(batch_size, 1)
@@ -42,12 +41,8 @@ class EquivariantFusionGaussianPolicy(EquivariantGaussianPolicy):
     super().__init__(action_dim, z_dim=z_dim, initialize=initialize, N=N)
 
   def forward(self, z):
-    depth, force, proprio = obs
-    batch_size = depth.size(0)
-
-    z = z.view(batch_size, self.N * self.z_dim, 1, 1)
-    z_geo = enn.GeometricTensor(z, self.in_type)
-    out = self.conv(z_geo).tensor.reshape(batch_size, -1)
+    batch_size = z.tensor.size(0)
+    out = self.conv(z).tensor.reshape(batch_size, -1)
 
     dxy = out[:, 0:2]
     inv_act = out[:, 2:self.action_dim]

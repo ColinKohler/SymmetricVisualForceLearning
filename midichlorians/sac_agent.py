@@ -4,7 +4,7 @@ import numpy.random as npr
 from functools import partial
 
 from midichlorians import torch_utils
-from midichlorians.models.equivariant_sensor_fusion import EquivariantSensorFusion
+from midichlorians.models.encoders.equiv_sensor_fusion import EquivariantSensorFusion
 from midichlorians.models.equivariant_fusion_sac import EquivariantFusionCritic, EquivariantFusionGaussianPolicy
 
 class SACAgent(object):
@@ -38,14 +38,14 @@ class SACAgent(object):
     if actor:
       self.actor = actor
     else:
-      self.actor = EquivariantFusionGaussianPolicy(self.config.action_dim, deterministic=self.config.deterministic, initialize=initialize_models)
+      self.actor = EquivariantFusionGaussianPolicy(self.config.action_dim, initialize=initialize_models)
       self.actor.to(self.device)
       self.actor.train()
 
     if critic:
       self.critic = critic
     else:
-      self.critic = EquivariantFusionCritic(self.config.action_dim, deterministic=self.config.deterministic, initialize=initialize_models)
+      self.critic = EquivariantFusionCritic(self.config.action_dim, initialize=initialize_models)
       self.critic.to(self.device)
       self.critic.train()
 
@@ -72,7 +72,7 @@ class SACAgent(object):
       if self.config.deterministic:
         z = self.encoder((obs, force, proprio))
       else:
-        z, z_mu, z_var, prior_mu,, prior_var = self.encoder((obs, force, proprio))
+        z, z_mu, z_var, prior_mu, prior_var = self.encoder((obs, force, proprio))
 
       if evaluate:
         _, _, action = self.actor.sample(z)

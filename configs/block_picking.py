@@ -46,8 +46,7 @@ class BlockPickingConfig(Config):
     self.init_temp = 1e-2
     self.tau = 1e-2
     self.discount = 0.99
-    self.clip_gradient = False
-    self.deterministic = False
+    self.deterministic = True
 
     # Eval
     self.num_eval_envs = 5
@@ -67,10 +66,6 @@ class BlockPickingConfig(Config):
     self.init_per_beta = 0.4
     self.end_per_beta = 1.0
     self.per_eps = 1e-6
-
-    # Occlusions
-    self.occlusion_size = 0.1
-    self.num_occlusions = 0
 
   def getEnvConfig(self, render=False):
     '''
@@ -97,8 +92,6 @@ class BlockPickingConfig(Config):
       'reward_type' : self.reward_type,
       'view_type' : self.view_type,
       'num_sensors' : 1,
-      'occlusion_prob' : self.occlusion_size,
-      'num_occlusions' : self.num_occlusions,
       'obs_type' : self.obs_type,
       'render': render
     }

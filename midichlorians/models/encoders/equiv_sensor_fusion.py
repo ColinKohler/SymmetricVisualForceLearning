@@ -47,7 +47,8 @@ class EquivariantSensorFusion(nn.Module):
         initialize=initialize
       )
 
-  def forward(self, depth, force, proprio):
+  def forward(self, obs):
+    depth, force, proprio = obs
     batch_size = depth.size(0)
 
     proprio_feat = self.proprio_encoder(proprio)
@@ -59,7 +60,7 @@ class EquivariantSensorFusion(nn.Module):
     force_feat = enn.GeometricTensor(gated_force_feat.view(batch_size, 2 * self.N * self.z_dim, 1, 1), enn.FieldType(self.c4_act, self.force_repr))
 
     if self.deterministic:
-      feat = torch.cat((proprio_feat, depth_feat.tensor, force_feat.tensor), dim=1)
+      feat = torch.cat((proprio_feat.tensor, depth_feat.tensor, force_feat.tensor), dim=1)
       feat = enn.GeometricTensor(feat, self.in_type)
       z = self.conv(feat)
 
