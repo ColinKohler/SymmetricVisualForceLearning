@@ -49,8 +49,9 @@ class EvalDataGenerator(object):
       shared_storage.setInfo.remote(
         {
           'best_model_reward' : current_reward,
-          'best_weights' : (torch_utils.dictToCpu(weights[0]),
-                            torch_utils.dictToCpu(weights[1]))
+          'best_weights' : (torch_utils.dictToCpu(weights[0])
+                            torch_utils.dictToCpu(weights[1]),
+                            torch_utils.dictToCpu(weights[2]))
         }
       )
     if logger_state['num_eval_intervals'] < self.config.num_eval_intervals:

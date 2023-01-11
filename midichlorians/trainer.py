@@ -8,6 +8,7 @@ import numpy.random as npr
 
 from midichlorians.sac_agent import SACAgent
 from midichlorians.data_generator import DataGenerator, EvalDataGenerator
+from midichlorians.models.equivariant_sensor_fusion import EquivariantSensorFusion
 from midichlorians.models.equivariant_fusion_sac import EquivariantFusionCritic, EquivariantFusionGaussianPolicy
 from midichlorians import torch_utils
 
@@ -29,20 +30,25 @@ class Trainer(object):
     self.log_alpha = torch.tensor(np.log(self.alpha), requires_grad=True, device=self.device)
     self.alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=1e-3)
 
-    # Initialize actor and critic models
-    self.actor = EquivariantFusionGaussianPolicy(self.config.action_dim, deterministic=self.config.deterministic)
+    # Initialize encoder, actor, and critic models
+    self.encoder = EquivariantSensorFusion(deterministic=self.config.deterministic)
+    self.encoder.train()
+    self.encoder.load_state_dict(initial_checkpoint['weights'][0])
+    self.encoder.to(self.device)
+
+    self.actor = EquivariantFusionGaussianPolicy(self.config.action_dim)
     self.actor.train()
-    self.actor.load_state_dict(initial_checkpoint['weights'][0])
+    self.actor.load_state_dict(initial_checkpoint['weights'][1])
     self.actor.to(self.device)
 
-    self.critic = EquivariantFusionCritic(self.config.action_dim, deterministic=self.config.deterministic)
+    self.critic = EquivariantFusionCritic(self.config.action_dim)
     self.critic.train()
-    self.critic.load_state_dict(initial_checkpoint['weights'][1])
+    self.critic.load_state_dict(initial_checkpoint['weights'][2])
     self.critic.to(self.device)
 
-    self.critic_target = EquivariantFusionCritic(self.config.action_dim, deterministic=self.config.deterministic)
+    self.critic_target = EquivariantFusionCritic(self.config.action_dim)
     self.critic_target.train()
-    self.critic_target.load_state_dict(initial_checkpoint['weights'][1])
+    self.critic_target.load_state_dict(initial_checkpoint['weights'][2])
     self.critic_target.to(self.device)
 
     self.training_step = initial_checkpoint['training_step']
@@ -66,7 +72,7 @@ class Trainer(object):
       )
 
     # Initialize data generator
-    self.agent = SACAgent(self.config, self.device, actor=self.actor, critic=self.critic)
+    self.agent = SACAgent(self.config, self.device, encoder=self.encoder, actor=self.actor, critic=self.critic)
     self.data_generator = DataGenerator(self.agent, self.config, self.config.seed)
     self.data_generator.resetEnvs()
 
@@ -147,6 +153,7 @@ class Trainer(object):
 
       # Save to shared storage
       if self.training_step % self.config.checkpoint_interval == 0:
+        encoder_weights = torch_utils.dictToCpu(self.encoder.state_dict())
         actor_weights = torch_utils.dictToCpu(self.actor.state_dict())
         critic_weights = torch_utils.dictToCpu(self.critic.state_dict())
         actor_optimizer_state = torch_utils.dictToCpu(self.actor_optimizer.state_dict())
@@ -154,7 +161,7 @@ class Trainer(object):
 
         shared_storage.setInfo.remote(
           {
-            'weights' : copy.deepcopy((actor_weights, critic_weights)),
+            'weights' : copy.deepcopy((encoder_weights, actor_weights, critic_weights)),
             'optimizer_state' : (copy.deepcopy(actor_optimizer_state), copy.deepcopy(critic_optimizer_state))
           }
         )
@@ -205,81 +212,59 @@ class Trainer(object):
     # Critic Update
     with torch.no_grad():
       if self.config.deterministic:
-        next_state_action, next_state_log_pi, _ = self.actor.sample(next_obs_batch)
-        qf1_next_target, qf2_next_target, z = self.critic_target(next_obs_batch, next_state_action)
+        next_z = self.encoder(next_obs_batch)
       else:
-        next_state_action, next_state_log_pi, _, z, mu_z, var_z, mu_prior, var_prior = self.actor.sample(next_obs_batch)
-        qf1_next_target, qf2_next_target, z, mu_z, var_z, mu_prior, var_prior = self.critic_target(next_obs_batch, next_state_action)
+        next_z, mu_z, var_z, mu_prior, var_prior = self.encoder(next_obs_batch)
 
-      next_state_log_pi = next_state_log_pi.squeeze()
-      qf1_next_target = qf1_next_target.squeeze()
-      qf2_next_target = qf2_next_target.squeeze()
+      next_action, next_log_pi = self.actor.sample(next_z)
+      next_q1, next_q2, z = self.critic_target(next_z, next_action)
+      next_log_pi, next_q1, next_q2 = next_log_pi.sqeueeze(), next_q1.squeeze(), next_q2.squeeze()
 
-      min_qf_next_target = torch.min(qf1_next_target, qf2_next_target) - self.alpha * next_state_log_pi
-      next_q_value = reward_batch + non_final_mask_batch * self.config.discount * min_qf_next_target
+      next_q = torch.min(next_q1, next_q2) - self.alpha * next_log_pi
+      target_q = reward_batch + non_final_mask_batch * self.config.discount * next_q
 
-    if self.config.deterministic:
-      qf1, qf2, z = self.critic(obs_batch, action_batch)
-    else:
-      qf1, qf2, z, mu_z, var_z, mu_prior, var_prior = self.critic(obs_batch, action_batch)
-    qf1 = qf1.squeeze()
-    qf2 = qf2.squeeze()
+    z = self.encoder(obs_batch)
+    curr_q1, curr_q2 = self.critic(z, action_batch)
+    curr_q1, curr_q2 = curr_q1.squeeze(), curr_q2.squeeze()
 
-    qf1_loss = F.mse_loss(qf1, next_q_value)
-    qf2_loss = F.mse_loss(qf2, next_q_value)
-    if self.config.deterministic:
-      critic_loss = qf1_loss + qf2_loss
-    else:
-      kl_loss = 0.0 * torch.mean(
-        torch_utils.klNormal(mu_z, var_z, mu_prior.squeeze(0), var_prior.squeeze(0))
-      )
-      critic_loss = qf1_loss + qf2_loss + kl_loss
-
-    #qf1_loss = F.mse_loss(qf1, next_q_value, reduction='none')
-    #qf2_loss = F.mse_loss(qf2, next_q_value, reduction='none')
-    #critic_loss = ((qf1_loss + qf2_loss) * weight_batch).mean()
+    critic_loss = F.mse_loss(curr_q1, target_q) + F.mse_loss(curr_q2, target_q)
+    #kl_loss = 0.0 * torch.mean(
+    #  torch_utils.klNormal(mu_z, var_z, mu_prior.squeeze(0), var_prior.squeeze(0))
+    #)
+    #critic_loss = qf1_loss + qf2_loss + kl_loss
 
     with torch.no_grad():
-      td_error = 0.5 * (torch.abs(qf2 - next_q_value) + torch.abs(qf1 - next_q_value))
+      td_error = 0.5 * (torch.abs(curr_q1 - target_q) + torch.abs(curr_q2 - target_q))
 
     self.critic_optimizer.zero_grad()
     critic_loss.backward()
-    if self.config.clip_gradient:
-      torch_utils.clipGradNorm(self.critic_optimizer)
     self.critic_optimizer.step()
 
     # Actor update
-    if self.config.deterministic:
-      pi, log_pi, _, z = self.actor.sample(obs_batch)
-      qf1_pi, qf2_pi, _ = self.critic(obs_batch, pi)
-    else:
-      pi, log_pi, _, z, mu_z, var_z, mu_prior, var_prior = self.actor.sample(obs_batch)
-      qf1_pi, qf2_pi, _, _, _, _, _ = self.critic(obs_batch, pi)
+    action, log_pi = self.actor.sample(z)
+    q1, q2 = self.critic(z, action)
 
-    min_qf_pi = torch.min(qf1_pi, qf2_pi)
-
-    actor_loss = ((self.alpha * log_pi) - min_qf_pi).mean()
-    if not self.config.deterministic:
-      kl_loss = 0.0 * torch.mean(
-        torch_utils.klNormal(mu_z, var_z, mu_prior.squeeze(0), var_prior.squeeze(0))
-      )
-      actor_loss += kl_loss
-    #actor_loss = (((self.alpha * log_pi) - min_qf_pi) * weight_batch).mean()
+    actor_loss = -torch.mean(torch.min(q1, q2) - self.alpha * log_pi)
+    #kl_loss = 0.0 * torch.mean(
+    #  torch_utils.klNormal(mu_z, var_z, mu_prior.squeeze(0), var_prior.squeeze(0))
+    #)
+    #actor_loss += kl_loss
 
     self.actor_optimizer.zero_grad()
     actor_loss.backward()
-    if self.config.clip_gradient:
-      torch_utils.clipGradNorm(self.actor_optimizer)
     self.actor_optimizer.step()
 
-    alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
-    #alpha_loss = -((self.log_alpha * (log_pi + self.target_entropy).detach()) * weight_batch).mean()
+    # Alpha update
+    with torch.no_grad():
+      entropy = -log_pi.detach().mean()
+    alpha_loss = -self.log_alpha * (self.target_entropy - entropy)
 
     self.alpha_optimizer.zero_grad()
     alpha_loss.backward()
     self.alpha_optimizer.step()
 
-    self.alpha = self.log_alpha.exp()
+    with torch.no_grad():
+      self.alpha = self.log_alpha.exp()
 
     return td_error, (actor_loss.item(), critic_loss.item())
 
