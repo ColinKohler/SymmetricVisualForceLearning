@@ -17,13 +17,12 @@ class BlockPickingCornerConfig(Config):
     self.seed = 1234
 
     # Env
-    self.obs_size = 128
     self.robot = 'panda'
     self.env_type = 'close_loop_block_picking_corner'
     self.max_steps = 50
-    self.dpos = 0.05
-    self.drot = np.pi / 4
-    self.max_force = 100
+    self.dpos = 0.025
+    self.drot = np.pi / 16
+    self.max_force = 30
 
     # Data Gen
     self.num_data_gen_envs = 5
@@ -91,6 +90,7 @@ class BlockPickingCornerConfig(Config):
       'workspace_check' : 'point',
       'reward_type' : self.reward_type,
       'view_type' : self.view_type,
+      'num_sensors' : 2,
       'obs_type' : self.obs_type,
       'render': render
     }
