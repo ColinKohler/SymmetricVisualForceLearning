@@ -241,6 +241,8 @@ class Trainer(object):
     self.critic_optimizer.step()
 
     # Actor update
+    with torch.no_grad():
+      z = self.encoder(obs_batch)
     action, log_pi, _ = self.actor.sample(z)
     q1, q2 = self.critic(z, action)
 
