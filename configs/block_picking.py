@@ -56,8 +56,8 @@ class BlockPickingConfig(Config):
     self.num_eval_intervals = int(self.training_steps / self.eval_interval)
 
     # LR schedule
-    self.actor_lr_init = 1e-3
-    self.critic_lr_init = 1e-3
+    self.actor_lr_init = 1e-4
+    self.critic_lr_init = 1e-4
     self.lr_decay = 0.95
     self.lr_decay_interval = 500
 
@@ -70,7 +70,7 @@ class BlockPickingConfig(Config):
 
     # Occlusions
     self.occlusion_size = 0.1
-    self.num_occlusions = 3
+    self.num_occlusions = 0
 
   def getEnvConfig(self, render=False):
     '''
