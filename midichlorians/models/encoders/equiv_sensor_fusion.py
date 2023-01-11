@@ -26,7 +26,6 @@ class EquivariantSensorFusion(nn.Module):
     self.force_repr = self.z_dim * [self.c4_act.regular_repr]
 
     self.in_type = enn.FieldType(self.c4_act, self.proprio_repr + self.depth_repr + self.force_repr)
-    #self.in_type = enn.FieldType(self.c4_act, self.depth_repr + self.force_repr)
     self.out_type = enn.FieldType(self.c4_act, self.z_dim * [self.c4_act.regular_repr])
     self.conv = EquivariantBlock(
       self.in_type,
@@ -49,7 +48,6 @@ class EquivariantSensorFusion(nn.Module):
     force_feat = enn.GeometricTensor(gated_force_feat.view(batch_size, 512, 1, 1), enn.FieldType(self.c4_act, self.force_repr))
 
     feat = torch.cat((proprio_feat, depth_feat.tensor, force_feat.tensor), dim=1)
-    #feat = torch.cat((depth_feat.tensor, force_feat.tensor), dim=1)
     feat = enn.GeometricTensor(feat, self.in_type)
 
     return self.conv(feat)

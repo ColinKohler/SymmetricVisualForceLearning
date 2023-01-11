@@ -20,8 +20,8 @@ class BlockPullingCornerConfig(Config):
     self.robot = 'panda'
     self.env_type = 'close_loop_block_pulling_corner'
     self.max_steps = 50
-    self.dpos = 0.05
-    self.drot = np.pi / 8
+    self.dpos = 0.025
+    self.drot = np.pi / 16
     self.max_force = 30
 
     # Data Gen
@@ -90,6 +90,7 @@ class BlockPullingCornerConfig(Config):
       'workspace_check' : 'point',
       'reward_type' : self.reward_type,
       'view_type' : self.view_type,
+      'num_sensors' : 2,
       'obs_type' : self.obs_type,
       'render': render
     }
