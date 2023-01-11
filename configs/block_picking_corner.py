@@ -14,12 +14,12 @@ class BlockPickingCornerConfig(Config):
   '''
   def __init__(self, num_gpus=1, results_path=None):
     super().__init__(num_gpus=num_gpus)
-    self.seed = 1234
+    self.seed = None
 
     # Env
     self.robot = 'panda'
     self.env_type = 'close_loop_block_picking_corner'
-    self.max_steps = 50
+    self.max_steps = 100
     self.dpos = 0.025
     self.drot = np.pi / 16
     self.max_force = 30
