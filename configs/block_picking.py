@@ -44,7 +44,7 @@ class BlockPickingConfig(Config):
     self.target_update_interval = 1
     self.checkpoint_interval = 100
     self.init_temp = 1e-2
-    self.tau = 1e-2
+    self.tau = 5e-3
     self.discount = 0.99
     self.deterministic = True
 

@@ -27,10 +27,13 @@ class Trainer(object):
     self.config = config
     self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
-    self.alpha = self.config.init_temp
+    #self.alpha = self.config.init_temp
     self.target_entropy = -self.config.action_dim
-    self.log_alpha = torch.tensor(np.log(self.alpha), requires_grad=True, device=self.device)
-    self.alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=1e-3)
+    self.log_alpha = torch.zeros(1, requires_grad=True, device=self.device)
+    with torch.no_grad():
+      self.alpha = self.log_alpha.exp()
+    #self.log_alpha = torch.tensor(np.log(self.alpha), requires_grad=True, device=self.device)
+    self.alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=self.config.actor_lr_init)
 
     # Initialize encoder, actor, and critic models
     self.encoder = SensorFusion(deterministic=self.config.deterministic)
@@ -52,6 +55,8 @@ class Trainer(object):
     self.critic_target.train()
     self.critic_target.load_state_dict(initial_checkpoint['weights'][2])
     self.critic_target.to(self.device)
+    for param in self.critic_target.parameters():
+      param.requires_grad = False
 
     self.training_step = initial_checkpoint['training_step']
 
@@ -188,7 +193,9 @@ class Trainer(object):
       logger.logTrainingStep.remote(
         {
           'Actor' : loss[0],
-          'Critic' : loss[1]
+          'Critic' : loss[1],
+          'Alpha' : loss[2],
+          'Entropy' : loss[3]
         }
       )
 
@@ -264,9 +271,11 @@ class Trainer(object):
     alpha_loss.backward()
     self.alpha_optimizer.step()
 
-    self.alpha = self.log_alpha.exp()
+    with torch.no_grad():
+      entropy = -log_pi.detach().mean()
+      self.alpha = self.log_alpha.exp()
 
-    return td_error, (actor_loss.item(), critic_loss.item())
+    return td_error, (actor_loss.item(), critic_loss.item(), alpha_loss.item(), entropy.item())
 
   def softTargetUpdate(self):
     '''

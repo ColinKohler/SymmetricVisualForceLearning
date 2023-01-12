@@ -10,7 +10,7 @@ import numpy.random as npr
 import matplotlib
 import matplotlib.pyplot as plt
 
-from midichlorians.sac_agent import SACAgent
+from midichlorians.agent import Agent
 from midichlorians import torch_utils
 from scripts.train import task_configs
 from bulletarm import env_factory
@@ -42,7 +42,7 @@ if __name__ == '__main__':
   env = env_factory.createEnvs(0, task_config.env_type, env_config, planner_config)
 
   device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-  agent = SACAgent(task_config, device, initialize_models=False)
+  agent = Agent(task_config, device, initialize_models=False)
   agent.setWeights(checkpoint['weights'])
 
   num_success = 0
@@ -62,7 +62,7 @@ if __name__ == '__main__':
         evaluate=True
       )
 
-      print(value)
+      #print(value)
       #if np.mean(np.abs(obs[3])) > 2e-2:
       if False:
         fig, ax = plt.subplots(nrows=1, ncols=2)
