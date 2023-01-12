@@ -7,7 +7,7 @@ from escnn import nn as enn
 
 from midichlorians.models.layers import EquivariantBlock
 
-class EquivariantDepthEncoder(nn.Module):
+class DepthEncoder(nn.Module):
   '''
   '''
   def __init__(self, z_dim=64, initialize=True, N=8):

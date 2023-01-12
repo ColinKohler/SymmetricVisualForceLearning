@@ -15,8 +15,8 @@ from midichlorians.trainer import Trainer
 from midichlorians.replay_buffer import ReplayBuffer
 from midichlorians.data_generator import DataGenerator, EvalDataGenerator
 from midichlorians.shared_storage import SharedStorage
-from midichlorians.models.encoders.equiv_sensor_fusion import EquivariantSensorFusion
-from midichlorians.models.equivariant_fusion_sac import EquivariantFusionCritic, EquivariantFusionGaussianPolicy
+from midichlorians.models.encoders.equiv_sensor_fusion import SensorFusion
+from midichlorians.models.sac import Critic, GaussianPolicy
 from midichlorians import torch_utils
 
 from helping_hands_rl_baselines.logger.ray_logger import RayLogger
@@ -89,13 +89,11 @@ class Runner(object):
     '''
     device = torch.device('cpu')
 
-    encoder_1 = EquivariantSensorFusion(deterministic=self.config.deterministic)
-    encoder_1.train()
-    actor = EquivariantFusionGaussianPolicy(self.config.action_dim)
+    encoder = SensorFusion(deterministic=self.config.deterministic)
+    encoder.train()
+    actor = GaussianPolicy(self.config.action_dim)
     actor.train()
-    encoder_2 = EquivariantSensorFusion(deterministic=self.config.deterministic)
-    encoder_2.train()
-    critic = EquivariantFusionCritic(self.config.action_dim)
+    critic = Critic(self.config.action_dim)
     critic.train()
 
     #pretrain = torch.load('data/pretrained_weight.pt')
@@ -103,9 +101,8 @@ class Runner(object):
     #critic.fusion_enc.load_state_dict(pretrain)
 
     self.checkpoint['weights'] = (
-      torch_utils.dictToCpu(encoder_1.state_dict()),
+      torch_utils.dictToCpu(encoder.state_dict()),
       torch_utils.dictToCpu(actor.state_dict()),
-      torch_utils.dictToCpu(encoder_2.state_dict()),
       torch_utils.dictToCpu(critic.state_dict())
     )
 

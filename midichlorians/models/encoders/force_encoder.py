@@ -29,7 +29,7 @@ class CausalConvBlock(nn.Module):
     return self.conv(x)
 
 
-class EquivariantForceEncoder(nn.Module):
+class ForceEncoder(nn.Module):
   '''
   '''
   def __init__(self, z_dim=64, N=8, initialize=True):

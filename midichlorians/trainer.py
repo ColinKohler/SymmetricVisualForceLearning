@@ -1,4 +1,4 @@
-import time
+2mport time
 import copy
 import ray
 import torch
@@ -8,8 +8,8 @@ import numpy.random as npr
 
 from midichlorians.sac_agent import SACAgent
 from midichlorians.data_generator import DataGenerator, EvalDataGenerator
-from midichlorians.models.encoders.equiv_sensor_fusion import EquivariantSensorFusion
-from midichlorians.models.equivariant_fusion_sac import EquivariantFusionCritic, EquivariantFusionGaussianPolicy
+from midichlorians.models.encoders.sensor_fusion import SensorFusion
+from midichlorians.models.sac import Critic, GaussianPolicy
 from midichlorians import torch_utils
 
 @ray.remote
@@ -31,39 +31,34 @@ class Trainer(object):
     self.alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=1e-3)
 
     # Initialize encoder, actor, and critic models
-    self.encoder_1 = EquivariantSensorFusion(deterministic=self.config.deterministic)
-    self.encoder_1.train()
-    self.encoder_1.load_state_dict(initial_checkpoint['weights'][0])
-    self.encoder_1.to(self.device)
+    self.encoder = SensorFusion(deterministic=self.config.deterministic)
+    self.encoder.train()
+    self.encoder.load_state_dict(initial_checkpoint['weights'][0])
+    self.encoder.to(self.device)
 
-    self.actor = EquivariantFusionGaussianPolicy(self.config.action_dim)
+    self.actor = GaussianPolicy(self.config.action_dim)
     self.actor.train()
     self.actor.load_state_dict(initial_checkpoint['weights'][1])
     self.actor.to(self.device)
 
-    self.encoder_2 = EquivariantSensorFusion(deterministic=self.config.deterministic)
-    self.encoder_2.train()
-    self.encoder_2.load_state_dict(initial_checkpoint['weights'][2])
-    self.encoder_2.to(self.device)
-
-    self.critic = EquivariantFusionCritic(self.config.action_dim)
+    self.critic = Critic(self.config.action_dim)
     self.critic.train()
-    self.critic.load_state_dict(initial_checkpoint['weights'][3])
+    self.critic.load_state_dict(initial_checkpoint['weights'][2])
     self.critic.to(self.device)
 
-    self.critic_target = EquivariantFusionCritic(self.config.action_dim)
+    self.critic_target = Critic(self.config.action_dim)
     self.critic_target.train()
-    self.critic_target.load_state_dict(initial_checkpoint['weights'][3])
+    self.critic_target.load_state_dict(initial_checkpoint['weights'][2])
     self.critic_target.to(self.device)
 
     self.training_step = initial_checkpoint['training_step']
 
     # Initialize optimizer
-    self.actor_optimizer = torch.optim.Adam(list(self.encoder_1.parameters()) + list(self.actor.parameters()),
+    self.actor_optimizer = torch.optim.Adam(self.actor.parameters(),
                                             lr=self.config.actor_lr_init)
     self.actor_scheduler = torch.optim.lr_scheduler.ExponentialLR(self.actor_optimizer,
                                                                   self.config.lr_decay)
-    self.critic_optimizer = torch.optim.Adam(list(self.encoder_2.parameters()) + list(self.critic.parameters()),
+    self.critic_optimizer = torch.optim.Adam(list(self.encoder.parameters()) + list(self.critic.parameters()),
                                              lr=self.config.critic_lr_init)
     self.critic_scheduler = torch.optim.lr_scheduler.ExponentialLR(self.critic_optimizer,
                                                                    self.config.lr_decay)
@@ -77,7 +72,7 @@ class Trainer(object):
       )
 
     # Initialize data generator
-    self.agent = SACAgent(self.config, self.device, encoder_1=self.encoder_1, actor=self.actor, encoder_2=self.encoder_2, critic=self.critic)
+    self.agent = SACAgent(self.config, self.device, encoder=self.encoder, actor=self.actor, critic=self.critic)
     self.data_generator = DataGenerator(self.agent, self.config, self.config.seed)
     self.data_generator.resetEnvs()
 
@@ -158,16 +153,15 @@ class Trainer(object):
 
       # Save to shared storage
       if self.training_step % self.config.checkpoint_interval == 0:
-        encoder_1_weights = torch_utils.dictToCpu(self.encoder_1.state_dict())
+        encoder_weights = torch_utils.dictToCpu(self.encoder.state_dict())
         actor_weights = torch_utils.dictToCpu(self.actor.state_dict())
-        encoder_2_weights = torch_utils.dictToCpu(self.encoder_2.state_dict())
         critic_weights = torch_utils.dictToCpu(self.critic.state_dict())
         actor_optimizer_state = torch_utils.dictToCpu(self.actor_optimizer.state_dict())
         critic_optimizer_state = torch_utils.dictToCpu(self.critic_optimizer.state_dict())
 
         shared_storage.setInfo.remote(
           {
-            'weights' : copy.deepcopy((encoder_1_weights, actor_weights, encoder_2_weights, critic_weights)),
+            'weights' : copy.deepcopy((encoder_weights, actor_weights, critic_weights)),
             'optimizer_state' : (copy.deepcopy(actor_optimizer_state), copy.deepcopy(critic_optimizer_state))
           }
         )
@@ -218,19 +212,18 @@ class Trainer(object):
     # Critic Update
     with torch.no_grad():
       if self.config.deterministic:
-        next_z_1 = self.encoder_1(next_obs_batch)
-        next_z_2 = self.encoder_2(next_obs_batch)
+        next_z = self.encoder(next_obs_batch)
       else:
-        next_z, mu_z, var_z, mu_prior, var_prior = self.encoder_2(next_obs_batch)
+        next_z, mu_z, var_z, mu_prior, var_prior = self.encoder(next_obs_batch)
 
       next_action, next_log_pi, _ = self.actor.sample(next_z_1)
-      next_q1, next_q2 = self.critic_target(next_z_2, next_action)
+      next_q1, next_q2 = self.critic_target(next_z, next_action)
       next_log_pi, next_q1, next_q2 = next_log_pi.squeeze(), next_q1.squeeze(), next_q2.squeeze()
 
       next_q = torch.min(next_q1, next_q2) - self.alpha * next_log_pi
       target_q = reward_batch + non_final_mask_batch * self.config.discount * next_q
 
-    z = self.encoder_2(obs_batch)
+    z = self.encoder(obs_batch)
     curr_q1, curr_q2 = self.critic(z, action_batch)
     curr_q1, curr_q2 = curr_q1.squeeze(), curr_q2.squeeze()
 
@@ -248,13 +241,10 @@ class Trainer(object):
     self.critic_optimizer.step()
 
     # Actor update
-    #with torch.no_grad():
-    z = self.encoder_1(obs_batch)
-    action, log_pi, _ = self.actor.sample(z)
+    action, log_pi, _ = self.actor.sample(z.detach())
     q1, q2 = self.critic(z, action)
 
-    actor_loss = -torch.mean(torch.min(q1, q2) - self.alpha * log_pi)
-    #actor_loss = torch.mean((self.alpha * log_pi) - torch.min(q1, q2))
+    actor_loss = torch.mean((self.alpha * log_pi) - torch.min(q1, q2))
     #kl_loss = 0.0 * torch.mean(
     #  torch_utils.klNormal(mu_z, var_z, mu_prior.squeeze(0), var_prior.squeeze(0))
     #)
@@ -265,17 +255,13 @@ class Trainer(object):
     self.actor_optimizer.step()
 
     # Alpha update
-    with torch.no_grad():
-      entropy = -log_pi.detach().mean()
-    alpha_loss = -self.log_alpha * (self.target_entropy - entropy)
-    #alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
+    alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy.).detach()).mean()
 
     self.alpha_optimizer.zero_grad()
     alpha_loss.backward()
     self.alpha_optimizer.step()
 
-    with torch.no_grad():
-      self.alpha = self.log_alpha.exp()
+    self.alpha = self.log_alpha.exp()
 
     return td_error, (actor_loss.item(), critic_loss.item())
 

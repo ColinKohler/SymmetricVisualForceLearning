@@ -4,10 +4,10 @@ import numpy.random as npr
 from functools import partial
 
 from midichlorians import torch_utils
-from midichlorians.models.encoders.equiv_sensor_fusion import EquivariantSensorFusion
-from midichlorians.models.equivariant_fusion_sac import EquivariantFusionCritic, EquivariantFusionGaussianPolicy
+from midichlorians.models.encoders.sensor_fusion import SensorFusion
+from midichlorians.models.sac import Critic, GaussianPolicy
 
-class SACAgent(object):
+class Agent(object):
   '''
   Soft Actor-Critic Agent.
 
@@ -15,7 +15,7 @@ class SACAgent(object):
     config (dict): Task config.
     device (torch.Device): Device to use for inference (cpu or gpu)
   '''
-  def __init__(self, config, device, encoder_1=None, actor=None, encoder_2=None, critic=None, initialize_models=True):
+  def __init__(self, config, device, encoder=None, actor=None, critic=None, initialize_models=True):
     self.config = config
     self.device = device
 
@@ -28,31 +28,24 @@ class SACAgent(object):
     self.dtheta_range = torch.tensor([-self.config.drot, self.config.drot])
     self.action_shape = 5
 
-    if encoder_1:
-      self.encoder_1 = encoder_1
+    if encoder:
+      self.encoder = encoder
     else:
-      self.encoder_1 = EquivariantSensorFusion(deterministic=self.config.deterministic)
-      self.encoder_1.to(self.device)
-      self.encoder_1.train()
+      self.encoder = SensorFusion(deterministic=self.config.deterministic)
+      self.encoder.to(self.device)
+      self.encoder.train()
 
     if actor:
       self.actor = actor
     else:
-      self.actor = EquivariantFusionGaussianPolicy(self.config.action_dim, initialize=initialize_models)
+      self.actor = GaussianPolicy(self.config.action_dim, initialize=initialize_models)
       self.actor.to(self.device)
       self.actor.train()
-
-    if encoder_2:
-      self.encoder_2 = encoder_2
-    else:
-      self.encoder_2 = EquivariantSensorFusion(deterministic=self.config.deterministic)
-      self.encoder_2.to(self.device)
-      self.encoder_2.train()
 
     if critic:
       self.critic = critic
     else:
-      self.critic = EquivariantFusionCritic(self.config.action_dim, initialize=initialize_models)
+      self.critic = Critic(self.config.action_dim, initialize=initialize_models)
       self.critic.to(self.device)
       self.critic.train()
 
@@ -77,9 +70,9 @@ class SACAgent(object):
 
     with torch.no_grad():
       if self.config.deterministic:
-        z = self.encoder_1((obs, force, proprio))
+        z = self.encoder((obs, force, proprio))
       else:
-        z, z_mu, z_var, prior_mu, prior_var = self.encoder_1((obs, force, proprio))
+        z, z_mu, z_var, prior_mu, prior_var = self.encoder((obs, force, proprio))
 
       if evaluate:
         _, _, action = self.actor.sample(z)
@@ -89,7 +82,6 @@ class SACAgent(object):
     action = action.cpu()
     action_idx, action = self.decodeActions(*[action[:,i] for i in range(self.action_shape)])
     with torch.no_grad():
-      z = self.encoder_2((obs, force, proprio))
       value = self.critic(z, action_idx.to(self.device))
 
     value = torch.min(torch.hstack((value[0], value[1])), dim=1)[0]
@@ -160,9 +152,8 @@ class SACAgent(object):
   def getWeights(self):
     '''
     '''
-    return (self.encoder_1.state_dict(),
+    return (self.encoder.state_dict(),
             self.actor.state_dict(),
-            self.encoder_2.state_dict(),
             self.critic.state_dict())
 
   def setWeights(self, weights):
@@ -173,7 +164,6 @@ class SACAgent(object):
       weights (dict, dict): (actor weights, critic weights)
     '''
     if weights is not None:
-      self.encoder_1.load_state_dict(weights[0])
+      self.encoder.load_state_dict(weights[0])
       self.actor.load_state_dict(weights[1])
-      self.encoder_2.load_state_dict(weights[2])
-      self.critic.load_state_dict(weights[3])
+      self.critic.load_state_dict(weights[2])

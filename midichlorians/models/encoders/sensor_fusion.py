@@ -6,11 +6,11 @@ from escnn import nn as enn
 
 from midichlorians.models.layers import EquivariantBlock
 from midichlorians.models.encoders.proprio_encoder import ProprioEncoder
-from midichlorians.models.encoders.equiv_depth_encoder import EquivariantDepthEncoder
-from midichlorians.models.encoders.equiv_force_encoder import EquivariantForceEncoder
+from midichlorians.models.encoders.depth_encoder import DepthEncoder
+from midichlorians.models.encoders.force_encoder import ForceEncoder
 from midichlorians import torch_utils
 
-class EquivariantSensorFusion(nn.Module):
+class SensorFusion(nn.Module):
   def __init__(self, z_dim=64, N=8, deterministic=True, initialize=True):
     super().__init__()
 
@@ -19,8 +19,8 @@ class EquivariantSensorFusion(nn.Module):
     self.deterministic = deterministic
 
     #self.proprio_encoder = ProprioEncoder(z_dim=self.z_dim)
-    self.depth_encoder = EquivariantDepthEncoder(z_dim=self.z_dim, N=self.N, initialize=initialize)
-    self.force_encoder = EquivariantForceEncoder(z_dim=self.z_dim, N=self.N, initialize=initialize)
+    self.depth_encoder = DepthEncoder(z_dim=self.z_dim, N=self.N, initialize=initialize)
+    self.force_encoder = ForceEncoder(z_dim=self.z_dim, N=self.N, initialize=initialize)
 
     self.c4_act = gspaces.rot2dOnR2(self.N)
     #self.proprio_repr = 2 * self.z_dim * [self.c4_act.regular_repr]
