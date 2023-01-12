@@ -1,4 +1,4 @@
-2mport time
+import time
 import copy
 import ray
 import torch
@@ -6,7 +6,9 @@ import torch.nn.functional as F
 import numpy as np
 import numpy.random as npr
 
-from midichlorians.sac_agent import SACAgent
+from escnn import nn as enn
+
+from midichlorians.agent import Agent
 from midichlorians.data_generator import DataGenerator, EvalDataGenerator
 from midichlorians.models.encoders.sensor_fusion import SensorFusion
 from midichlorians.models.sac import Critic, GaussianPolicy
@@ -72,7 +74,7 @@ class Trainer(object):
       )
 
     # Initialize data generator
-    self.agent = SACAgent(self.config, self.device, encoder=self.encoder, actor=self.actor, critic=self.critic)
+    self.agent = Agent(self.config, self.device, encoder=self.encoder, actor=self.actor, critic=self.critic)
     self.data_generator = DataGenerator(self.agent, self.config, self.config.seed)
     self.data_generator.resetEnvs()
 
@@ -216,7 +218,7 @@ class Trainer(object):
       else:
         next_z, mu_z, var_z, mu_prior, var_prior = self.encoder(next_obs_batch)
 
-      next_action, next_log_pi, _ = self.actor.sample(next_z_1)
+      next_action, next_log_pi, _ = self.actor.sample(next_z)
       next_q1, next_q2 = self.critic_target(next_z, next_action)
       next_log_pi, next_q1, next_q2 = next_log_pi.squeeze(), next_q1.squeeze(), next_q2.squeeze()
 
@@ -241,8 +243,9 @@ class Trainer(object):
     self.critic_optimizer.step()
 
     # Actor update
-    action, log_pi, _ = self.actor.sample(z.detach())
-    q1, q2 = self.critic(z, action)
+    z_detach = enn.GeometricTensor(z.tensor.detach(), self.encoder.out_type)
+    action, log_pi, _ = self.actor.sample(z_detach)
+    q1, q2 = self.critic(z_detach, action)
 
     actor_loss = torch.mean((self.alpha * log_pi) - torch.min(q1, q2))
     #kl_loss = 0.0 * torch.mean(
@@ -255,7 +258,7 @@ class Trainer(object):
     self.actor_optimizer.step()
 
     # Alpha update
-    alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy.).detach()).mean()
+    alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
 
     self.alpha_optimizer.zero_grad()
     alpha_loss.backward()

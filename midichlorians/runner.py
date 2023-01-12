@@ -15,7 +15,7 @@ from midichlorians.trainer import Trainer
 from midichlorians.replay_buffer import ReplayBuffer
 from midichlorians.data_generator import DataGenerator, EvalDataGenerator
 from midichlorians.shared_storage import SharedStorage
-from midichlorians.models.encoders.equiv_sensor_fusion import SensorFusion
+from midichlorians.models.encoders.sensor_fusion import SensorFusion
 from midichlorians.models.sac import Critic, GaussianPolicy
 from midichlorians import torch_utils
 

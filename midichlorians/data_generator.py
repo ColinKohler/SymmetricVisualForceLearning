@@ -4,7 +4,7 @@ import torch
 import numpy as np
 import numpy.random as npr
 
-from midichlorians.sac_agent import SACAgent
+from midichlorians.agent import Agent
 from midichlorians import torch_utils
 
 from bulletarm import env_factory
@@ -16,7 +16,7 @@ class EvalDataGenerator(object):
   '''
   def __init__(self, config, seed):
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-    agent = SACAgent(config, device)
+    agent = Agent(config, device)
 
     self.config = config
     self.data_generator = DataGenerator(agent, config, seed, evaluate=True)
@@ -51,8 +51,7 @@ class EvalDataGenerator(object):
           'best_model_reward' : current_reward,
           'best_weights' : (torch_utils.dictToCpu(weights[0]),
                             torch_utils.dictToCpu(weights[1]),
-                            torch_utils.dictToCpu(weights[2]),
-                            torch_utils.dictToCpu(weights[3]))
+                            torch_utils.dictToCpu(weights[2]))
         }
       )
     if logger_state['num_eval_intervals'] < self.config.num_eval_intervals:

@@ -14,18 +14,22 @@ class SensorFusion(nn.Module):
   def __init__(self, z_dim=64, N=8, deterministic=True, initialize=True):
     super().__init__()
 
-    self.z_dim = z_dim
+    # Double parameters for stocastic model (mean and variance)
+    if deterministic:
+      self.z_dim = z_dim
+    else:
+      self.z_dim = 2 * z_dim
     self.N = N
     self.deterministic = deterministic
+    self.c4_act = gspaces.rot2dOnR2(self.N)
 
     self.proprio_encoder = ProprioEncoder(z_dim=self.z_dim)
     self.depth_encoder = DepthEncoder(z_dim=self.z_dim, N=self.N, initialize=initialize)
     self.force_encoder = ForceEncoder(z_dim=self.z_dim, N=self.N, initialize=initialize)
 
-    self.c4_act = gspaces.rot2dOnR2(self.N)
-    self.proprio_repr = 2 * self.z_dim * [self.c4_act.regular_repr]
-    self.depth_repr = 2 * self.z_dim * [self.c4_act.regular_repr]
-    self.force_repr = 2 * self.z_dim * [self.c4_act.regular_repr]
+    self.proprio_repr = self.z_dim * [self.c4_act.regular_repr]
+    self.depth_repr = self.z_dim * [self.c4_act.regular_repr]
+    self.force_repr = self.z_dim * [self.c4_act.regular_repr]
 
     self.z_prior_mu = nn.Parameter(
       torch.zeros(1, self.z_dim * N), requires_grad=False
@@ -57,7 +61,7 @@ class SensorFusion(nn.Module):
 
     gate = (torch.mean(torch.abs(force.view(batch_size, -1)), dim=1) > 2e-2).float().cuda()
     gated_force_feat = force_feat.tensor.squeeze() * gate.view(batch_size, 1)
-    force_feat = enn.GeometricTensor(gated_force_feat.view(batch_size, 2 * self.N * self.z_dim, 1, 1), enn.FieldType(self.c4_act, self.force_repr))
+    force_feat = enn.GeometricTensor(gated_force_feat.view(batch_size, self.N * self.z_dim, 1, 1), enn.FieldType(self.c4_act, self.force_repr))
 
     if self.deterministic:
       feat = torch.cat((proprio_feat.tensor, depth_feat.tensor, force_feat.tensor), dim=1)

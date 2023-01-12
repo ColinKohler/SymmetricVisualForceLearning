@@ -7,6 +7,9 @@ import numpy as np
 import numpy.random as npr
 import scipy.ndimage
 
+def detachGeoTensor(geo, t):
+  return enn.GeometricTensor(geo.tensor.detach(), t)
+
 def dictToCpu(state_dict):
   cpu_dict = dict()
   for k, v in state_dict.items():

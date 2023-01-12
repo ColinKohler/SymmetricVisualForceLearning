@@ -42,7 +42,7 @@ class Critic(nn.Module):
     )
 
   def forward(self, z, act):
-    batch_size = z.size(0)
+    batch_size = z.tensor.size(0)
 
     dxy = act[:, 1:3].reshape(batch_size,  2, 1, 1)
 
@@ -85,7 +85,7 @@ class GaussianPolicy(nn.Module):
     self.conv = EquivariantBlock(self.in_type, self.out_type, kernel_size=1, stride=1, padding=0, initialize=initialize, act=False)
 
   def forward(self, z):
-    batch_size = z.size(0)
+    batch_size = z.tensor.size(0)
 
     out = self.conv(z).tensor.reshape(batch_size, -1)
 
