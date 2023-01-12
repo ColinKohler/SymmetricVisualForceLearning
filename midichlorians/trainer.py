@@ -59,11 +59,11 @@ class Trainer(object):
     self.training_step = initial_checkpoint['training_step']
 
     # Initialize optimizer
-    self.actor_optimizer = torch.optim.Adam(self.actor.parameters(),
+    self.actor_optimizer = torch.optim.Adam(list(self.encoder_1.parameters()) + list(self.actor.parameters()),
                                             lr=self.config.actor_lr_init)
     self.actor_scheduler = torch.optim.lr_scheduler.ExponentialLR(self.actor_optimizer,
                                                                   self.config.lr_decay)
-    self.critic_optimizer = torch.optim.Adam(self.critic.parameters(),
+    self.critic_optimizer = torch.optim.Adam(list(self.encoder_2.parameters()) + list(self.critic.parameters()),
                                              lr=self.config.critic_lr_init)
     self.critic_scheduler = torch.optim.lr_scheduler.ExponentialLR(self.critic_optimizer,
                                                                    self.config.lr_decay)
@@ -253,8 +253,8 @@ class Trainer(object):
     action, log_pi, _ = self.actor.sample(z)
     q1, q2 = self.critic(z, action)
 
-    #actor_loss = -torch.mean(torch.min(q1, q2) - self.alpha * log_pi)
-    actor_loss = torch.mean((self.alpha * log_pi) - torch.min(q1, q2))
+    actor_loss = -torch.mean(torch.min(q1, q2) - self.alpha * log_pi)
+    #actor_loss = torch.mean((self.alpha * log_pi) - torch.min(q1, q2))
     #kl_loss = 0.0 * torch.mean(
     #  torch_utils.klNormal(mu_z, var_z, mu_prior.squeeze(0), var_prior.squeeze(0))
     #)
@@ -265,10 +265,10 @@ class Trainer(object):
     self.actor_optimizer.step()
 
     # Alpha update
-    #with torch.no_grad():
-    #  entropy = -log_pi.detach().mean()
-    #alpha_loss = -self.log_alpha * (self.target_entropy - entropy)
-    alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
+    with torch.no_grad():
+      entropy = -log_pi.detach().mean()
+    alpha_loss = -self.log_alpha * (self.target_entropy - entropy)
+    #alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
 
     self.alpha_optimizer.zero_grad()
     alpha_loss.backward()

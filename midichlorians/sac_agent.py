@@ -49,7 +49,6 @@ class SACAgent(object):
       self.encoder_2.to(self.device)
       self.encoder_2.train()
 
-
     if critic:
       self.critic = critic
     else:
