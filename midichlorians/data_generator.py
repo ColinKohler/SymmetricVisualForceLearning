@@ -51,7 +51,8 @@ class EvalDataGenerator(object):
           'best_model_reward' : current_reward,
           'best_weights' : (torch_utils.dictToCpu(weights[0]),
                             torch_utils.dictToCpu(weights[1]),
-                            torch_utils.dictToCpu(weights[2]))
+                            torch_utils.dictToCpu(weights[2]),
+                            torch_utils.dictToCpu(weights[3]))
         }
       )
     if logger_state['num_eval_intervals'] < self.config.num_eval_intervals:

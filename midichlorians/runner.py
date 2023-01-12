@@ -89,10 +89,12 @@ class Runner(object):
     '''
     device = torch.device('cpu')
 
-    encoder = EquivariantSensorFusion(deterministic=self.config.deterministic)
-    encoder.train()
+    encoder_1 = EquivariantSensorFusion(deterministic=self.config.deterministic)
+    encoder_1.train()
     actor = EquivariantFusionGaussianPolicy(self.config.action_dim)
     actor.train()
+    encoder_2 = EquivariantSensorFusion(deterministic=self.config.deterministic)
+    encoder_2.train()
     critic = EquivariantFusionCritic(self.config.action_dim)
     critic.train()
 
@@ -101,8 +103,9 @@ class Runner(object):
     #critic.fusion_enc.load_state_dict(pretrain)
 
     self.checkpoint['weights'] = (
-      torch_utils.dictToCpu(encoder.state_dict()),
+      torch_utils.dictToCpu(encoder_1.state_dict()),
       torch_utils.dictToCpu(actor.state_dict()),
+      torch_utils.dictToCpu(encoder_2.state_dict()),
       torch_utils.dictToCpu(critic.state_dict())
     )
 
