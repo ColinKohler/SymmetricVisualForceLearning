@@ -18,12 +18,12 @@ class EquivariantSensorFusion(nn.Module):
     self.N = N
     self.deterministic = deterministic
 
-    self.proprio_encoder = ProprioEncoder(z_dim=self.z_dim)
+    #self.proprio_encoder = ProprioEncoder(z_dim=self.z_dim)
     self.depth_encoder = EquivariantDepthEncoder(z_dim=self.z_dim, N=self.N, initialize=initialize)
     self.force_encoder = EquivariantForceEncoder(z_dim=self.z_dim, N=self.N, initialize=initialize)
 
     self.c4_act = gspaces.rot2dOnR2(self.N)
-    self.proprio_repr = 2 * self.z_dim * [self.c4_act.regular_repr]
+    #self.proprio_repr = 2 * self.z_dim * [self.c4_act.regular_repr]
     self.depth_repr = 2 * self.z_dim * [self.c4_act.regular_repr]
     self.force_repr = 2 * self.z_dim * [self.c4_act.regular_repr]
 
@@ -36,7 +36,8 @@ class EquivariantSensorFusion(nn.Module):
     self.z_prior = [self.z_prior_mu, self.z_prior_var]
 
     if self.deterministic:
-      self.in_type = enn.FieldType(self.c4_act, self.proprio_repr + self.depth_repr + self.force_repr)
+      #self.in_type = enn.FieldType(self.c4_act, self.proprio_repr + self.depth_repr + self.force_repr)
+      self.in_type = enn.FieldType(self.c4_act, self.depth_repr + self.force_repr)
       self.out_type = enn.FieldType(self.c4_act, self.z_dim * [self.c4_act.regular_repr])
       self.conv = EquivariantBlock(
         self.in_type,
@@ -51,7 +52,7 @@ class EquivariantSensorFusion(nn.Module):
     depth, force, proprio = obs
     batch_size = depth.size(0)
 
-    proprio_feat = self.proprio_encoder(proprio)
+    #proprio_feat = self.proprio_encoder(proprio)
     depth_feat = self.depth_encoder(depth)
     force_feat = self.force_encoder(force)
 
@@ -60,7 +61,8 @@ class EquivariantSensorFusion(nn.Module):
     force_feat = enn.GeometricTensor(gated_force_feat.view(batch_size, 2 * self.N * self.z_dim, 1, 1), enn.FieldType(self.c4_act, self.force_repr))
 
     if self.deterministic:
-      feat = torch.cat((proprio_feat.tensor, depth_feat.tensor, force_feat.tensor), dim=1)
+      #feat = torch.cat((proprio_feat.tensor, depth_feat.tensor, force_feat.tensor), dim=1)
+      feat = torch.cat((depth_feat.tensor, force_feat.tensor), dim=1)
       feat = enn.GeometricTensor(feat, self.in_type)
       z = self.conv(feat)
 
