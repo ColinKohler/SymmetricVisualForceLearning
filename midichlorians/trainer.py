@@ -27,12 +27,9 @@ class Trainer(object):
     self.config = config
     self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
-    #self.alpha = self.config.init_temp
+    self.alpha = self.config.init_temp
     self.target_entropy = -self.config.action_dim
-    self.log_alpha = torch.zeros(1, requires_grad=True, device=self.device)
-    with torch.no_grad():
-      self.alpha = self.log_alpha.exp()
-    #self.log_alpha = torch.tensor(np.log(self.alpha), requires_grad=True, device=self.device)
+    self.log_alpha = torch.tensor(np.log(self.alpha), requires_grad=True, device=self.device)
     self.alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=self.config.actor_lr_init)
 
     # Initialize encoder, actor, and critic models
@@ -186,8 +183,9 @@ class Trainer(object):
       )
       logger.updateScalars.remote(
         {
-          '3.Loss/3.Actor_lr' : self.actor_optimizer.param_groups[0]['lr'],
-          '3.Loss/4.Critic_lr' : self.critic_optimizer.param_groups[0]['lr']
+          '3.Loss/4.Actor_lr' : self.actor_optimizer.param_groups[0]['lr'],
+          '3.Loss/5.Critic_lr' : self.critic_optimizer.param_groups[0]['lr'],
+          '3.Loss/6.Entropy' : loss[3]
         }
       )
       logger.logTrainingStep.remote(
@@ -195,7 +193,6 @@ class Trainer(object):
           'Actor' : loss[0],
           'Critic' : loss[1],
           'Alpha' : loss[2],
-          'Entropy' : loss[3]
         }
       )
 
@@ -223,7 +220,7 @@ class Trainer(object):
       if self.config.deterministic:
         next_z = self.encoder(next_obs_batch)
       else:
-        next_z, mu_z, var_z, mu_prior, var_prior = self.encoder(next_obs_batch)
+        next_z, _, _, _, _ = self.encoder(next_obs_batch)
 
       next_action, next_log_pi, _ = self.actor.sample(next_z)
       next_q1, next_q2 = self.critic_target(next_z, next_action)
@@ -232,15 +229,18 @@ class Trainer(object):
       next_q = torch.min(next_q1, next_q2) - self.alpha * next_log_pi
       target_q = reward_batch + non_final_mask_batch * self.config.discount * next_q
 
-    z = self.encoder(obs_batch)
+    if self.config.deterministic:
+      z = self.encoder(obs_batch)
+    else:
+      z, mu_z, var_z, mu_prior, var_prior = self.encoder(next_obs_batch)
     curr_q1, curr_q2 = self.critic(z, action_batch)
     curr_q1, curr_q2 = curr_q1.squeeze(), curr_q2.squeeze()
 
     critic_loss = F.mse_loss(curr_q1, target_q) + F.mse_loss(curr_q2, target_q)
-    #kl_loss = 0.0 * torch.mean(
-    #  torch_utils.klNormal(mu_z, var_z, mu_prior.squeeze(0), var_prior.squeeze(0))
-    #)
-    #critic_loss = qf1_loss + qf2_loss + kl_loss
+    kl_loss = 0.05 * torch.mean(
+      torch_utils.klNormal(mu_z, var_z, mu_prior.squeeze(0), var_prior.squeeze(0))
+    )
+    critic_loss += kl_loss
 
     with torch.no_grad():
       td_error = 0.5 * (torch.abs(curr_q1 - target_q) + torch.abs(curr_q2 - target_q))
@@ -255,10 +255,6 @@ class Trainer(object):
     q1, q2 = self.critic(z_detach, action)
 
     actor_loss = torch.mean((self.alpha * log_pi) - torch.min(q1, q2))
-    #kl_loss = 0.0 * torch.mean(
-    #  torch_utils.klNormal(mu_z, var_z, mu_prior.squeeze(0), var_prior.squeeze(0))
-    #)
-    #actor_loss += kl_loss
 
     self.actor_optimizer.zero_grad()
     actor_loss.backward()

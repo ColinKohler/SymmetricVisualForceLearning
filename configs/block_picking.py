@@ -46,7 +46,7 @@ class BlockPickingConfig(Config):
     self.init_temp = 1e-2
     self.tau = 5e-3
     self.discount = 0.99
-    self.deterministic = True
+    self.deterministic = False#True
 
     # Eval
     self.num_eval_envs = 5
