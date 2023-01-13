@@ -237,10 +237,10 @@ class Trainer(object):
     curr_q1, curr_q2 = curr_q1.squeeze(), curr_q2.squeeze()
 
     critic_loss = F.mse_loss(curr_q1, target_q) + F.mse_loss(curr_q2, target_q)
-    kl_loss = 0.05 * torch.mean(
-      torch_utils.klNormal(mu_z, var_z, mu_prior.squeeze(0), var_prior.squeeze(0))
-    )
-    critic_loss += kl_loss
+    #kl_loss = 0.05 * torch.mean(
+    #  torch_utils.klNormal(mu_z, var_z, mu_prior.squeeze(0), var_prior.squeeze(0))
+    #)
+    #critic_loss += kl_loss
 
     with torch.no_grad():
       td_error = 0.5 * (torch.abs(curr_q1 - target_q) + torch.abs(curr_q2 - target_q))
