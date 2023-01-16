@@ -8,12 +8,13 @@ class Config(object):
 
   def __init__(self, num_gpus=1):
     # Env
-    self.obs_size = 128
-    self.obs_channels = 2
     self.obs_type = 'pixel+force+proprio'
+    self.depth_size = 128
+    self.depth_channels = 1
     self.force_dim = 6
     self.force_history = 64
     self.max_force = 100
+    self.proprio_dim = 6
 
     self.action_sequence = 'pxyzr'
     self.action_dim =  len(self.action_sequence)

@@ -190,7 +190,6 @@ class EpisodeHistory(object):
   Class containing the history of an episode.
   '''
   def __init__(self):
-    self.state_history = list()
     self.obs_history = list()
     self.force_history = list()
     self.proprio_history = list()
@@ -202,8 +201,7 @@ class EpisodeHistory(object):
     self.priorities = None
     self.eps_priority = None
 
-  def logStep(self, state, obs, force, proprio, action, value, reward, done, max_force):
-    self.state_history.append(state)
+  def logStep(self, obs, force, proprio, action, value, reward, done, max_force):
     self.obs_history.append(
       torch_utils.normalizeObs(obs).squeeze()
     )
