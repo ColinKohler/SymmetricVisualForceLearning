@@ -4,7 +4,6 @@ import numpy.random as npr
 from functools import partial
 
 from midichlorians import torch_utils
-from midichlorians.models.latent import Latent
 from midichlorians.models.sac import Critic, GaussianPolicy
 
 class Agent(object):
@@ -15,7 +14,7 @@ class Agent(object):
     config (dict): Task config.
     device (torch.Device): Device to use for inference (cpu or gpu)
   '''
-  def __init__(self, config, device, encoder=None, actor=None, critic=None, initialize_models=True):
+  def __init__(self, config, device, actor=None, critic=None, initialize_models=True):
     self.config = config
     self.device = device
 
@@ -27,13 +26,6 @@ class Agent(object):
     self.dz_range = torch.tensor([-self.config.dpos, self.config.dpos])
     self.dtheta_range = torch.tensor([-self.config.drot, self.config.drot])
     self.action_shape = 5
-
-    if encoder:
-      self.encoder = encoder
-    else:
-      self.encoder = Latent(encoder=self.config.encoder, deterministic=self.config.deterministic)
-      self.encoder.to(self.device)
-      self.encoder.train()
 
     if actor:
       self.actor = actor
@@ -69,20 +61,15 @@ class Agent(object):
     proprio = torch.Tensor(proprio).view(len(state), 4).to(self.device)
 
     with torch.no_grad():
-      if self.config.deterministic:
-        z = self.encoder((obs, force, proprio))
-      else:
-        z, z_mu, z_var, prior_mu, prior_var = self.encoder((obs, force, proprio))
-
       if evaluate:
-        _, _, action = self.actor.sample(z)
+        _, _, action = self.actor.sample((obs, force, proprio))
       else:
-        action, _, _ = self.actor.sample(z)
+        action, _, _ = self.actor.sample((obs, force, proprio))
 
     action = action.cpu()
     action_idx, action = self.decodeActions(*[action[:,i] for i in range(self.action_shape)])
     with torch.no_grad():
-      value = self.critic(z, action_idx.to(self.device))
+      value = self.critic((obs, force, proprio), action_idx.to(self.device))
 
     value = torch.min(torch.hstack((value[0], value[1])), dim=1)[0]
     return action_idx, action, value
@@ -152,8 +139,7 @@ class Agent(object):
   def getWeights(self):
     '''
     '''
-    return (self.encoder.state_dict(),
-            self.actor.state_dict(),
+    return (self.actor.state_dict(),
             self.critic.state_dict())
 
   def setWeights(self, weights):
@@ -164,6 +150,5 @@ class Agent(object):
       weights (dict, dict): (actor weights, critic weights)
     '''
     if weights is not None:
-      self.encoder.load_state_dict(weights[0])
-      self.actor.load_state_dict(weights[1])
-      self.critic.load_state_dict(weights[2])
+      self.actor.load_state_dict(weights[0])
+      self.critic.load_state_dict(weights[1])

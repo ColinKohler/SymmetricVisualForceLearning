@@ -10,7 +10,6 @@ from escnn import nn as enn
 
 from midichlorians.agent import Agent
 from midichlorians.data_generator import DataGenerator, EvalDataGenerator
-from midichlorians.models.latent import Latent
 from midichlorians.models.sac import Critic, GaussianPolicy
 from midichlorians import torch_utils
 
@@ -32,25 +31,20 @@ class Trainer(object):
     self.log_alpha = torch.tensor(np.log(self.alpha), requires_grad=True, device=self.device)
     self.alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=self.config.actor_lr_init)
 
-    # Initialize encoder, actor, and critic models
-    self.encoder = Latent(encoder=self.config.encoder, deterministic=self.config.deterministic)
-    self.encoder.train()
-    self.encoder.load_state_dict(initial_checkpoint['weights'][0])
-    self.encoder.to(self.device)
-
-    self.actor = GaussianPolicy(self.config.action_dim)
+    # Initialize actor, and critic models
+    self.actor = GaussianPolicy(self.config.action_dim, encoder=self.config.encoder)
     self.actor.train()
-    self.actor.load_state_dict(initial_checkpoint['weights'][1])
+    self.actor.load_state_dict(initial_checkpoint['weights'][0])
     self.actor.to(self.device)
 
-    self.critic = Critic(self.config.action_dim)
+    self.critic = Critic(self.config.action_dim, encoder=self.config.encoder)
     self.critic.train()
-    self.critic.load_state_dict(initial_checkpoint['weights'][2])
+    self.critic.load_state_dict(initial_checkpoint['weights'][1])
     self.critic.to(self.device)
 
-    self.critic_target = Critic(self.config.action_dim)
+    self.critic_target = Critic(self.config.action_dim, encoder=self.config.encoder)
     self.critic_target.train()
-    self.critic_target.load_state_dict(initial_checkpoint['weights'][2])
+    self.critic_target.load_state_dict(initial_checkpoint['weights'][1])
     self.critic_target.to(self.device)
     for param in self.critic_target.parameters():
       param.requires_grad = False
@@ -62,7 +56,7 @@ class Trainer(object):
                                             lr=self.config.actor_lr_init)
     self.actor_scheduler = torch.optim.lr_scheduler.ExponentialLR(self.actor_optimizer,
                                                                   self.config.lr_decay)
-    self.critic_optimizer = torch.optim.Adam(list(self.encoder.parameters()) + list(self.critic.parameters()),
+    self.critic_optimizer = torch.optim.Adam(self.critic.parameters(),
                                              lr=self.config.critic_lr_init)
     self.critic_scheduler = torch.optim.lr_scheduler.ExponentialLR(self.critic_optimizer,
                                                                    self.config.lr_decay)
@@ -76,7 +70,7 @@ class Trainer(object):
       )
 
     # Initialize data generator
-    self.agent = Agent(self.config, self.device, encoder=self.encoder, actor=self.actor, critic=self.critic)
+    self.agent = Agent(self.config, self.device, actor=self.actor, critic=self.critic)
     self.data_generator = DataGenerator(self.agent, self.config, self.config.seed)
     self.data_generator.resetEnvs()
 
@@ -157,7 +151,6 @@ class Trainer(object):
 
       # Save to shared storage
       if self.training_step % self.config.checkpoint_interval == 0:
-        encoder_weights = torch_utils.dictToCpu(self.encoder.state_dict())
         actor_weights = torch_utils.dictToCpu(self.actor.state_dict())
         critic_weights = torch_utils.dictToCpu(self.critic.state_dict())
         actor_optimizer_state = torch_utils.dictToCpu(self.actor_optimizer.state_dict())
@@ -165,7 +158,7 @@ class Trainer(object):
 
         shared_storage.setInfo.remote(
           {
-            'weights' : copy.deepcopy((encoder_weights, actor_weights, critic_weights)),
+            'weights' : copy.deepcopy((actor_weights, critic_weights)),
             'optimizer_state' : (copy.deepcopy(actor_optimizer_state), copy.deepcopy(critic_optimizer_state))
           }
         )
@@ -217,23 +210,14 @@ class Trainer(object):
 
     # Critic Update
     with torch.no_grad():
-      if self.config.deterministic:
-        next_z = self.encoder(next_obs_batch)
-      else:
-        next_z, _, _, _, _ = self.encoder(next_obs_batch)
-
-      next_action, next_log_pi, _ = self.actor.sample(next_z)
-      next_q1, next_q2 = self.critic_target(next_z, next_action)
+      next_action, next_log_pi, _ = self.actor.sample(next_obs_batch)
+      next_q1, next_q2 = self.critic_target(next_obs_batch, next_action)
       next_log_pi, next_q1, next_q2 = next_log_pi.squeeze(), next_q1.squeeze(), next_q2.squeeze()
 
       next_q = torch.min(next_q1, next_q2) - self.alpha * next_log_pi
       target_q = reward_batch + non_final_mask_batch * self.config.discount * next_q
 
-    if self.config.deterministic:
-      z = self.encoder(obs_batch)
-    else:
-      z, mu_z, var_z, mu_prior, var_prior = self.encoder(next_obs_batch)
-    curr_q1, curr_q2 = self.critic(z, action_batch)
+    curr_q1, curr_q2 = self.critic(obs_batch, action_batch)
     curr_q1, curr_q2 = curr_q1.squeeze(), curr_q2.squeeze()
 
     critic_loss = F.mse_loss(curr_q1, target_q) + F.mse_loss(curr_q2, target_q)
@@ -250,9 +234,8 @@ class Trainer(object):
     self.critic_optimizer.step()
 
     # Actor update
-    z_detach = enn.GeometricTensor(z.tensor.detach(), self.encoder.out_type)
-    action, log_pi, _ = self.actor.sample(z_detach)
-    q1, q2 = self.critic(z_detach, action)
+    action, log_pi, _ = self.actor.sample(obs_batch)
+    q1, q2 = self.critic(obs_batch, action)
 
     actor_loss = torch.mean((self.alpha * log_pi) - torch.min(q1, q2))
 
