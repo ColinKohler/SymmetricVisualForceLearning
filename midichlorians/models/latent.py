@@ -10,8 +10,8 @@ from midichlorians.models.encoders.depth_encoder import DepthEncoder
 from midichlorians.models.encoders.force_encoder import ForceEncoder
 from midichlorians import torch_utils
 
-class SensorFusion(nn.Module):
-  def __init__(self, z_dim=64, N=8, deterministic=True, initialize=True):
+class Latent(nn.Module):
+  def __init__(self, z_dim=64, N=8, encoder='fusion', deterministic=True, initialize=True):
     super().__init__()
 
     # Double parameters for stochastic model (mean and variance)
@@ -23,16 +23,23 @@ class SensorFusion(nn.Module):
       self.z_dim = z_dim
 
     self.N = N
+    self.encoder = encoder
     self.deterministic = deterministic
     self.c4_act = gspaces.rot2dOnR2(self.N)
 
-    self.proprio_encoder = ProprioEncoder(z_dim=self.encoder_dim, N=self.N, initialize=initialize)
-    self.depth_encoder = DepthEncoder(z_dim=self.encoder_dim, N=self.N, initialize=initialize)
-    self.force_encoder = ForceEncoder(z_dim=self.encoder_dim, N=self.N, initialize=initialize)
+    if self.encoder == 'fusion':
+      self.depth_encoder = DepthEncoder(z_dim=self.encoder_dim, N=self.N, initialize=initialize)
+      self.proprio_encoder = ProprioEncoder(z_dim=self.encoder_dim, N=self.N, initialize=initialize)
+      self.force_encoder = ForceEncoder(z_dim=self.encoder_dim, N=self.N, initialize=initialize)
 
-    self.proprio_repr = self.encoder_dim * [self.c4_act.regular_repr]
-    self.depth_repr = self.encoder_dim * [self.c4_act.regular_repr]
-    self.force_repr = self.encoder_dim * [self.c4_act.regular_repr]
+      self.proprio_repr = self.encoder_dim * [self.c4_act.regular_repr]
+      self.depth_repr = self.encoder_dim * [self.c4_act.regular_repr]
+      self.force_repr = self.encoder_dim * [self.c4_act.regular_repr]
+      self.in_type = enn.FieldType(self.c4_act, self.proprio_repr + self.depth_repr + self.force_repr)
+    elif self.encoder == 'depth':
+      self.depth_encoder = DepthEncoder(z_dim=self.encoder_dim, N=self.N, initialize=initialize)
+      self.depth_repr = self.encoder_dim * [self.c4_act.regular_repr]
+      self.in_type = enn.FieldType(self.c4_act, self.depth_repr)
 
     self.z_prior_mu = nn.Parameter(
       torch.zeros(1, self.z_dim * N), requires_grad=False
@@ -42,7 +49,6 @@ class SensorFusion(nn.Module):
     )
     self.z_prior = [self.z_prior_mu, self.z_prior_var]
 
-    self.in_type = enn.FieldType(self.c4_act, self.proprio_repr + self.depth_repr + self.force_repr)
     self.out_type = enn.FieldType(self.c4_act, self.z_dim * [self.c4_act.regular_repr])
 
     if self.deterministic:
@@ -56,6 +62,12 @@ class SensorFusion(nn.Module):
       )
 
   def forward(self, obs):
+    if self.encoder == 'fusion':
+      return self.fusionEncoder(obs)
+    elif self.encoder == 'depth':
+      return self.depthEncoder(obs)
+
+  def fusionEncoder(self, obs):
     depth, force, proprio = obs
     batch_size = depth.size(0)
 
@@ -88,6 +100,37 @@ class SensorFusion(nn.Module):
       # Tile distribution parameters
       mu_vect = torch.cat([mu_z_proprio, mu_z_depth, mu_z_force, mu_prior_resized], dim=2)
       var_vect = torch.cat([var_z_proprio, var_z_depth, var_z_force, var_prior_resized], dim=2)
+
+      # Sample gaussian to get latent encoding
+      mu_z, var_z = torch_utils.productOfExperts(mu_vect, var_vect)
+      z = torch_utils.sampleGaussian(mu_z, var_z)
+      z = enn.GeometricTensor(z.view(batch_size, -1, 1, 1), self.out_type)
+
+      return z, mu_z, var_z, mu_prior, var_prior
+
+  def depthEncoder(self, obs):
+    depth, force, proprio = obs
+    batch_size = depth.size(0)
+
+    feat = self.depth_encoder(depth)
+
+    if self.deterministic:
+      z = self.conv(feat)
+
+      return z
+    else:
+      # Encoder priors
+      mu_prior, var_prior = self.z_prior
+
+      # Duplicate priors for each sample
+      mu_prior_resized = torch_utils.duplicate(mu_prior, batch_size).unsqueeze(2)
+      var_prior_resized = torch_utils.duplicate(var_prior, batch_size).unsqueeze(2)
+
+      mu_z_depth, var_z_depth = torch_utils.gaussianParameters(depth_feat.tensor.squeeze(-1), dim=1)
+
+      # Tile distribution parameters
+      mu_vect = torch.cat([mu_z_depth, mu_prior_resized], dim=2)
+      var_vect = torch.cat([var_z_depth, var_prior_resized], dim=2)
 
       # Sample gaussian to get latent encoding
       mu_z, var_z = torch_utils.productOfExperts(mu_vect, var_vect)

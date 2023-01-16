@@ -10,7 +10,7 @@ from escnn import nn as enn
 
 from midichlorians.agent import Agent
 from midichlorians.data_generator import DataGenerator, EvalDataGenerator
-from midichlorians.models.encoders.sensor_fusion import SensorFusion
+from midichlorians.models.latent import Latent
 from midichlorians.models.sac import Critic, GaussianPolicy
 from midichlorians import torch_utils
 
@@ -33,7 +33,7 @@ class Trainer(object):
     self.alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=self.config.actor_lr_init)
 
     # Initialize encoder, actor, and critic models
-    self.encoder = SensorFusion(deterministic=self.config.deterministic)
+    self.encoder = Latent(encoder=self.config.encoder, deterministic=self.config.deterministic)
     self.encoder.train()
     self.encoder.load_state_dict(initial_checkpoint['weights'][0])
     self.encoder.to(self.device)

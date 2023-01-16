@@ -15,7 +15,7 @@ from midichlorians.trainer import Trainer
 from midichlorians.replay_buffer import ReplayBuffer
 from midichlorians.data_generator import DataGenerator, EvalDataGenerator
 from midichlorians.shared_storage import SharedStorage
-from midichlorians.models.encoders.sensor_fusion import SensorFusion
+from midichlorians.models.latent import Latent
 from midichlorians.models.sac import Critic, GaussianPolicy
 from midichlorians import torch_utils
 
@@ -89,7 +89,7 @@ class Runner(object):
     '''
     device = torch.device('cpu')
 
-    encoder = SensorFusion(deterministic=self.config.deterministic)
+    encoder = Latent(encoder=self.config.encoder, deterministic=self.config.deterministic)
     encoder.train()
     actor = GaussianPolicy(self.config.action_dim)
     actor.train()

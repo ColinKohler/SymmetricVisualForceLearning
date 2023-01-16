@@ -4,7 +4,7 @@ import numpy.random as npr
 from functools import partial
 
 from midichlorians import torch_utils
-from midichlorians.models.encoders.sensor_fusion import SensorFusion
+from midichlorians.models.latent import Latent
 from midichlorians.models.sac import Critic, GaussianPolicy
 
 class Agent(object):
@@ -31,7 +31,7 @@ class Agent(object):
     if encoder:
       self.encoder = encoder
     else:
-      self.encoder = SensorFusion(deterministic=self.config.deterministic)
+      self.encoder = Latent(encoder=self.config.encoder, deterministic=self.config.deterministic)
       self.encoder.to(self.device)
       self.encoder.train()
 

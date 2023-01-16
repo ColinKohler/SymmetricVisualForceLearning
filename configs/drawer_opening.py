@@ -46,7 +46,8 @@ class DrawerOpeningConfig(Config):
     self.init_temp = 1e-2
     self.tau = 1e-2
     self.discount = 0.99
-    self.clip_gradient = False
+    self.deterministic = True
+    self.encoder = 'depth'
 
      # Eval
     self.num_eval_envs = 5
@@ -91,6 +92,7 @@ class DrawerOpeningConfig(Config):
       'workspace_check' : 'point',
       'reward_type' : self.reward_type,
       'view_type' : self.view_type,
+      'num_sensors' : 1,
       'obs_type' : self.obs_type,
       'render': render
     }
