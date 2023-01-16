@@ -57,14 +57,14 @@ class Agent(object):
 
     with torch.no_grad():
       if evaluate:
-        _, _, action = self.actor.sample((obs, force, proprio))
+        _, _, action = self.actor.sample((depth, force, proprio))
       else:
-        action, _, _ = self.actor.sample((obs, force, proprio))
+        action, _, _ = self.actor.sample((depth, force, proprio))
 
     action = action.cpu()
     action_idx, action = self.decodeActions(*[action[:,i] for i in range(self.action_shape)])
     with torch.no_grad():
-      value = self.critic((obs, force, proprio), action_idx.to(self.device))
+      value = self.critic((depth, force, proprio), action_idx.to(self.device))
 
     value = torch.min(torch.hstack((value[0], value[1])), dim=1)[0]
     return action_idx, action, value

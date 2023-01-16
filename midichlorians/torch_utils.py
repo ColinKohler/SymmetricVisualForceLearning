@@ -34,15 +34,15 @@ def clipGradNorm(optimizer, max_norm=None, norm_type=2):
                                          max_norm=max_norm_x,
                                          norm_type=norm_type)
 
-def normalizeObs(obs):
-  obs = np.clip(obs, 0, 0.32)
-  obs = obs / 0.4 * 255
-  obs = obs.astype(np.uint8)
+def normalizeDepth(depth):
+  depth = np.clip(depth, 0, 0.32)
+  depth = depth / 0.4 * 255
+  depth = depth.astype(np.uint8)
 
-  return obs
+  return depth
 
-def unnormalizeObs(obs):
-  return obs / 255 * 0.4
+def unnormalizeDepth(depth):
+  return depth / 255 * 0.4
 
 def normalizeForce(force, max_force):
   return np.clip(force, -max_force, max_force) / max_force
@@ -77,14 +77,14 @@ def klNormal(qm, qv, pm, pv):
 
   return kl
 
-def perturb(obs, fxy_1, fxy_2, obs_, fxy_1_, fxy_2_, dxy, set_theta_zero=False, set_trans_zero=False):
+def perturb(depth, fxy_1, fxy_2, depth_, fxy_1_, fxy_2_, dxy, set_theta_zero=False, set_trans_zero=False):
   '''
 
   '''
-  obs_size = obs.shape[-2:]
+  depth_size = depth.shape[-2:]
 
   # Compute random rigid transform
-  theta, trans, pivot = getRandomImageTransformParams(obs_size)
+  theta, trans, pivot = getRandomImageTransformParams(depth_size)
   if set_theta_zero:
     theta = 0.
   if set_trans_zero:
@@ -102,17 +102,17 @@ def perturb(obs, fxy_1, fxy_2, obs_, fxy_1_, fxy_2_, dxy, set_theta_zero=False, 
   rotated_fxy_1_ = np.clip(rot.dot(fxy_1_.T).T, -1, 1)
   rotated_fxy_2_ = np.clip(rot.dot(fxy_2_.T).T, -1, 1)
 
-  # Apply rigid transform to obs
-  obs = scipy.ndimage.affine_transform(obs, np.linalg.inv(transform), mode='nearest', order=1)
-  obs_ = scipy.ndimage.affine_transform(obs_, np.linalg.inv(transform), mode='nearest', order=1)
+  # Apply rigid transform to depth
+  depth = scipy.ndimage.affine_transform(depth, np.linalg.inv(transform), mode='nearest', order=1)
+  depth_ = scipy.ndimage.affine_transform(depth_, np.linalg.inv(transform), mode='nearest', order=1)
 
-  return obs, rotated_fxy_1, rotated_fxy_2, obs_, rotated_fxy_1_, rotated_fxy_2_, rotated_dxy, transform_params
+  return depth, rotated_fxy_1, rotated_fxy_2, depth_, rotated_fxy_1_, rotated_fxy_2_, rotated_dxy, transform_params
 
-def getRandomImageTransformParams(obs_size):
+def getRandomImageTransformParams(depth_size):
   ''''''
   theta = npr.rand() * 2 * np.pi
-  trans = npr.randint(0, obs_size[0] // 10, 2) - obs_size[0] // 20
-  pivot = (obs_size[1] / 2, obs_size[0] / 2)
+  trans = npr.randint(0, depth_size[0] // 10, 2) - depth_size[0] // 20
+  pivot = (depth_size[1] / 2, depth_size[0] / 2)
 
   return theta, trans, pivot
 
