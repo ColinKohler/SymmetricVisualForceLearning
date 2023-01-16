@@ -18,7 +18,7 @@ class ProprioEncoder(nn.Module):
 
     self.c4_act = gspaces.rot2dOnR2(self.N)
     self.n_rho1 = 1
-    self.invariant_proprio_repr = 2 * [self.c4_act.trivial_repr]
+    self.invariant_proprio_repr = 3 * [self.c4_act.trivial_repr]
     self.equivariant_proprio_repr = self.n_rho1 * [self.c4_act.irrep(1)]
 
     self.layers = list()

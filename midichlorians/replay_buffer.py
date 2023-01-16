@@ -81,11 +81,9 @@ class ReplayBuffer(object):
       (list[int], list[numpy.array], list[numpy.array], list[double], list[double]) : (Index, Observation, Action, Reward, Weight)
     '''
     (index_batch,
-     state_batch,
      obs_batch,
      force_batch,
      proprio_batch,
-     next_state_batch,
      next_obs_batch,
      next_force_batch,
      next_proprio_batch,
@@ -113,11 +111,9 @@ class ReplayBuffer(object):
       obs_ = torch_utils.unnormalizeObs(obs_)
 
       index_batch.append([eps_id, eps_step])
-      state_batch.append(eps_history.state_history[eps_step])
       obs_batch.append(obs)
       force_batch.append(force)
       proprio_batch.append(eps_history.proprio_history[eps_step])
-      next_state_batch.append(eps_history.state_history[eps_step+1])
       next_obs_batch.append(obs_)
       next_force_batch.append(force_)
       next_proprio_batch.append(eps_history.proprio_history[eps_step+1])
@@ -128,11 +124,9 @@ class ReplayBuffer(object):
       training_step = ray.get(shared_storage.getInfo.remote('training_step'))
       weight_batch.append((1 / (self.total_samples * eps_prob * step_prob)) ** self.config.getPerBeta(training_step))
 
-    state_batch = torch.tensor(state_batch).long()
     obs_batch = torch.tensor(np.stack(obs_batch)).float()
     force_batch = torch.tensor(np.stack(force_batch)).float()
     proprio_batch = torch.tensor(np.stack(proprio_batch)).float()
-    next_state_batch = torch.tensor(next_state_batch).long()
     next_obs_batch = torch.tensor(np.stack(next_obs_batch)).float()
     next_force_batch = torch.tensor(np.stack(next_force_batch)).float()
     next_proprio_batch = torch.tensor(np.stack(next_proprio_batch)).float()
@@ -141,12 +135,6 @@ class ReplayBuffer(object):
     done_batch = torch.tensor(done_batch).int()
     non_final_mask_batch = (done_batch ^ 1).float()
     weight_batch = torch.tensor(weight_batch).float()
-
-    state_tile = state_batch.reshape(state_batch.size(0), 1, 1, 1).repeat(1, 1, obs_batch.size(2), obs_batch.size(3))
-    obs_batch = torch.cat([obs_batch, state_tile], dim=1)
-
-    state_tile_ = next_state_batch.reshape(next_state_batch.size(0), 1, 1, 1).repeat(1, 1, next_obs_batch.size(2), next_obs_batch.size(3))
-    next_obs_batch = torch.cat([next_obs_batch, state_tile_], dim=1)
 
     return (
       index_batch,

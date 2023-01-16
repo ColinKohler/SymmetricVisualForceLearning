@@ -41,24 +41,19 @@ class Agent(object):
       self.critic.to(self.device)
       self.critic.train()
 
-  def getAction(self, state, obs, force, proprio, evaluate=False):
+  def getAction(self, depth, force, proprio, evaluate=False):
     '''
     Get the action from the policy.
 
     Args:
-      state (int): The current gripper state
-      obs (numpy.array): The current observation
       evalute (bool):
 
     Returns:
       (numpy.array, double) : (Action, Q-Value)
     '''
-    obs = torch.Tensor(obs.astype(np.float32)).view(len(state), 1, self.config.obs_size, self.config.obs_size).to(self.device)
-    state = torch.Tensor(state).view(len(state), 1, 1, 1).to(self.device)
-    state_tile = state.repeat(1, 1, obs.size(2), obs.size(3))
-    obs = torch.cat((obs, state_tile), dim=1)
-    force = torch.Tensor(torch_utils.normalizeForce(force, self.config.max_force)).view(len(state), self.config.force_history, self.config.force_dim).to(self.device)
-    proprio = torch.Tensor(proprio).view(len(state), 4).to(self.device)
+    depth = torch.Tensor(depth.astype(np.float32)).view(depth.shape[0], 1, self.config.depth_size, self.config.depth_size).to(self.device)
+    force = torch.Tensor(torch_utils.normalizeForce(force, self.config.max_force)).view(force.shape[0], self.config.force_history, self.config.force_dim).to(self.device)
+    proprio = torch.Tensor(proprio).view(proprio.shape[0], self.config.proprio_dim).to(self.device)
 
     with torch.no_grad():
       if evaluate:
