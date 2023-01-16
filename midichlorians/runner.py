@@ -88,9 +88,9 @@ class Runner(object):
     '''
     device = torch.device('cpu')
 
-    actor = GaussianPolicy(self.config.action_dim)
+    actor = GaussianPolicy(self.config.action_dim, encoder=self.config.encoder)
     actor.train()
-    critic = Critic(self.config.action_dim)
+    critic = Critic(self.config.action_dim, encoder=self.config.encoder)
     critic.train()
 
     #pretrain = torch.load('data/pretrained_weight.pt')
