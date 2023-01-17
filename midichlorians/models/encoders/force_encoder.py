@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from escnn import gspaces
 from escnn import nn as enn
 
-from midichlorians.models.layers import CausalConv1d, EquivariantBlock, SelfAttention
+from midichlorians.models.layers import CausalConv1d, EquivariantBlock, MultiHeadAttention
 
 class CausalConvBlock(nn.Module):
   def __init__(self, in_dim, out_dim):
@@ -39,8 +39,8 @@ class ForceEncoder(nn.Module):
     d_model = 6
     d_k = 64
     d_v = 64
-    dropout = 0.1
-    self.self_attn = SelfAttention(n_head, d_model, d_k, d_v, dropout=dropout)
+    dropout = 0.
+    self.self_attn = MultiHeadAttention(n_head, d_model, d_k, d_v, dropout=dropout)
 
     self.fx_conv = CausalConvBlock(1, 16)
     self.fy_conv = CausalConvBlock(1, 16)

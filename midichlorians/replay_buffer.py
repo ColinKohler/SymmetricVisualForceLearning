@@ -100,11 +100,16 @@ class ReplayBuffer(object):
       force = eps_history.force_history[eps_step].reshape(self.config.force_history, self.config.force_dim)
       force_ = eps_history.force_history[eps_step+1].reshape(self.config.force_history, self.config.force_dim)
 
-      depth, force, depth_, force_, action = self.augmentTransitionSO2(
+      proprio = eps_history.proprio_history[eps_step].reshape(1, self.config.proprio_dim)
+      proprio_ = eps_history.proprio_history[eps_step+1].reshape(1, self.config.proprio_dim)
+
+      depth, force, proprio, depth_, force_, proprio_, action = self.augmentTransitionSO2(
         eps_history.depth_history[eps_step],
         force,
+        proprio,
         eps_history.depth_history[eps_step+1],
         force_,
+        proprio_,
         eps_history.action_history[eps_step+1]
       )
       depth = torch_utils.unnormalizeDepth(depth)
@@ -113,10 +118,10 @@ class ReplayBuffer(object):
       index_batch.append([eps_id, eps_step])
       depth_batch.append(depth)
       force_batch.append(force)
-      proprio_batch.append(eps_history.proprio_history[eps_step])
+      proprio_batch.append(proprio)
       next_depth_batch.append(depth_)
       next_force_batch.append(force_)
-      next_proprio_batch.append(eps_history.proprio_history[eps_step+1])
+      next_proprio_batch.append(proprio_)
       action_batch.append(action)
       reward_batch.append(eps_history.reward_history[eps_step+1])
       done_batch.append(eps_history.done_history[eps_step+1])
@@ -188,15 +193,17 @@ class ReplayBuffer(object):
 
     return step_idx, step_prob
 
-  def augmentTransitionSO2(self, depth, force, depth_, force_, action):
+  def augmentTransitionSO2(self, depth, force, proprio, depth_, force_, proprio_, action):
     ''''''
-    depth, fxy_1, fxy_2, depth_, fxy_1_, fxy_2_, dxy, transform_params = torch_utils.perturb(
+    depth, fxy_1, fxy_2, pxy, depth_, fxy_1_, fxy_2_, pxy_, dxy, transform_params = torch_utils.perturb(
       depth.copy(),
       force[:,:2].copy(),
       force[:,3:5].copy(),
+      proprio[:,2:4].copy(),
       depth_.copy(),
       force_[:,:2].copy(),
       force_[:,3:5].copy(),
+      proprio_[:,2:4].copy(),
       action[1:3].copy(),
       set_trans_zero=True
     )
@@ -207,6 +214,8 @@ class ReplayBuffer(object):
     force[:,1] = fxy_1[:,1]
     force[:,3] = fxy_2[:,0]
     force[:,4] = fxy_2[:,1]
+    proprio = proprio.copy()
+    proprio[:,2:4] = pxy
 
     depth_ = depth_.reshape(1, *depth_.shape)
     force_ = force_.copy()
@@ -214,12 +223,14 @@ class ReplayBuffer(object):
     force_[:,1] = fxy_1_[:,1]
     force_[:,3] = fxy_2_[:,0]
     force_[:,4] = fxy_2_[:,1]
+    proprio_ = proprio_.copy()
+    proprio_[:,2:4] = pxy_
 
     action = action.copy()
     action[1] = dxy[0]
     action[2] = dxy[1]
 
-    return depth, force, depth_, force_, action
+    return depth, force, proprio, depth_, force_, proprio_, action
 
   def updatePriorities(self, td_errors, idx_info):
     '''

@@ -77,7 +77,7 @@ def klNormal(qm, qv, pm, pv):
 
   return kl
 
-def perturb(depth, fxy_1, fxy_2, depth_, fxy_1_, fxy_2_, dxy, set_theta_zero=False, set_trans_zero=False):
+def perturb(depth, fxy_1, fxy_2, pxy, depth_, fxy_1_, fxy_2_, pxy_, dxy, set_theta_zero=False, set_trans_zero=False):
   '''
 
   '''
@@ -102,11 +102,14 @@ def perturb(depth, fxy_1, fxy_2, depth_, fxy_1_, fxy_2_, dxy, set_theta_zero=Fal
   rotated_fxy_1_ = np.clip(rot.dot(fxy_1_.T).T, -1, 1)
   rotated_fxy_2_ = np.clip(rot.dot(fxy_2_.T).T, -1, 1)
 
+  rotated_pxy = np.clip(rot.dot(pxy.T).T, -1, 1)
+  rotated_pxy_ = np.clip(rot.dot(pxy_.T).T, -1, 1)
+
   # Apply rigid transform to depth
   depth = scipy.ndimage.affine_transform(depth, np.linalg.inv(transform), mode='nearest', order=1)
   depth_ = scipy.ndimage.affine_transform(depth_, np.linalg.inv(transform), mode='nearest', order=1)
 
-  return depth, rotated_fxy_1, rotated_fxy_2, depth_, rotated_fxy_1_, rotated_fxy_2_, rotated_dxy, transform_params
+  return depth, rotated_fxy_1, rotated_fxy_2, rotated_pxy, depth_, rotated_fxy_1_, rotated_fxy_2_, rotated_pxy_, rotated_dxy, transform_params
 
 def getRandomImageTransformParams(depth_size):
   ''''''

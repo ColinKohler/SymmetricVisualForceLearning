@@ -47,7 +47,7 @@ class DrawerOpeningConfig(Config):
     self.tau = 1e-2
     self.discount = 0.99
     self.deterministic = True
-    self.encoder = 'depth'
+    self.encoder = 'fusion'
 
      # Eval
     self.num_eval_envs = 5

@@ -48,6 +48,7 @@ class BlockPushingConfig(Config):
     self.discount = 0.99
     self.clip_gradient = False
     self.deterministic = False
+    self.encoder = 'fusion'
 
      # Eval
     self.num_eval_envs = 5

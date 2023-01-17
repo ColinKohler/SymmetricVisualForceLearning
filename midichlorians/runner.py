@@ -71,9 +71,6 @@ class Runner(object):
     self.load(checkpoint_path=checkpoint,
               replay_buffer_path=replay_buffer)
 
-    if not self.checkpoint['weights']:
-      self.initWeights()
-
     # Workers
     self.logger_worker = None
     self.data_gen_workers = None
@@ -81,26 +78,6 @@ class Runner(object):
     self.shared_storage_worker = None
     self.training_worker = None
     self.eval_worker = None
-
-  def initWeights(self):
-    '''
-    Initalize model weights
-    '''
-    device = torch.device('cpu')
-
-    actor = GaussianPolicy(self.config.action_dim, encoder=self.config.encoder)
-    actor.train()
-    critic = Critic(self.config.action_dim, encoder=self.config.encoder)
-    critic.train()
-
-    #pretrain = torch.load('data/pretrained_weight.pt')
-    #actor.fusion_enc.load_state_dict(pretrain)
-    #critic.fusion_enc.load_state_dict(pretrain)
-
-    self.checkpoint['weights'] = (
-      torch_utils.dictToCpu(actor.state_dict()),
-      torch_utils.dictToCpu(critic.state_dict())
-    )
 
   def train(self):
     '''

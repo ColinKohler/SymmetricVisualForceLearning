@@ -34,17 +34,14 @@ class Trainer(object):
     # Initialize actor, and critic models
     self.actor = GaussianPolicy(self.config.action_dim, encoder=self.config.encoder)
     self.actor.train()
-    self.actor.load_state_dict(initial_checkpoint['weights'][0])
     self.actor.to(self.device)
 
     self.critic = Critic(self.config.action_dim, encoder=self.config.encoder)
     self.critic.train()
-    self.critic.load_state_dict(initial_checkpoint['weights'][1])
     self.critic.to(self.device)
 
     self.critic_target = Critic(self.config.action_dim, encoder=self.config.encoder)
     self.critic_target.train()
-    self.critic_target.load_state_dict(initial_checkpoint['weights'][1])
     self.critic_target.to(self.device)
     for param in self.critic_target.parameters():
       param.requires_grad = False

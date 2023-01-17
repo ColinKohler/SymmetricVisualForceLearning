@@ -17,12 +17,10 @@ class ProprioEncoder(nn.Module):
     self.N = N
 
     self.c4_act = gspaces.rot2dOnR2(self.N)
-    self.n_rho1 = 1
-    self.invariant_proprio_repr = 3 * [self.c4_act.trivial_repr]
-    self.equivariant_proprio_repr = self.n_rho1 * [self.c4_act.irrep(1)]
+    self.proprio_repr = 2 * [self.c4_act.trivial_repr] + [self.c4_act.irrep(1)] + 2 * [self.c4_act.trivial_repr]
 
     self.layers = list()
-    self.in_type = enn.FieldType(self.c4_act, self.equivariant_proprio_repr + self.invariant_proprio_repr)
+    self.in_type = enn.FieldType(self.c4_act, self.proprio_repr)
     out_type = enn.FieldType(self.c4_act, z_dim // 4 * [self.c4_act.regular_repr])
     self.layers.append(EquivariantBlock(self.in_type, out_type, kernel_size=1, stride=1, padding=0, initialize=initialize))
 
@@ -42,5 +40,7 @@ class ProprioEncoder(nn.Module):
 
   def forward(self, proprio):
     batch_size = proprio.size(0)
-    proprio_geo = enn.GeometricTensor(proprio.view(batch_size, -1, 1, 1), self.in_type)
+
+    proprio = proprio.reshape(batch_size, -1, 1, 1)
+    proprio_geo = enn.GeometricTensor(proprio, self.in_type)
     return self.conv(proprio_geo)
