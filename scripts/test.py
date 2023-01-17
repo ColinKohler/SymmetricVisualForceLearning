@@ -55,24 +55,24 @@ if __name__ == '__main__':
     eps_lens.append(0)
     while not done:
       action_idx, action, value = agent.getAction(
-        [obs[0]],
+        obs[0],
+        obs[1],
         obs[2],
-        obs[3],
-        obs[4],
         evaluate=True
       )
+      action[0,1] += npr.uniform(-0.025,0.025)
 
-      #print(value)
+      print(value)
       #if np.mean(np.abs(obs[3])) > 2e-2:
-      if False:
+      if True:
         fig, ax = plt.subplots(nrows=1, ncols=2)
-        ax[0].imshow(obs[2].squeeze(), cmap='gray')
-        ax[1].plot(torch_utils.normalizeForce(obs[3][:,0], task_config.max_force), label='Fx')
-        ax[1].plot(torch_utils.normalizeForce(obs[3][:,1], task_config.max_force), label='Fy')
-        ax[1].plot(torch_utils.normalizeForce(obs[3][:,2], task_config.max_force), label='Fz')
-        ax[1].plot(torch_utils.normalizeForce(obs[3][:,3], task_config.max_force), label='Mx')
-        ax[1].plot(torch_utils.normalizeForce(obs[3][:,4], task_config.max_force), label='My')
-        ax[1].plot(torch_utils.normalizeForce(obs[3][:,5], task_config.max_force), label='Mz')
+        ax[0].imshow(obs[0].squeeze(), cmap='gray')
+        ax[1].plot(torch_utils.normalizeForce(obs[1][:,0], task_config.max_force), label='Fx')
+        ax[1].plot(torch_utils.normalizeForce(obs[1][:,1], task_config.max_force), label='Fy')
+        ax[1].plot(torch_utils.normalizeForce(obs[1][:,2], task_config.max_force), label='Fz')
+        ax[1].plot(torch_utils.normalizeForce(obs[1][:,3], task_config.max_force), label='Mx')
+        ax[1].plot(torch_utils.normalizeForce(obs[1][:,4], task_config.max_force), label='My')
+        ax[1].plot(torch_utils.normalizeForce(obs[1][:,5], task_config.max_force), label='Mz')
         plt.legend()
         plt.show()
 
