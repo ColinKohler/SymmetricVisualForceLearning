@@ -89,9 +89,9 @@ class Latent(nn.Module):
     depth_feat = self.depth_encoder(depth)
     force_feat = self.force_encoder(force)
 
-    gate = (torch.mean(torch.abs(force.view(batch_size, -1)), dim=1) > 2e-2).float().cuda()
-    gated_force_feat = force_feat.tensor.squeeze() * gate.view(batch_size, 1)
-    force_feat = enn.GeometricTensor(gated_force_feat.view(batch_size, self.N * self.encoder_dim, 1, 1), enn.FieldType(self.c4_act, self.force_repr))
+    #gate = (torch.mean(torch.abs(force.view(batch_size, -1)), dim=1) > 2e-2).float().cuda()
+    #gated_force_feat = force_feat.tensor.squeeze() * gate.view(batch_size, 1)
+    #force_feat = enn.GeometricTensor(gated_force_feat.view(batch_size, self.N * self.encoder_dim, 1, 1), enn.FieldType(self.c4_act, self.force_repr))
 
     if self.deterministic:
       feat = torch.cat((proprio_feat.tensor, depth_feat.tensor, force_feat.tensor), dim=1)

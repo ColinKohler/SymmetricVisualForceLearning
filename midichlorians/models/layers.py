@@ -135,7 +135,7 @@ class MultiHeadAttention(nn.Module):
     self.w_vs = nn.Linear(d_model, n_head * d_k, bias=False)
     self.fc = nn.Linear(n_head * d_v, d_model, bias=False)
 
-    self.attention = ScaledDotProductAttention(temperature=d_k ** 0.5)
+    self.attention = ScaledDotProductAttention(temperature=d_k ** 0.5, attn_dropout=dropout)
 
     self.dropout = nn.Dropout(dropout)
     self.layer_norm = nn.LayerNorm(d_model, eps=1e-6)
@@ -146,11 +146,11 @@ class MultiHeadAttention(nn.Module):
 
     residual = q
 
-    # Pass through  the pre-attention projection: b x lq x (n*dv)
+    # Pass through the pre-attention projection: b x lq x (n*dv)
     # Seperate different heads: b x lq x n x dv
     q = self.w_qs(q).view(sz_b, len_q, n_head, d_k)
     k = self.w_ks(k).view(sz_b, len_k, n_head, d_k)
-    v = self.w_vs(v).view(sz_b, len_v, n_head, d_k)
+    v = self.w_vs(v).view(sz_b, len_v, n_head, d_v)
 
     # Transpose for attention dot product: b x n x lq x dv
     q, k, v = q.transpose(1,2), k.transpose(1,2), v.transpose(1,2)

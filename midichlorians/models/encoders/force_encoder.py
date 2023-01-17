@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from escnn import gspaces
 from escnn import nn as enn
 
-from midichlorians.models.layers import CausalConv1d, EquivariantBlock, MultiHeadAttention
+from midichlorians.models.layers import CausalConv1d, EquivariantBlock
 
 class CausalConvBlock(nn.Module):
   def __init__(self, in_dim, out_dim):
@@ -35,51 +35,47 @@ class ForceEncoder(nn.Module):
   def __init__(self, z_dim=64, N=8, initialize=True):
     super().__init__()
 
-    n_head = 2
-    d_model = 6
-    d_k = 64
-    d_v = 64
-    dropout = 0.
-    self.self_attn = MultiHeadAttention(n_head, d_model, d_k, d_v, dropout=dropout)
+    self.attn  = nn.MultiheadAttention(6, 6, batch_first=True)
 
-    self.fx_conv = CausalConvBlock(1, 16)
-    self.fy_conv = CausalConvBlock(1, 16)
-    self.fz_conv = CausalConvBlock(1, 16)
-    self.mx_conv = CausalConvBlock(1, 16)
-    self.my_conv = CausalConvBlock(1, 16)
-    self.mz_conv = CausalConvBlock(1, 16)
+    #self.fx_conv = CausalConvBlock(1, 16)
+    #self.fy_conv = CausalConvBlock(1, 16)
+    #self.fz_conv = CausalConvBlock(1, 16)
+    #self.mx_conv = CausalConvBlock(1, 16)
+    #self.my_conv = CausalConvBlock(1, 16)
+    #self.mz_conv = CausalConvBlock(1, 16)
 
     self.c4_act = gspaces.rot2dOnR2(N)
 
-    self.equivariant_force_repr = 2 * 16 * [self.c4_act.irrep(1)]
-    self.invariant_force_repr = 2 * 16 * [self.c4_act.trivial_repr]
+    #self.equivariant_force_repr = 2 * 16 * [self.c4_act.irrep(1)]
+    #self.invariant_force_repr = 2 * 16 * [self.c4_act.trivial_repr]
+    #self.in_type = enn.FieldType(self.c4_act, self.equivariant_force_repr + self.invariant_force_repr)
+    self.in_type = enn.FieldType(self.c4_act, 6 * 64 * [self.c4_act.trivial_repr])
 
-    self.in_type = enn.FieldType(self.c4_act, self.equivariant_force_repr + self.invariant_force_repr)
     self.out_type = enn.FieldType(self.c4_act, z_dim  * [self.c4_act.regular_repr])
     self.conv = EquivariantBlock(self.in_type, self.out_type, kernel_size=1, stride=1, padding=0, initialize=initialize)
 
   def forward(self, x):
     batch_size =  x.size(0)
 
-    x, attn = self.self_attn(
+    x, attn = self.attn(
       x,
       x,
       x,
-      mask=None,
     )
     x = torch.permute(x, (0,2,1))
 
-    wfx = self.fx_conv(x[:,0].view(batch_size, 1, -1))
-    wfy = self.fy_conv(x[:,1].view(batch_size, 1, -1))
-    wfz = self.fz_conv(x[:,2].view(batch_size, 1, -1))
-    wmx = self.mx_conv(x[:,3].view(batch_size, 1, -1))
-    wmy = self.my_conv(x[:,4].view(batch_size, 1, -1))
-    wmz = self.mz_conv(x[:,5].view(batch_size, 1, -1))
+    #wfx = self.fx_conv(x[:,0].view(batch_size, 1, -1))
+    #wfy = self.fy_conv(x[:,1].view(batch_size, 1, -1))
+    #wfz = self.fz_conv(x[:,2].view(batch_size, 1, -1))
+    #wmx = self.mx_conv(x[:,3].view(batch_size, 1, -1))
+    #wmy = self.my_conv(x[:,4].view(batch_size, 1, -1))
+    #wmz = self.mz_conv(x[:,5].view(batch_size, 1, -1))
 
-    equiv_force = torch.cat((wfx, wfy, wmx, wmy), dim=1).reshape(batch_size, -1, 1, 1)
-    inv_force = torch.cat((wfz, wmz), dim=1).reshape(batch_size, -1, 1, 1)
+    #equiv_force = torch.cat((wfx, wfy, wmx, wmy), dim=1).reshape(batch_size, -1, 1, 1)
+    #inv_force = torch.cat((wfz, wmz), dim=1).reshape(batch_size, -1, 1, 1)
 
-    feat = torch.cat((equiv_force, inv_force), dim=1)
-    feat = enn.GeometricTensor(feat, self.in_type)
+    #feat = torch.cat((equiv_force, inv_force), dim=1)
+    #feat = enn.GeometricTensor(feat, self.in_type)
+    x_geo = enn.GeometricTensor(x.reshape(batch_size, -1, 1, 1), self.in_type)
 
-    return self.conv(feat)
+    return self.conv(x_geo)
