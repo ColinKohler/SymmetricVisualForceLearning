@@ -10,7 +10,7 @@ class Config(object):
     # Env
     self.obs_type = ['depth', 'force', 'proprio']
     self.depth_size = 128
-    self.depth_channels = 1
+    self.depth_channels = 4
     self.force_dim = 6
     self.force_history = 64
     self.max_force = 100

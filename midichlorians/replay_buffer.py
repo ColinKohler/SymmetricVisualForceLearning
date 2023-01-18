@@ -208,7 +208,7 @@ class ReplayBuffer(object):
       set_trans_zero=True
     )
 
-    depth = depth.reshape(1, *depth.shape)
+    depth = depth.reshape(*depth.shape)
     force = force.copy()
     force[:,0] = fxy_1[:,0]
     force[:,1] = fxy_1[:,1]
@@ -217,7 +217,7 @@ class ReplayBuffer(object):
     proprio = proprio.copy()
     proprio[:,2:4] = pxy
 
-    depth_ = depth_.reshape(1, *depth_.shape)
+    depth_ = depth_.reshape(*depth_.shape)
     force_ = force_.copy()
     force_[:,0] = fxy_1_[:,0]
     force_[:,1] = fxy_1_[:,1]
