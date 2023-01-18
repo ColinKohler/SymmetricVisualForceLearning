@@ -15,7 +15,7 @@ from midichlorians.trainer import Trainer
 from midichlorians.replay_buffer import ReplayBuffer
 from midichlorians.data_generator import DataGenerator, EvalDataGenerator
 from midichlorians.shared_storage import SharedStorage
-from midichlorians.models.force_equivariant_sac import ForceEquivariantCritic, ForceEquivariantGaussianPolicy
+from midichlorians.models.sac import Critic, GaussianPolicy
 from midichlorians import torch_utils
 
 from helping_hands_rl_baselines.logger.ray_logger import RayLogger
@@ -71,9 +71,6 @@ class Runner(object):
     self.load(checkpoint_path=checkpoint,
               replay_buffer_path=replay_buffer)
 
-    if not self.checkpoint['weights']:
-      self.initWeights()
-
     # Workers
     self.logger_worker = None
     self.data_gen_workers = None
@@ -81,20 +78,6 @@ class Runner(object):
     self.shared_storage_worker = None
     self.training_worker = None
     self.eval_worker = None
-
-  def initWeights(self):
-    '''
-    Initalize model weights
-    '''
-    actor = ForceEquivariantGaussianPolicy(self.config.obs_channels, self.config.action_dim)
-    actor.train()
-    critic = ForceEquivariantCritic(self.config.obs_channels, self.config.action_dim)
-    critic.train()
-
-    self.checkpoint['weights'] = (
-      torch_utils.dictToCpu(actor.state_dict()),
-      torch_utils.dictToCpu(critic.state_dict())
-    )
 
   def train(self):
     '''
@@ -144,7 +127,7 @@ class Runner(object):
           if info['generating_eval_eps']:
             self.shared_storage_worker.setInfo.remote('pause_training', True)
           while(ray.get(self.shared_storage_worker.getInfo.remote('generating_eval_eps'))):
-            time.sleep(0.5)
+            time.sleep(0.1)
           self.shared_storage_worker.setInfo.remote('pause_training', False)
           self.eval_worker.generateEpisodes.remote(self.config.num_eval_episodes, self.shared_storage_worker, self.replay_buffer_worker, self.logger_worker)
 

@@ -5,6 +5,7 @@ import numpy as np
 import numpy.random as npr
 
 from midichlorians import torch_utils
+from functools import partial
 
 @ray.remote
 class ReplayBuffer(object):
@@ -19,7 +20,7 @@ class ReplayBuffer(object):
     self.buffer = copy.deepcopy(initial_buffer)
     self.num_eps = initial_checkpoint['num_eps']
     self.num_steps = initial_checkpoint['num_steps']
-    self.total_samples = sum([len(eps_history.obs_history) for eps_history in self.buffer.values()])
+    self.total_samples = sum([len(eps_history.depth_history) for eps_history in self.buffer.values()])
 
   def getBuffer(self):
     '''
@@ -56,13 +57,13 @@ class ReplayBuffer(object):
     # Add to buffer
     self.buffer[self.num_eps] = copy.deepcopy(eps_history)
     self.num_eps += 1
-    self.num_steps += len(eps_history.obs_history)
-    self.total_samples += len(eps_history.obs_history)
+    self.num_steps += len(eps_history.depth_history)
+    self.total_samples += len(eps_history.depth_history)
 
     # Delete the oldest episode if the buffer is full
     if self.config.replay_buffer_size < len(self.buffer):
       del_id = self.num_eps - len(self.buffer)
-      self.total_samples -= len(self.buffer[del_id].obs_history)
+      self.total_samples -= len(self.buffer[del_id].depth_history)
       del self.buffer[del_id]
 
     if shared_storage:
@@ -80,12 +81,12 @@ class ReplayBuffer(object):
       (list[int], list[numpy.array], list[numpy.array], list[double], list[double]) : (Index, Observation, Action, Reward, Weight)
     '''
     (index_batch,
-     state_batch,
-     obs_batch,
+     depth_batch,
      force_batch,
-     next_state_batch,
-     next_obs_batch,
+     proprio_batch,
+     next_depth_batch,
      next_force_batch,
+     next_proprio_batch,
      action_batch,
      reward_batch,
      done_batch,
@@ -99,23 +100,28 @@ class ReplayBuffer(object):
       force = eps_history.force_history[eps_step].reshape(self.config.force_history, self.config.force_dim)
       force_ = eps_history.force_history[eps_step+1].reshape(self.config.force_history, self.config.force_dim)
 
-      obs, force, obs_, force_, action = self.augmentTransitionSO2(
-        eps_history.obs_history[eps_step],
+      proprio = eps_history.proprio_history[eps_step].reshape(1, self.config.proprio_dim)
+      proprio_ = eps_history.proprio_history[eps_step+1].reshape(1, self.config.proprio_dim)
+
+      depth, force, proprio, depth_, force_, proprio_, action = self.augmentTransitionSO2(
+        eps_history.depth_history[eps_step],
         force,
-        eps_history.obs_history[eps_step+1],
+        proprio,
+        eps_history.depth_history[eps_step+1],
         force_,
+        proprio_,
         eps_history.action_history[eps_step+1]
       )
-      obs = torch_utils.unnormalizeObs(obs)
-      obs_ = torch_utils.unnormalizeObs(obs_)
+      depth = torch_utils.unnormalizeDepth(depth)
+      depth_ = torch_utils.unnormalizeDepth(depth_)
 
       index_batch.append([eps_id, eps_step])
-      state_batch.append(eps_history.state_history[eps_step])
-      obs_batch.append(obs)
+      depth_batch.append(depth)
       force_batch.append(force)
-      next_state_batch.append(eps_history.state_history[eps_step+1])
-      next_obs_batch.append(obs_)
+      proprio_batch.append(proprio)
+      next_depth_batch.append(depth_)
       next_force_batch.append(force_)
+      next_proprio_batch.append(proprio_)
       action_batch.append(action)
       reward_batch.append(eps_history.reward_history[eps_step+1])
       done_batch.append(eps_history.done_history[eps_step+1])
@@ -123,29 +129,23 @@ class ReplayBuffer(object):
       training_step = ray.get(shared_storage.getInfo.remote('training_step'))
       weight_batch.append((1 / (self.total_samples * eps_prob * step_prob)) ** self.config.getPerBeta(training_step))
 
-    state_batch = torch.tensor(state_batch).long()
-    obs_batch = torch.tensor(np.stack(obs_batch)).float()
+    depth_batch = torch.tensor(np.stack(depth_batch)).float()
     force_batch = torch.tensor(np.stack(force_batch)).float()
-    next_state_batch = torch.tensor(next_state_batch).long()
-    next_obs_batch = torch.tensor(np.stack(next_obs_batch)).float()
+    proprio_batch = torch.tensor(np.stack(proprio_batch)).float()
+    next_depth_batch = torch.tensor(np.stack(next_depth_batch)).float()
     next_force_batch = torch.tensor(np.stack(next_force_batch)).float()
+    next_proprio_batch = torch.tensor(np.stack(next_proprio_batch)).float()
     action_batch = torch.tensor(np.stack(action_batch)).float()
     reward_batch = torch.tensor(reward_batch).float()
     done_batch = torch.tensor(done_batch).int()
     non_final_mask_batch = (done_batch ^ 1).float()
     weight_batch = torch.tensor(weight_batch).float()
 
-    state_tile = state_batch.reshape(state_batch.size(0), 1, 1, 1).repeat(1, 1, obs_batch.size(2), obs_batch.size(3))
-    obs_batch = torch.cat([obs_batch, state_tile], dim=1)
-
-    state_tile_ = next_state_batch.reshape(next_state_batch.size(0), 1, 1, 1).repeat(1, 1, next_obs_batch.size(2), next_obs_batch.size(3))
-    next_obs_batch = torch.cat([next_obs_batch, state_tile_], dim=1)
-
     return (
       index_batch,
       (
-        (obs_batch, force_batch),
-        (next_obs_batch, next_force_batch),
+        (depth_batch, force_batch, proprio_batch),
+        (next_depth_batch, next_force_batch, next_proprio_batch),
         action_batch,
         reward_batch,
         non_final_mask_batch,
@@ -193,38 +193,44 @@ class ReplayBuffer(object):
 
     return step_idx, step_prob
 
-  def augmentTransitionSO2(self, obs, force, obs_, force_, action):
+  def augmentTransitionSO2(self, depth, force, proprio, depth_, force_, proprio_, action):
     ''''''
-    obs, fxy_1, fxy_2, obs_, fxy_1_, fxy_2_, dxy, transform_params = torch_utils.perturb(
-      obs.copy(),
+    depth, fxy_1, fxy_2, pxy, depth_, fxy_1_, fxy_2_, pxy_, dxy, transform_params = torch_utils.perturb(
+      depth.copy(),
       force[:,:2].copy(),
       force[:,3:5].copy(),
-      obs_.copy(),
+      proprio[:,2:4].copy(),
+      depth_.copy(),
       force_[:,:2].copy(),
       force_[:,3:5].copy(),
+      proprio_[:,2:4].copy(),
       action[1:3].copy(),
       set_trans_zero=True
     )
 
-    obs = obs.reshape(1, *obs.shape)
+    depth = depth.reshape(1, *depth.shape)
     force = force.copy()
     force[:,0] = fxy_1[:,0]
     force[:,1] = fxy_1[:,1]
     force[:,3] = fxy_2[:,0]
     force[:,4] = fxy_2[:,1]
+    proprio = proprio.copy()
+    proprio[:,2:4] = pxy
 
-    obs_ = obs_.reshape(1, *obs_.shape)
+    depth_ = depth_.reshape(1, *depth_.shape)
     force_ = force_.copy()
     force_[:,0] = fxy_1_[:,0]
     force_[:,1] = fxy_1_[:,1]
     force_[:,3] = fxy_2_[:,0]
     force_[:,4] = fxy_2_[:,1]
+    proprio_ = proprio_.copy()
+    proprio_[:,2:4] = pxy_
 
     action = action.copy()
     action[1] = dxy[0]
     action[2] = dxy[1]
 
-    return obs, force, obs_, force_, action
+    return depth, force, proprio, depth_, force_, proprio_, action
 
   def updatePriorities(self, td_errors, idx_info):
     '''

@@ -12,17 +12,17 @@ class BlockPullingCornerConfig(Config):
     num_gpus (int):
     results_path (str):
   '''
-  def __init__(self, num_gpus=1, results_path=None):
-    super().__init__(num_gpus=num_gpus)
+  def __init__(self, num_sensors=2, encoder='fusion', num_gpus=1, results_path=None):
+    super().__init__(num_sensors=num_sensors, encoder=encoder, num_gpus=num_gpus)
     self.seed = None
 
     # Env
     self.obs_size = 128
     self.robot = 'panda'
-    self.env_type = 'force_block_pulling_corner'
+    self.env_type = 'close_loop_block_pulling_corner'
     self.max_steps = 50
-    self.dpos = 0.05
-    self.drot = np.pi / 8
+    self.dpos = 0.025
+    self.drot = np.pi / 16
     self.max_force = 30
 
     # Data Gen
@@ -91,6 +91,7 @@ class BlockPullingCornerConfig(Config):
       'workspace_check' : 'point',
       'reward_type' : self.reward_type,
       'view_type' : self.view_type,
+      'num_sensors' : 2,
       'obs_type' : self.obs_type,
       'render': render
     }

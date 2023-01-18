@@ -1,9 +1,14 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+from torch.distributions import Normal
 import e2cnn.nn as enn
 import numpy as np
 import numpy.random as npr
 import scipy.ndimage
+
+def detachGeoTensor(geo, t):
+  return enn.GeometricTensor(geo.tensor.detach(), t)
 
 def dictToCpu(state_dict):
   cpu_dict = dict()
@@ -29,27 +34,57 @@ def clipGradNorm(optimizer, max_norm=None, norm_type=2):
                                          max_norm=max_norm_x,
                                          norm_type=norm_type)
 
-def normalizeObs(obs):
-  obs = np.clip(obs, 0, 0.32)
-  obs = obs / 0.4 * 255
-  obs = obs.astype(np.uint8)
+def normalizeDepth(depth):
+  depth = np.clip(depth, 0, 0.32)
+  depth = depth / 0.4 * 255
+  depth = depth.astype(np.uint8)
 
-  return obs
+  return depth
 
-def unnormalizeObs(obs):
-  return obs / 255 * 0.4
+def unnormalizeDepth(depth):
+  return depth / 255 * 0.4
 
 def normalizeForce(force, max_force):
-  return force
+  return np.clip(force, -max_force, max_force) / max_force
 
-def perturb(obs, fxy_1, fxy_2, obs_, fxy_1_, fxy_2_, dxy, set_theta_zero=False, set_trans_zero=False):
+def sampleGaussian(mu, var):
+  eps = Normal(0, 1).sample(mu.size())
+  z = mu + torch.sqrt(var) * eps.cuda()
+
+  return z
+
+def gaussianParameters(h, dim=-1):
+  mu, h = torch.split(h, h.size(dim) // 2, dim=dim)
+  var = F.softplus(h) + 1e-8
+
+  return mu, var
+
+def productOfExperts(mu_vect, var_vect):
+  t_vect = 1.0 / var_vect
+  mu = (mu_vect * t_vect).sum(2) * (1 / t_vect.sum(2))
+  var = 1 / t_vect.sum(2)
+
+  return mu, var
+
+def duplicate(x, rep):
+  return x.expand(rep, *x.shape).reshape(-1, *x.shape[1:])
+
+def klNormal(qm, qv, pm, pv):
+  element_wise = 0.5 * (
+    torch.log(pv) - torch.log(qv) + qv / pv + (qm - pm).pow(2) / pv - 1
+  )
+  kl = element_wise.sum(-1)
+
+  return kl
+
+def perturb(depth, fxy_1, fxy_2, pxy, depth_, fxy_1_, fxy_2_, pxy_, dxy, set_theta_zero=False, set_trans_zero=False):
   '''
 
   '''
-  obs_size = obs.shape[-2:]
+  depth_size = depth.shape[-2:]
 
   # Compute random rigid transform
-  theta, trans, pivot = getRandomImageTransformParams(obs_size)
+  theta, trans, pivot = getRandomImageTransformParams(depth_size)
   if set_theta_zero:
     theta = 0.
   if set_trans_zero:
@@ -67,17 +102,20 @@ def perturb(obs, fxy_1, fxy_2, obs_, fxy_1_, fxy_2_, dxy, set_theta_zero=False, 
   rotated_fxy_1_ = np.clip(rot.dot(fxy_1_.T).T, -1, 1)
   rotated_fxy_2_ = np.clip(rot.dot(fxy_2_.T).T, -1, 1)
 
-  # Apply rigid transform to obs
-  obs = scipy.ndimage.affine_transform(obs, np.linalg.inv(transform), mode='nearest', order=1)
-  obs_ = scipy.ndimage.affine_transform(obs_, np.linalg.inv(transform), mode='nearest', order=1)
+  rotated_pxy = np.clip(rot.dot(pxy.T).T, -1, 1)
+  rotated_pxy_ = np.clip(rot.dot(pxy_.T).T, -1, 1)
 
-  return obs, rotated_fxy_1, rotated_fxy_2, obs_, rotated_fxy_1_, rotated_fxy_2_, rotated_dxy, transform_params
+  # Apply rigid transform to depth
+  depth = scipy.ndimage.affine_transform(depth, np.linalg.inv(transform), mode='nearest', order=1)
+  depth_ = scipy.ndimage.affine_transform(depth_, np.linalg.inv(transform), mode='nearest', order=1)
 
-def getRandomImageTransformParams(obs_size):
+  return depth, rotated_fxy_1, rotated_fxy_2, rotated_pxy, depth_, rotated_fxy_1_, rotated_fxy_2_, rotated_pxy_, rotated_dxy, transform_params
+
+def getRandomImageTransformParams(depth_size):
   ''''''
   theta = npr.rand() * 2 * np.pi
-  trans = npr.randint(0, obs_size[0] // 10, 2) - obs_size[0] // 20
-  pivot = (obs_size[1] / 2, obs_size[0] / 2)
+  trans = npr.randint(0, depth_size[0] // 10, 2) - depth_size[0] // 20
+  pivot = (depth_size[1] / 2, depth_size[0] / 2)
 
   return theta, trans, pivot
 

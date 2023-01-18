@@ -1,10 +1,12 @@
 import torch
 import numpy as np
 import numpy.random as npr
+from functools import partial
 
-from midichlorians.models.force_equivariant_sac import ForceEquivariantCritic, ForceEquivariantGaussianPolicy
+from midichlorians import torch_utils
+from midichlorians.models.sac import Critic, GaussianPolicy
 
-class SACAgent(object):
+class Agent(object):
   '''
   Soft Actor-Critic Agent.
 
@@ -16,6 +18,8 @@ class SACAgent(object):
     self.config = config
     self.device = device
 
+    self.normalizeForce = partial(torch_utils.normalizeForce, max_force=self.config.max_force)
+
     self.p_range = torch.tensor([0, 1])
     self.dx_range = torch.tensor([-self.config.dpos, self.config.dpos])
     self.dy_range = torch.tensor([-self.config.dpos, self.config.dpos])
@@ -26,45 +30,41 @@ class SACAgent(object):
     if actor:
       self.actor = actor
     else:
-      self.actor = ForceEquivariantGaussianPolicy(self.config.obs_channels, self.config.action_dim, initialize=initialize_models)
+      self.actor = GaussianPolicy(self.config.action_dim, encoder=self.config.encoder, initialize=initialize_models)
       self.actor.to(self.device)
       self.actor.train()
 
     if critic:
       self.critic = critic
     else:
-      self.critic = ForceEquivariantCritic(self.config.obs_channels, self.config.action_dim, initialize=initialize_models)
+      self.critic = Critic(self.config.action_dim, encoder=self.config.encoder, initialize=initialize_models)
       self.critic.to(self.device)
       self.critic.train()
 
-  def getAction(self, state, obs, force, evaluate=False):
+  def getAction(self, depth, force, proprio, evaluate=False):
     '''
     Get the action from the policy.
 
     Args:
-      state (int): The current gripper state
-      obs (numpy.array): The current observation
       evalute (bool):
 
     Returns:
       (numpy.array, double) : (Action, Q-Value)
     '''
-    obs = torch.Tensor(obs.astype(np.float32)).view(len(state), 1, self.config.obs_size, self.config.obs_size).to(self.device)
-    state = torch.Tensor(state).view(len(state), 1, 1, 1).to(self.device)
-    state_tile = state.repeat(1, 1, obs.size(2), obs.size(3))
-    obs = torch.cat((obs, state_tile), dim=1)
-    force = torch.Tensor(force).view(len(state), self.config.force_history, self.config.force_dim).to(self.device)
+    depth = torch.Tensor(depth.astype(np.float32)).view(depth.shape[0], 1, self.config.depth_size, self.config.depth_size).to(self.device)
+    force = torch.Tensor(torch_utils.normalizeForce(force, self.config.max_force)).view(depth.shape[0], self.config.force_history, self.config.force_dim).to(self.device)
+    proprio = torch.Tensor(proprio).view(depth.shape[0], self.config.proprio_dim).to(self.device)
 
     with torch.no_grad():
       if evaluate:
-        _, _, action = self.actor.sample((obs, force))
+        _, _, action = self.actor.sample((depth, force, proprio))
       else:
-        action, _, _ = self.actor.sample((obs, force))
+        action, _, _ = self.actor.sample((depth, force, proprio))
 
     action = action.cpu()
     action_idx, action = self.decodeActions(*[action[:,i] for i in range(self.action_shape)])
     with torch.no_grad():
-      value = self.critic((obs, force), action_idx.to(self.device))
+      value = self.critic((depth, force, proprio), action_idx.to(self.device))
 
     value = torch.min(torch.hstack((value[0], value[1])), dim=1)[0]
     return action_idx, action, value

@@ -4,7 +4,7 @@ import torch
 import numpy as np
 import numpy.random as npr
 
-from midichlorians.sac_agent import SACAgent
+from midichlorians.agent import Agent
 from midichlorians import torch_utils
 
 from bulletarm import env_factory
@@ -16,7 +16,7 @@ class EvalDataGenerator(object):
   '''
   def __init__(self, config, seed):
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-    agent = SACAgent(config, device)
+    agent = Agent(config, device)
 
     self.config = config
     self.data_generator = DataGenerator(agent, config, seed, evaluate=True)
@@ -94,7 +94,7 @@ class DataGenerator(object):
     self.current_episodes = [EpisodeHistory() for _ in range(self.num_envs)]
     self.obs = self.envs.reset()
     for i, eps_history in enumerate(self.current_episodes):
-      eps_history.logStep(self.obs[0][i], self.obs[2][i], self.obs[3][i], np.array([0,0,0,0,0]), 0, 0, 0, self.config.max_force)
+      eps_history.logStep(self.obs[0][i], self.obs[1][i], self.obs[2][i], np.array([0,0,0,0,0]), 0, 0, 0, self.config.max_force)
 
   def stepEnvsAsync(self, shared_storage, replay_buffer, logger, expert=False):
     '''
@@ -114,8 +114,8 @@ class DataGenerator(object):
     else:
       self.action_idxs, self.actions, self.values = self.agent.getAction(
         self.obs[0],
+        self.obs[1],
         self.obs[2],
-        torch_utils.normalizeForce(self.obs[3], self.config.max_force),
         evaluate=self.eval
       )
 
@@ -138,8 +138,8 @@ class DataGenerator(object):
     for i, eps_history in enumerate(self.current_episodes):
       eps_history.logStep(
         obs_[0][i],
+        obs_[1][i],
         obs_[2][i],
-        obs_[3][i],
         self.action_idxs[i].squeeze().numpy(),
         self.values[i].item(),
         rewards[i],
@@ -165,8 +165,8 @@ class DataGenerator(object):
         self.current_episodes[done_idx] = EpisodeHistory()
         self.current_episodes[done_idx].logStep(
           new_obs_[0][i],
+          new_obs_[1][i],
           new_obs_[2][i],
-          new_obs_[3][i],
           np.array([0,0,0,0,0]),
           0,
           0,
@@ -175,8 +175,8 @@ class DataGenerator(object):
         )
 
         obs_[0][done_idx] = new_obs_[0][i]
+        obs_[1][done_idx] = new_obs_[1][i]
         obs_[2][done_idx] = new_obs_[2][i]
-        obs_[3][done_idx] = new_obs_[3][i]
 
     self.obs = obs_
     return len(done_idxs)
@@ -186,9 +186,9 @@ class EpisodeHistory(object):
   Class containing the history of an episode.
   '''
   def __init__(self):
-    self.state_history = list()
-    self.obs_history = list()
+    self.depth_history = list()
     self.force_history = list()
+    self.proprio_history = list()
     self.action_history = list()
     self.value_history = list()
     self.reward_history = list()
@@ -197,14 +197,14 @@ class EpisodeHistory(object):
     self.priorities = None
     self.eps_priority = None
 
-  def logStep(self, state, obs, force, action, value, reward, done, max_force):
-    self.state_history.append(state)
-    self.obs_history.append(
-      torch_utils.normalizeObs(obs).squeeze()
+  def logStep(self, depth, force, proprio, action, value, reward, done, max_force):
+    self.depth_history.append(
+      torch_utils.normalizeDepth(depth).squeeze()
     )
     self.force_history.append(
       torch_utils.normalizeForce(force, max_force)
     )
+    self.proprio_history.append(proprio)
     self.action_history.append(action)
     self.value_history.append(value)
     self.reward_history.append(reward)

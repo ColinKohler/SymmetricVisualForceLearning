@@ -6,9 +6,11 @@ import torch.nn.functional as F
 import numpy as np
 import numpy.random as npr
 
-from midichlorians.sac_agent import SACAgent
+from escnn import nn as enn
+
+from midichlorians.agent import Agent
 from midichlorians.data_generator import DataGenerator, EvalDataGenerator
-from midichlorians.models.force_equivariant_sac import ForceEquivariantCritic, ForceEquivariantGaussianPolicy
+from midichlorians.models.sac import Critic, GaussianPolicy
 from midichlorians import torch_utils
 
 @ray.remote
@@ -27,23 +29,22 @@ class Trainer(object):
     self.alpha = self.config.init_temp
     self.target_entropy = -self.config.action_dim
     self.log_alpha = torch.tensor(np.log(self.alpha), requires_grad=True, device=self.device)
-    self.alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=1e-3)
+    self.alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=self.config.actor_lr_init)
 
-    # Initialize actor and critic models
-    self.actor = ForceEquivariantGaussianPolicy(self.config.obs_channels, self.config.action_dim)
+    # Initialize actor, and critic models
+    self.actor = GaussianPolicy(self.config.action_dim, encoder=self.config.encoder)
     self.actor.train()
-    self.actor.load_state_dict(initial_checkpoint['weights'][0])
     self.actor.to(self.device)
 
-    self.critic = ForceEquivariantCritic(self.config.obs_channels, self.config.action_dim)
+    self.critic = Critic(self.config.action_dim, encoder=self.config.encoder)
     self.critic.train()
-    self.critic.load_state_dict(initial_checkpoint['weights'][1])
     self.critic.to(self.device)
 
-    self.critic_target = ForceEquivariantCritic(self.config.obs_channels, self.config.action_dim)
+    self.critic_target = Critic(self.config.action_dim, encoder=self.config.encoder)
     self.critic_target.train()
-    self.critic_target.load_state_dict(initial_checkpoint['weights'][1])
     self.critic_target.to(self.device)
+    for param in self.critic_target.parameters():
+      param.requires_grad = False
 
     self.training_step = initial_checkpoint['training_step']
 
@@ -66,7 +67,7 @@ class Trainer(object):
       )
 
     # Initialize data generator
-    self.agent = SACAgent(self.config, self.device, actor=self.actor, critic=self.critic)
+    self.agent = Agent(self.config, self.device, actor=self.actor, critic=self.critic)
     self.data_generator = DataGenerator(self.agent, self.config, self.config.seed)
     self.data_generator.resetEnvs()
 
@@ -173,14 +174,16 @@ class Trainer(object):
       )
       logger.updateScalars.remote(
         {
-          '3.Loss/3.Actor_lr' : self.actor_optimizer.param_groups[0]['lr'],
-          '3.Loss/4.Critic_lr' : self.critic_optimizer.param_groups[0]['lr']
+          '3.Loss/4.Actor_lr' : self.actor_optimizer.param_groups[0]['lr'],
+          '3.Loss/5.Critic_lr' : self.critic_optimizer.param_groups[0]['lr'],
+          '3.Loss/6.Entropy' : loss[3]
         }
       )
       logger.logTrainingStep.remote(
         {
           'Actor' : loss[0],
-          'Critic' : loss[1]
+          'Critic' : loss[1],
+          'Alpha' : loss[2],
         }
       )
 
@@ -196,8 +199,8 @@ class Trainer(object):
     '''
     obs_batch, next_obs_batch, action_batch, reward_batch, non_final_mask_batch, weight_batch = batch
 
-    obs_batch = (obs_batch[0].to(self.device), obs_batch[1].to(self.device))
-    next_obs_batch = (next_obs_batch[0].to(self.device), next_obs_batch[1].to(self.device))
+    obs_batch = (obs_batch[0].to(self.device), obs_batch[1].to(self.device), obs_batch[2].to(self.device))
+    next_obs_batch = (next_obs_batch[0].to(self.device), next_obs_batch[1].to(self.device), next_obs_batch[2].to(self.device))
     action_batch = action_batch.to(self.device)
     reward_batch = reward_batch.to(self.device)
     non_final_mask_batch = non_final_mask_batch.to(self.device)
@@ -205,62 +208,51 @@ class Trainer(object):
 
     # Critic Update
     with torch.no_grad():
-      next_state_action, next_state_log_pi, _ = self.actor.sample(next_obs_batch)
-      next_state_log_pi = next_state_log_pi.squeeze()
+      next_action, next_log_pi, _ = self.actor.sample(next_obs_batch)
+      next_q1, next_q2 = self.critic_target(next_obs_batch, next_action)
+      next_log_pi, next_q1, next_q2 = next_log_pi.squeeze(), next_q1.squeeze(), next_q2.squeeze()
 
-      qf1_next_target, qf2_next_target = self.critic_target(next_obs_batch, next_state_action)
-      qf1_next_target = qf1_next_target.squeeze()
-      qf2_next_target = qf2_next_target.squeeze()
+      next_q = torch.min(next_q1, next_q2) - self.alpha * next_log_pi
+      target_q = reward_batch + non_final_mask_batch * self.config.discount * next_q
 
-      min_qf_next_target = torch.min(qf1_next_target, qf2_next_target) - self.alpha * next_state_log_pi
-      next_q_value = reward_batch + non_final_mask_batch * self.config.discount * min_qf_next_target
+    curr_q1, curr_q2 = self.critic(obs_batch, action_batch)
+    curr_q1, curr_q2 = curr_q1.squeeze(), curr_q2.squeeze()
 
-    qf1, qf2 = self.critic(obs_batch, action_batch)
-    qf1 = qf1.squeeze()
-    qf2 = qf2.squeeze()
-
-    qf1_loss = F.mse_loss(qf1, next_q_value)
-    qf2_loss = F.mse_loss(qf2, next_q_value)
-    critic_loss = qf1_loss + qf2_loss
-
-    #qf1_loss = F.mse_loss(qf1, next_q_value, reduction='none')
-    #qf2_loss = F.mse_loss(qf2, next_q_value, reduction='none')
-    #critic_loss = ((qf1_loss + qf2_loss) * weight_batch).mean()
+    critic_loss = F.mse_loss(curr_q1, target_q) + F.mse_loss(curr_q2, target_q)
+    #kl_loss = 0.05 * torch.mean(
+    #  torch_utils.klNormal(mu_z, var_z, mu_prior.squeeze(0), var_prior.squeeze(0))
+    #)
+    #critic_loss += kl_loss
 
     with torch.no_grad():
-      td_error = 0.5 * (torch.abs(qf2 - next_q_value) + torch.abs(qf1 - next_q_value))
+      td_error = 0.5 * (torch.abs(curr_q1 - target_q) + torch.abs(curr_q2 - target_q))
 
     self.critic_optimizer.zero_grad()
     critic_loss.backward()
-    if self.config.clip_gradient:
-      torch_utils.clipGradNorm(self.critic_optimizer)
     self.critic_optimizer.step()
 
     # Actor update
-    pi, log_pi, _ = self.actor.sample(obs_batch)
+    action, log_pi, _ = self.actor.sample(obs_batch)
+    q1, q2 = self.critic(obs_batch, action)
 
-    qf1_pi, qf2_pi = self.critic(obs_batch, pi)
-    min_qf_pi = torch.min(qf1_pi, qf2_pi)
-
-    actor_loss = ((self.alpha * log_pi) - min_qf_pi).mean()
-    #actor_loss = (((self.alpha * log_pi) - min_qf_pi) * weight_batch).mean()
+    actor_loss = torch.mean((self.alpha * log_pi) - torch.min(q1, q2))
 
     self.actor_optimizer.zero_grad()
     actor_loss.backward()
-    if self.config.clip_gradient:
-      torch_utils.clipGradNorm(self.actor_optimizer)
     self.actor_optimizer.step()
 
+    # Alpha update
     alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
-    #alpha_loss = -((self.log_alpha * (log_pi + self.target_entropy).detach()) * weight_batch).mean()
 
     self.alpha_optimizer.zero_grad()
     alpha_loss.backward()
     self.alpha_optimizer.step()
 
-    self.alpha = self.log_alpha.exp()
+    with torch.no_grad():
+      entropy = -log_pi.detach().mean()
+      self.alpha = self.log_alpha.exp()
 
-    return td_error, (actor_loss.item(), critic_loss.item())
+    return td_error, (actor_loss.item(), critic_loss.item(), alpha_loss.item(), entropy.item())
 
   def softTargetUpdate(self):
     '''

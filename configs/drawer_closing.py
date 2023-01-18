@@ -4,7 +4,7 @@ import numpy as np
 
 from configs.config import Config
 
-class BlockPushingConfig(Config):
+class DrawerClosingConfig(Config):
   '''
   Task config for block picking.
 
@@ -19,11 +19,11 @@ class BlockPushingConfig(Config):
     # Env
     self.obs_size = 128
     self.robot = 'panda'
-    self.env_type = 'close_loop_block_pushing'
+    self.env_type = 'close_loop_drawer_closing'
     self.max_steps = 50
-    self.dpos = 0.025
-    self.drot = np.pi / 16
-    self.max_force = 20
+    self.dpos = 0.05
+    self.drot = np.pi / 4
+    self.max_force = 30
 
     # Data Gen
     self.num_data_gen_envs = 5
@@ -32,11 +32,11 @@ class BlockPushingConfig(Config):
     # Training
     if results_path:
       self.results_path = os.path.join(self.root_path,
-                                       'block_pushing',
+                                       'drawer_closing',
                                        results_path)
     else:
       self.results_path = os.path.join(self.root_path,
-                                       'block_pushing',
+                                       'drawer_closing',
                                        datetime.datetime.now().strftime('%Y-%m-%d--%H-%M-%S'))
     self.save_model = True
     self.training_steps = 10000
@@ -47,8 +47,6 @@ class BlockPushingConfig(Config):
     self.tau = 1e-2
     self.discount = 0.99
     self.clip_gradient = False
-    self.deterministic = False
-    self.encoder = 'depth'#'fusion'
 
      # Eval
     self.num_eval_envs = 5
@@ -93,7 +91,6 @@ class BlockPushingConfig(Config):
       'workspace_check' : 'point',
       'reward_type' : self.reward_type,
       'view_type' : self.view_type,
-      'num_sensors' : 1,
       'obs_type' : self.obs_type,
       'render': render
     }
