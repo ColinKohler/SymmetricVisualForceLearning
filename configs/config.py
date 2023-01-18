@@ -6,7 +6,7 @@ class Config(object):
   Base task config.
   '''
 
-  def __init__(self, num_gpus=1):
+  def __init__(self, num_sensors=2, encoder='fusion', num_gpus=1):
     # Env
     self.obs_type = ['depth', 'force', 'proprio']
     self.depth_size = 128
@@ -15,11 +15,12 @@ class Config(object):
     self.force_history = 64
     self.max_force = 100
     self.proprio_dim = 6
+    self.num_sensors = num_sensors
 
     self.action_sequence = 'pxyzr'
     self.action_dim =  len(self.action_sequence)
 
-    self.workspace = np.array([[0.25, 0.65], [-0.2, 0.2], [0.01, 0.25]])
+    self.workspace = np.array([[0.25, 0.65], [-0.2, 0.2], [-0.01, 0.25]])
     self.view_type = 'render_center'
     self.random_orientation = True
     self.robot = 'panda'
@@ -28,7 +29,8 @@ class Config(object):
     self.dpos = 1e-3
     self.drot = np.pi / self.dpos
 
-    self.deterministic = True
+    self.encoder = encoder
+
     # Training
     self.root_path = 'data'
     self.num_gpus = num_gpus
@@ -36,6 +38,7 @@ class Config(object):
     self.gen_data_on_gpu = False
     self.per_beta_anneal_steps = None
     self.clip_gradient = False
+    self.deterministic = True
 
     # Occlusions
     self.occlusion_size = 0

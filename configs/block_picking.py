@@ -12,8 +12,8 @@ class BlockPickingConfig(Config):
     num_gpus (int):
     results_path (str):
   '''
-  def __init__(self, num_gpus=1, results_path=None):
-    super().__init__(num_gpus=num_gpus)
+  def __init__(self, num_sensors=2, encoder='fusion', num_gpus=1, results_path=None):
+    super().__init__(num_sensors=num_sensors, encoder=encoder, num_gpus=num_gpus)
     self.seed = None
 
     # Env
@@ -47,7 +47,6 @@ class BlockPickingConfig(Config):
     self.tau = 1e-2
     self.discount = 0.99
     self.deterministic = True
-    self.encoder = 'depth'
 
     # Eval
     self.num_eval_envs = 5
@@ -92,7 +91,7 @@ class BlockPickingConfig(Config):
       'workspace_check' : 'point',
       'reward_type' : self.reward_type,
       'view_type' : self.view_type,
-      'num_sensors' : 1,
+      'num_sensors' : self.num_sensors,
       'obs_type' : self.obs_type,
       'render': render
     }
