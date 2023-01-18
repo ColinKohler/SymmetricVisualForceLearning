@@ -17,19 +17,20 @@ class ForceEncoder(nn.Module):
     self.attn  = nn.MultiheadAttention(64, 8, kdim=64, vdim=64, batch_first=True)
 
     self.c4_act = gspaces.rot2dOnR2(N)
-    self.in_type = enn.FieldType(self.c4_act, 16 * 64 * [self.c4_act.trivial_repr])
+    self.in_type = enn.FieldType(self.c4_act, 64 * 64 * [self.c4_act.trivial_repr])
     self.out_type = enn.FieldType(self.c4_act, z_dim  * [self.c4_act.regular_repr])
     self.conv = EquivariantBlock(self.in_type, self.out_type, kernel_size=1, stride=1, padding=0, initialize=initialize)
 
   def forward(self, x):
     batch_size =  x.size(0)
 
-    x_embed = self.embed(x.view(batch_size * 16, 6)).view(batch_size, 16, 64)
+    x_embed = self.embed(x.view(batch_size * 64, 6)).view(batch_size, 64, 64)
     x_attend, attn = self.attn(
       x_embed,
       x_embed,
       x_embed,
     )
+    x_ = x_embed + x_attend
 
     #import matplotlib.pyplot as plt
     #fig, ax = plt.subplots(nrows=2, ncols=1)
@@ -42,6 +43,6 @@ class ForceEncoder(nn.Module):
     #ax[1].imshow(attn.cpu().squeeze())
     #plt.show()
 
-    x_geo = enn.GeometricTensor(x_attend.reshape(batch_size, -1, 1, 1), self.in_type)
+    x_geo = enn.GeometricTensor(x_.reshape(batch_size, -1, 1, 1), self.in_type)
 
     return self.conv(x_geo)
