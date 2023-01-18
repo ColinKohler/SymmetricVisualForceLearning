@@ -103,17 +103,20 @@ class ReplayBuffer(object):
       proprio = eps_history.proprio_history[eps_step].reshape(1, self.config.proprio_dim)
       proprio_ = eps_history.proprio_history[eps_step+1].reshape(1, self.config.proprio_dim)
 
-      depth, force, proprio, depth_, force_, proprio_, action = self.augmentTransitionSO2(
-        eps_history.depth_history[eps_step],
-        force,
-        proprio,
-        eps_history.depth_history[eps_step+1],
-        force_,
-        proprio_,
-        eps_history.action_history[eps_step+1]
-      )
-      depth = torch_utils.unnormalizeDepth(depth)
-      depth_ = torch_utils.unnormalizeDepth(depth_)
+      #depth, force, proprio, depth_, force_, proprio_, action = self.augmentTransitionSO2(
+      #  eps_history.depth_history[eps_step],
+      #  force,
+      #  proprio,
+      #  eps_history.depth_history[eps_step+1],
+      #  force_,
+      #  proprio_,
+      #  eps_history.action_history[eps_step+1]
+      #)
+      #depth = torch_utils.unnormalizeDepth(depth)
+      #depth_ = torch_utils.unnormalizeDepth(depth_)
+      depth = torch_utils.unnormalizeDepth(eps_history.depth_history[eps_step])
+      depth_ = torch_utils.unnormalizeDepth(eps_history.depth_history[eps_step+1])
+      action = eps_history.action_history[eps_step+]
 
       index_batch.append([eps_id, eps_step])
       depth_batch.append(depth)
