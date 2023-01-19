@@ -17,10 +17,10 @@
 
 #SBATCH --exclude=c[2160,2162-2175,2176-2183],d1008,d1011,d1026
 
-if [ $# -eq 1 ]; then
-  python -u scripts/train.py $1
-elif [ $# -eq 2 ]; then
-  python -u scripts/train.py $1 --results_path=$2
+if [ $# -eq 3 ]; then
+  python -u scripts/train.py $1 --num_sensors=$2 --encoder=$3
+elif [ $# -eq 4 ]; then
+  python -u scripts/train.py $1 --num_sensors=$2 --encoder=$3 --results_path=$4
 else
-  python -u scripts/train.py $1 --results_path=$2 --checkpoint=$3 --buffer=$4
+  python -u scripts/train.py $1 --num_sensors=$2 --encoder=$3 --results_path=$4 --checkpoint=$5 --buffer=$6
 fi
