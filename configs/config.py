@@ -29,7 +29,7 @@ class Config(object):
     self.dpos = 1e-3
     self.drot = np.pi / self.dpos
 
-    self.encoder = encoder
+    self.encoder = encoder.split('+')
 
     # Training
     self.root_path = '/home/kohler.c/scratch/midichlorians/'

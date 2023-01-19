@@ -34,7 +34,7 @@ if __name__ == '__main__':
     help='Path to save results & logs to while training. Defaults to current timestamp.')
   parser.add_argument('--num_sensors', type=int, default=2,
     help='Number of sensors to use when rendering the heightmap')
-  parser.add_argument('--encoder', type=str, default='fusion',
+  parser.add_argument('--encoder', type=str, default='depth+force+proprio',
     help='Type of latent encoder to use')
   parser.add_argument('--checkpoint', type=str, default=None,
     help='Path to the checkpoint to load.')

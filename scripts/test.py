@@ -29,11 +29,13 @@ if __name__ == '__main__':
     help='Type of latent encoder to use')
   parser.add_argument('--num_gpus', type=int, default=1,
     help='Number of GPUs to use for training.')
+  parser.add_argument('--plot_obs', action='store_true', default=False,
+    help='Plot the observations while evaluating.')
   parser.add_argument('--render', action='store_true', default=False,
     help='Render the simulation while evaluating.')
   args = parser.parse_args()
 
-  task_config = task_configs[args.task](args.num_sensors, args.encoder, args.num_gpus, results_path=args.results_path)
+  task_config = task_configs[args.task](args.num_sensors, args.encoder, args.num_gpus, results_path=args.checkpoint)
   checkpoint_path = os.path.join(task_config.results_path,
                                  'model.checkpoint')
   if os.path.exists(checkpoint_path):
@@ -67,17 +69,17 @@ if __name__ == '__main__':
         evaluate=True
       )
 
-      print(value)
+      #print(value)
       #if np.mean(np.abs(obs[3])) > 2e-2:
-      if True:
+      if args.plot_obs:
         fig, ax = plt.subplots(nrows=1, ncols=2)
         ax[0].imshow(obs[0].squeeze(), cmap='gray')
-        ax[1].plot(obs[1][:,0], label='Fx')
-        ax[1].plot(obs[1][:,1], label='Fy')
-        ax[1].plot(obs[1][:,2], label='Fz')
-        ax[1].plot(obs[1][:,3], label='Mx')
-        ax[1].plot(obs[1][:,4], label='My')
-        ax[1].plot(obs[1][:,5], label='Mz')
+        ax[1].plot(torch_utils.normalizeForce(obs[1][:,0], task_config.max_force), label='Fx')
+        ax[1].plot(torch_utils.normalizeForce(obs[1][:,1], task_config.max_force), label='Fy')
+        ax[1].plot(torch_utils.normalizeForce(obs[1][:,2], task_config.max_force), label='Fz')
+        ax[1].plot(torch_utils.normalizeForce(obs[1][:,3], task_config.max_force), label='Mx')
+        ax[1].plot(torch_utils.normalizeForce(obs[1][:,4], task_config.max_force), label='My')
+        ax[1].plot(torch_utils.normalizeForce(obs[1][:,5], task_config.max_force), label='Mz')
         plt.legend()
         plt.show()
 

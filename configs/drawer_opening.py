@@ -47,7 +47,6 @@ class DrawerOpeningConfig(Config):
     self.tau = 1e-2
     self.discount = 0.99
     self.deterministic = True
-    self.encoder = 'fusion'
 
      # Eval
     self.num_eval_envs = 5
@@ -92,7 +91,7 @@ class DrawerOpeningConfig(Config):
       'workspace_check' : 'point',
       'reward_type' : self.reward_type,
       'view_type' : self.view_type,
-      'num_sensors' : 1,
+      'num_sensors' : self.num_sensors,
       'obs_type' : self.obs_type,
       'render': render
     }
