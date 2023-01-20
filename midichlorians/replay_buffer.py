@@ -49,6 +49,7 @@ class ReplayBuffer(object):
           priority = np.abs(value - (eps_history.reward_history[i] + self.config.discount * eps_history.value_history[i+1])) + self.config.per_eps
         else:
           priority = np.abs(value - eps_history.reward_history[i]) + self.config.per_eps
+        priority += 1 if eps_history.is_expert else 0
         priorities.append(priority ** self.config.per_alpha)
 
       eps_history.priorities = np.array(priorities, dtype=np.float32)
@@ -246,7 +247,7 @@ class ReplayBuffer(object):
       if next(iter(self.buffer)) <= eps_id:
         td_error = td_errors[i]
 
-        self.buffer[eps_id].priorities[eps_step] = (td_error + self.config.per_eps) ** self.config.per_alpha
+        self.buffer[eps_id].priorities[eps_step] = (td_error + (1 if self.buffer[eps_id].is_expert else 0) + self.config.per_eps) ** self.config.per_alpha
         self.buffer[eps_id].eps_priority = np.max(self.buffer[eps_id].priorities)
 
   def resetPriorities(self):
