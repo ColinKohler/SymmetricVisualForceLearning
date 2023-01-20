@@ -9,7 +9,7 @@ class Config(object):
   def __init__(self, num_sensors=2, encoder='fusion', num_gpus=1):
     # Env
     self.obs_type = ['depth', 'force', 'proprio']
-    self.depth_size = 128
+    self.depth_size = 64#128
     self.depth_channels = 4
     self.force_dim = 6
     self.force_history = 64

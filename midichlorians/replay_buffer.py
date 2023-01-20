@@ -49,6 +49,7 @@ class ReplayBuffer(object):
           priority = np.abs(value - (eps_history.reward_history[i] + self.config.discount * eps_history.value_history[i+1])) + self.config.per_eps
         else:
           priority = np.abs(value - eps_history.reward_history[i]) + self.config.per_eps
+        priority += 1 if eps_history.is_expert else 0
         priorities.append(priority ** self.config.per_alpha)
 
       eps_history.priorities = np.array(priorities, dtype=np.float32)
@@ -107,8 +108,6 @@ class ReplayBuffer(object):
         eps_history.depth_history[eps_step],
         eps_history.depth_history[eps_step+1],
       )
-      #depth = eps_history.depth_history[eps_step]
-      #depth_ = eps_history.depth_history[eps_step+1]
       action = eps_history.action_history[eps_step+1]
 
       index_batch.append([eps_id, eps_step])
@@ -194,7 +193,7 @@ class ReplayBuffer(object):
     depth_aug, depth_aug_, transform_params = torch_utils.perturb(
       depth.copy(),
       depth_.copy(),
-      set_theta_zero_zero=True
+      set_theta_zero=True
     )
 
     depth = depth_aug.reshape(*depth.shape)
@@ -227,7 +226,7 @@ class ReplayBuffer(object):
       if next(iter(self.buffer)) <= eps_id:
         td_error = td_errors[i]
 
-        self.buffer[eps_id].priorities[eps_step] = (td_error + self.config.per_eps) ** self.config.per_alpha
+        self.buffer[eps_id].priorities[eps_step] = (td_error + (1 if self.buffer[eps_id].is_expert else 0) + self.config.per_eps) ** self.config.per_alpha
         self.buffer[eps_id].eps_priority = np.max(self.buffer[eps_id].priorities)
 
   def resetPriorities(self):

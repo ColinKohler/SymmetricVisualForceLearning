@@ -69,7 +69,6 @@ class Trainer(object):
     # Initialize data generator
     self.agent = Agent(self.config, self.device, actor=self.actor, critic=self.critic)
     self.data_generator = DataGenerator(self.agent, self.config, self.config.seed)
-    self.data_generator.resetEnvs()
 
     # Set random number generator seed
     if self.config.seed:
@@ -86,6 +85,7 @@ class Trainer(object):
       logger (ray.worker): Logger worker, logs training data across workers.
     '''
     num_expert_eps = 0
+    self.data_generator.resetEnvs(True)
     while num_expert_eps < self.config.num_expert_episodes:
       self.data_generator.stepEnvsAsync(shared_storage, replay_buffer, logger, expert=True)
       complete_eps = self.data_generator.stepEnvsWait(shared_storage, replay_buffer, logger, expert=True)
@@ -100,6 +100,7 @@ class Trainer(object):
       logger (ray.worker): Logger worker, logs training data across workers.
     '''
     current_eps = 0
+    self.data_generator.resetEnvs(False)
     while current_eps < num_eps:
       self.data_generator.stepEnvsAsync(shared_storage, replay_buffer, logger)
       complete_eps = self.data_generator.stepEnvsWait(shared_storage, replay_buffer, logger)
@@ -115,7 +116,7 @@ class Trainer(object):
       shared_storage (ray.worker): Shared storage worker, shares data across workers.
       logger (ray.worker): Logger worker, logs training data across workers.
     '''
-    self.data_generator.resetEnvs()
+    self.data_generator.resetEnvs(False)
 
     next_batch = replay_buffer.sample.remote(shared_storage)
     while self.training_step < self.config.training_steps and \
@@ -138,7 +139,6 @@ class Trainer(object):
       self.data_generator.stepEnvsWait(shared_storage, replay_buffer, logger)
 
       # Update target critic towards current critic
-      #if self.training_step % self.config.target_update_interval == 0:
       self.softTargetUpdate()
 
       # Update LRs
