@@ -103,7 +103,7 @@ class ReplayBuffer(object):
       proprio = eps_history.proprio_history[eps_step].reshape(1, self.config.proprio_dim)
       proprio_ = eps_history.proprio_history[eps_step+1].reshape(1, self.config.proprio_dim)
 
-      depth, depth_, = self.augmentTransitionSO2(
+      depth, depth_, = self.crop(
         eps_history.depth_history[eps_step],
         eps_history.depth_history[eps_step+1],
       )
@@ -199,6 +199,17 @@ class ReplayBuffer(object):
 
     depth = depth_aug.reshape(*depth.shape)
     depth_ = depth_aug_.reshape(*depth_.shape)
+
+    return depth, depth_
+
+  def crop(self, depth, depth_):
+    s = depth.shape[-1]
+
+    crop_max = s - 64 + 1
+    w1 = npr.randint(0, crop_max)
+    w2 = npr.randint(0, crop_max)
+    depth = depth[:, w1:w1+64, w2:w2+64]
+    depth_ = depth_[:, w1:w1+64, w2:w2+64]
 
     return depth, depth_
 
