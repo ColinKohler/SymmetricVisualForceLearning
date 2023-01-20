@@ -69,7 +69,14 @@ if __name__ == '__main__':
         evaluate=True
       )
 
-      #print(value)
+      #_, _, zvalue = agent.getAction(
+      #  obs[0].reshape(1, *obs[0].shape),
+      #  np.zeros_like(obs[1]),
+      #  obs[2],
+      #  evaluate=True
+      #)
+
+      #print('v: {:.3f} | z: {:.3f}'.format(value.item(), zvalue.item()))
       #if np.mean(np.abs(obs[3])) > 2e-2:
       if args.plot_obs:
         fig, ax = plt.subplots(nrows=1, ncols=3)

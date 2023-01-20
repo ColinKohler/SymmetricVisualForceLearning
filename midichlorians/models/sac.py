@@ -30,7 +30,7 @@ class Critic(nn.Module):
     self.inner_type_2 = enn.FieldType(self.c4_act, self.z_dim * [self.c4_act.trivial_repr])
     self.out_type = enn.FieldType(self.c4_act, 1 * [self.c4_act.trivial_repr])
 
-    self.encoder = Latent(encoder=encoder)
+    self.encoder = Latent(encoder=encoder, initialize=initialize)
 
     self.critic_1 = nn.Sequential(
       EquivariantBlock(self.in_type, self.inner_type, kernel_size=1, stride=1, padding=0, initialize=initialize),
@@ -83,7 +83,7 @@ class GaussianPolicy(nn.Module):
     self.invariant_action_repr = (self.action_dim * 2 - 2) * [self.c4_act.trivial_repr]
     self.equivariant_action_repr = self.n_rho1 * [self.c4_act.irrep(1)]
 
-    self.encoder = Latent(encoder=encoder)
+    self.encoder = Latent(encoder=encoder, initialize=initialize)
 
     self.layers = list()
 
