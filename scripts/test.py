@@ -29,6 +29,8 @@ if __name__ == '__main__':
     help='Type of latent encoder to use')
   parser.add_argument('--num_gpus', type=int, default=1,
     help='Number of GPUs to use for training.')
+  parser.add_argument('--plot_obs', action='store_true', default=False,
+    help='Plot the observations while evaluating.')
   parser.add_argument('--render', action='store_true', default=False,
     help='Render the simulation while evaluating.')
   parser.add_argument('--plot_obs', action='store_true', default=False,
@@ -69,7 +71,7 @@ if __name__ == '__main__':
         evaluate=True
       )
 
-      print(value)
+      #print(value)
       #if np.mean(np.abs(obs[3])) > 2e-2:
       if args.plot_obs:
         fig, ax = plt.subplots(nrows=1, ncols=3)

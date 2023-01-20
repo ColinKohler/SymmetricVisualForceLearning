@@ -39,14 +39,13 @@ class PegInsertionConfig(Config):
                                        'peg_insertion',
                                        datetime.datetime.now().strftime('%Y-%m-%d--%H-%M-%S'))
     self.save_model = True
-    self.training_steps = 20000
+    self.training_steps = 10000
     self.batch_size = 64
     self.target_update_interval = 1
     self.checkpoint_interval = 500
     self.init_temp = 1e-2
     self.tau = 1e-2
     self.discount = 0.99
-    self.clip_gradient = False
 
     # Eval
     self.num_eval_envs = 5
@@ -91,6 +90,7 @@ class PegInsertionConfig(Config):
       'workspace_check' : 'point',
       'reward_type' : self.reward_type,
       'view_type' : self.view_type,
+      'num_sensors' : 3,
       'obs_type' : self.obs_type,
       'render': render
     }

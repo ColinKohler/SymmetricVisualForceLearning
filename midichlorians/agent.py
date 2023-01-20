@@ -54,6 +54,7 @@ class Agent(object):
     depth = torch.Tensor(depth.astype(np.float32)).view(depth.shape[0], self.config.depth_channels, self.config.depth_size, self.config.depth_size).to(self.device)
     force = torch.Tensor(torch_utils.normalizeForce(force, self.config.max_force)).view(depth.shape[0], self.config.force_history, self.config.force_dim).to(self.device)
     proprio = torch.Tensor(proprio).view(depth.shape[0], self.config.proprio_dim).to(self.device)
+    breakpoint()
 
     with torch.no_grad():
       if evaluate:
