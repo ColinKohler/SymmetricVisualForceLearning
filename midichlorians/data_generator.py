@@ -198,9 +198,7 @@ class EpisodeHistory(object):
     self.eps_priority = None
 
   def logStep(self, depth, force, proprio, action, value, reward, done, max_force):
-    self.depth_history.append(
-      torch_utils.normalizeDepth(depth).squeeze()
-    )
+    self.depth_history.append(depth)
     self.force_history.append(
       torch_utils.normalizeForce(force, max_force)
     )
