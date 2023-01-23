@@ -196,7 +196,7 @@ class Trainer(object):
     Returns:
       (numpy.array, double) : (Priorities, Batch Loss)
     '''
-    obs_batch, next_obs_batch, action_batch, reward_batch, non_final_mask_batch, weight_batch = batch
+    obs_batch, next_obs_batch, action_batch, reward_batch, non_final_mask_batch, is_expert_batch, weight_batch = batch
 
     obs_batch = (obs_batch[0].to(self.device), obs_batch[1].to(self.device), obs_batch[2].to(self.device))
     next_obs_batch = (next_obs_batch[0].to(self.device), next_obs_batch[1].to(self.device), next_obs_batch[2].to(self.device))
@@ -218,10 +218,6 @@ class Trainer(object):
     curr_q1, curr_q2 = curr_q1.squeeze(), curr_q2.squeeze()
 
     critic_loss = F.mse_loss(curr_q1, target_q) + F.mse_loss(curr_q2, target_q)
-    #kl_loss = 0.05 * torch.mean(
-    #  torch_utils.klNormal(mu_z, var_z, mu_prior.squeeze(0), var_prior.squeeze(0))
-    #)
-    #critic_loss += kl_loss
 
     with torch.no_grad():
       td_error = 0.5 * (torch.abs(curr_q1 - target_q) + torch.abs(curr_q2 - target_q))
@@ -235,6 +231,8 @@ class Trainer(object):
     q1, q2 = self.critic(obs_batch, action)
 
     actor_loss = torch.mean((self.alpha * log_pi) - torch.min(q1, q2))
+    if is_expert_batch.sum():
+      actor_loss += 0.1 * F.mse_loss(action[is_expert_batch], action_batch[is_expert_batch])
 
     self.actor_optimizer.zero_grad()
     actor_loss.backward()

@@ -91,8 +91,9 @@ class ReplayBuffer(object):
      action_batch,
      reward_batch,
      done_batch,
+     is_expert_batch,
      weight_batch
-    ) = [list() for _ in range(11)]
+    ) = [list() for _ in range(12)]
 
     for _ in range(self.config.batch_size):
       eps_id, eps_history, eps_prob = self.sampleEps(uniform=False)
@@ -120,6 +121,7 @@ class ReplayBuffer(object):
       action_batch.append(action)
       reward_batch.append(eps_history.reward_history[eps_step+1])
       done_batch.append(eps_history.done_history[eps_step+1])
+      is_expert_batch.append(eps_history.is_expert)
 
       training_step = ray.get(shared_storage.getInfo.remote('training_step'))
       weight_batch.append((1 / (self.total_samples * eps_prob * step_prob)) ** self.config.getPerBeta(training_step))
@@ -134,6 +136,7 @@ class ReplayBuffer(object):
     reward_batch = torch.tensor(reward_batch).float()
     done_batch = torch.tensor(done_batch).int()
     non_final_mask_batch = (done_batch ^ 1).float()
+    is_expert_batch = torch.tensor(is_expert_batch).long()
     weight_batch = torch.tensor(weight_batch).float()
 
     return (
@@ -144,6 +147,7 @@ class ReplayBuffer(object):
         action_batch,
         reward_batch,
         non_final_mask_batch,
+        is_expert_batch,
         weight_batch
       )
     )
