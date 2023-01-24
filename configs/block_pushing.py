@@ -17,7 +17,7 @@ class BlockPushingConfig(Config):
     self.seed = None
 
     # Env
-    self.obs_size = 128
+    self.obs_size = 76
     self.robot = 'panda'
     self.env_type = 'close_loop_block_pushing'
     self.max_steps = 50

@@ -7,7 +7,7 @@ from escnn import nn as enn
 from midichlorians.models.layers import EquivariantBlock
 from midichlorians.models.encoders.proprio_encoder import ProprioEncoder
 from midichlorians.models.encoders.depth_encoder import DepthEncoder
-from midichlorians.models.encoders.force_encoder import ForceEncoder
+from midichlorians.models.encoders.force_encoder_2 import ForceEncoder
 from midichlorians import torch_utils
 
 class Latent(nn.Module):
