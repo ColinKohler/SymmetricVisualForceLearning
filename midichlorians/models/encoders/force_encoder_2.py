@@ -23,37 +23,37 @@ class ForceEncoder(nn.Module):
     )
     out_type = enn.FieldType(self.c4_act, z_dim // 16 * [self.c4_act.regular_repr])
     self.layers.append(EquivariantBlock(self.in_type, out_type, kernel_size=1, stride=1, padding=0, initialize=initialize))
-    self.layers.append(enn.PointwiseMaxPool(out_type, 2))
+    self.layers.append(enn.PointwiseMaxPool(out_type, (1,2)))
 
     # 32x32
     in_type = out_type
     out_type = enn.FieldType(self.c4_act, z_dim // 8 * [self.c4_act.regular_repr])
     self.layers.append(EquivariantBlock(in_type, out_type, kernel_size=1, stride=1, padding=0, initialize=initialize))
-    self.layers.append(enn.PointwiseMaxPool(out_type, 2))
+    self.layers.append(enn.PointwiseMaxPool(out_type, (1, 2)))
 
     # 16x16
     in_type = out_type
     out_type = enn.FieldType(self.c4_act, z_dim // 4 * [self.c4_act.regular_repr])
     self.layers.append(EquivariantBlock(in_type, out_type, kernel_size=1, stride=1, padding=0, initialize=initialize))
-    self.layers.append(enn.PointwiseMaxPool(out_type, 2))
+    self.layers.append(enn.PointwiseMaxPool(out_type, (1, 2)))
 
     # 8x8
     in_type = out_type
     out_type = enn.FieldType(self.c4_act, z_dim // 2 * [self.c4_act.regular_repr])
     self.layers.append(EquivariantBlock(in_type, out_type, kernel_size=1, stride=1, padding=0, initialize=initialize))
-    self.layers.append(enn.PointwiseMaxPool(out_type, 2))
+    self.layers.append(enn.PointwiseMaxPool(out_type, (1, 2)))
 
     # 4x4
     in_type = out_type
     out_type = enn.FieldType(self.c4_act, z_dim * [self.c4_act.regular_repr])
     self.layers.append(EquivariantBlock(in_type, out_type, kernel_size=1, stride=1, padding=0, initialize=initialize))
-    self.layers.append(enn.PointwiseMaxPool(out_type, 2))
+    self.layers.append(enn.PointwiseMaxPool(out_type, (1, 2)))
 
     # 2x2
     in_type = out_type
     out_type = enn.FieldType(self.c4_act, z_dim * [self.c4_act.regular_repr])
     self.layers.append(EquivariantBlock(in_type, out_type, kernel_size=1, stride=1, padding=0, initialize=initialize))
-    self.layers.append(enn.PointwiseMaxPool(out_type, 2))
+    self.layers.append(enn.PointwiseMaxPool(out_type, (1, 2)))
 
     # 1x1
     in_type = out_type
@@ -65,8 +65,8 @@ class ForceEncoder(nn.Module):
   def forward(self, x):
     batch_size = x.size(0)
 
-    x_tile = x.permute(0,2,1).view(batch_size, 6, 64)
-    x_tile = torch.tile(x_tile, (1, 1, 64)).view(batch_size, 6, 64, 64)
+    x_tile = x.permute(0,2,1).view(batch_size, 6, 1, 64)
+    #x_tile = torch.tile(x_tile, (1, 1, 64)).view(batch_size, 6, 64, 64)
 
     x_geo = enn.GeometricTensor(x_tile, self.in_type)
     return self.conv(x_geo)
