@@ -17,7 +17,7 @@ class BlockPickingConfig(Config):
     self.seed = None
 
     # Env
-    self.obs_size = 96
+    self.obs_size = 76
     self.robot = 'panda'
     self.env_type = 'close_loop_block_picking'
     self.max_steps = 50
@@ -90,7 +90,7 @@ class BlockPickingConfig(Config):
       'random_orientation' : self.random_orientation,
       'workspace_check' : 'point',
       'reward_type' : self.reward_type,
-      'view_type' : 'camera_side_rgbd',#self.view_type,
+      'view_type' : self.view_type,
       'num_sensors' : self.num_sensors,
       'obs_type' : self.obs_type,
       'render': render

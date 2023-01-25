@@ -101,6 +101,8 @@ class ReplayBuffer(object):
 
       force = eps_history.force_history[eps_step].reshape(self.config.force_history, self.config.force_dim)
       force_ = eps_history.force_history[eps_step+1].reshape(self.config.force_history, self.config.force_dim)
+      #force += npr.uniform(-0.1, 0.1, force.shape)
+      #force_ += npr.uniform(-0.1, 0.1, force_.shape)
 
       proprio = eps_history.proprio_history[eps_step].reshape(1, self.config.proprio_dim)
       proprio_ = eps_history.proprio_history[eps_step+1].reshape(1, self.config.proprio_dim)

@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal
-import e2cnn.nn as enn
+import escnn.nn as enn
 import numpy as np
 import numpy.random as npr
 import scipy.ndimage

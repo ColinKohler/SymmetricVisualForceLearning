@@ -162,7 +162,7 @@ class Trainer(object):
         )
 
         if self.config.save_model:
-          shared_storage.saveReplayBuffer.remote(replay_buffer.getBuffer.remote())
+          #shared_storage.saveReplayBuffer.remote(replay_buffer.getBuffer.remote())
           shared_storage.saveCheckpoint.remote()
 
       # Logger/Shared storage updates
