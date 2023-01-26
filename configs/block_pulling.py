@@ -17,7 +17,7 @@ class BlockPullingConfig(Config):
     self.seed = 1234
 
     # Env
-    self.obs_size = 128
+    self.obs_size = 76
     self.robot = 'panda'
     self.env_type = 'close_loop_block_pulling'
     self.max_steps = 50
@@ -27,7 +27,7 @@ class BlockPullingConfig(Config):
 
     # Data Gen
     self.num_data_gen_envs = 5
-    self.num_expert_episodes = 20
+    self.num_expert_episodes = 50
 
     # Training
     if results_path:
@@ -39,7 +39,7 @@ class BlockPullingConfig(Config):
                                        'block_pulling',
                                        datetime.datetime.now().strftime('%Y-%m-%d--%H-%M-%S'))
     self.save_model = True
-    self.training_steps = 10000
+    self.training_steps = 50000
     self.batch_size = 64
     self.target_update_interval = 1
     self.checkpoint_interval = 100
