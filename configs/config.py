@@ -9,8 +9,8 @@ class Config(object):
   def __init__(self, num_sensors=2, encoder='fusion', num_gpus=1):
     # Env
     self.obs_type = ['depth', 'force', 'proprio']
-    self.depth_size = 128
-    self.depth_channels = 1
+    self.depth_size = 64#128
+    self.depth_channels = 4
     self.force_dim = 6
     self.force_history = 64
     self.max_force = 100
@@ -21,7 +21,7 @@ class Config(object):
     self.action_dim =  len(self.action_sequence)
 
     self.workspace = np.array([[0.25, 0.65], [-0.2, 0.2], [-0.01, 0.25]])
-    self.view_type = 'render_center'
+    self.view_type = 'camera_side_rgbd'
     self.random_orientation = True
     self.robot = 'panda'
     self.reward_type = 'sparse'

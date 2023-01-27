@@ -17,7 +17,7 @@ class BlockPushingConfig(Config):
     self.seed = None
 
     # Env
-    self.obs_size = 128
+    self.obs_size = 76
     self.robot = 'panda'
     self.env_type = 'close_loop_block_pushing'
     self.max_steps = 50
@@ -91,7 +91,7 @@ class BlockPushingConfig(Config):
       'workspace_check' : 'point',
       'reward_type' : self.reward_type,
       'view_type' : self.view_type,
-      'num_sensors' : 1,
+      'num_sensors' : self.num_sensors,
       'obs_type' : self.obs_type,
       'render': render
     }

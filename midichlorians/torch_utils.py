@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal
-import e2cnn.nn as enn
+import escnn.nn as enn
 import numpy as np
 import numpy.random as npr
 import scipy.ndimage
@@ -77,10 +77,7 @@ def klNormal(qm, qv, pm, pv):
 
   return kl
 
-def perturb(depth, fxy_1, fxy_2, pxy, depth_, fxy_1_, fxy_2_, pxy_, dxy, set_theta_zero=False, set_trans_zero=False):
-  '''
-
-  '''
+def perturb(depth, depth_, set_theta_zero=False, set_trans_zero=False):
   depth_size = depth.shape[-2:]
 
   # Compute random rigid transform
@@ -92,24 +89,11 @@ def perturb(depth, fxy_1, fxy_2, pxy, depth_, fxy_1_, fxy_2_, pxy_, dxy, set_the
   transform = getImageTransform(theta, trans, pivot)
   transform_params = theta, trans, pivot
 
-  rot = np.array([[np.cos(theta), -np.sin(theta)],
-                  [np.sin(theta), np.cos(theta)]])
-  rotated_dxy = rot.dot(dxy)
-  rotated_dxy = np.clip(rotated_dxy, -1, 1)
-
-  rotated_fxy_1 = np.clip(rot.dot(fxy_1.T).T, -1, 1)
-  rotated_fxy_2 = np.clip(rot.dot(fxy_2.T).T, -1, 1)
-  rotated_fxy_1_ = np.clip(rot.dot(fxy_1_.T).T, -1, 1)
-  rotated_fxy_2_ = np.clip(rot.dot(fxy_2_.T).T, -1, 1)
-
-  rotated_pxy = np.clip(rot.dot(pxy.T).T, -1, 1)
-  rotated_pxy_ = np.clip(rot.dot(pxy_.T).T, -1, 1)
-
   # Apply rigid transform to depth
   depth = scipy.ndimage.affine_transform(depth, np.linalg.inv(transform), mode='nearest', order=1)
   depth_ = scipy.ndimage.affine_transform(depth_, np.linalg.inv(transform), mode='nearest', order=1)
 
-  return depth, rotated_fxy_1, rotated_fxy_2, rotated_pxy, depth_, rotated_fxy_1_, rotated_fxy_2_, rotated_pxy_, rotated_dxy, transform_params
+  return depth, depth_, transform_params
 
 def getRandomImageTransformParams(depth_size):
   ''''''
@@ -132,3 +116,20 @@ def getImageTransform(theta, trans, pivot=(0,0)):
                         [0., 0., 1.]])
   return np.dot(image_t_pivot, np.dot(transform, pivot_t_image))
 
+def randomCrop(imgs, out=64):
+  n, c, h, w = imgs.shape
+  crop_max = h - out + 1
+  w1 = np.random.randint(0, crop_max, n)
+  h1 = np.random.randint(0, crop_max, n)
+  cropped = np.empty((n, c, out, out), dtype=imgs.dtype)
+  for i, (img, w11, h11) in enumerate(zip(imgs, w1, h1)):
+    cropped[i] = img[:, h11:h11 + out, w11:w11 + out]
+  return cropped
+
+def centerCrop(imgs, out=64):
+  n, c, h, w = imgs.shape
+  top = (h - out) // 2
+  left = (w - out) // 2
+
+  imgs = imgs[:, :, top:top + out, left:left + out]
+  return imgs

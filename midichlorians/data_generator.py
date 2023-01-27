@@ -90,8 +90,8 @@ class DataGenerator(object):
     self.obs = None
     self.current_epsiodes = None
 
-  def resetEnvs(self):
-    self.current_episodes = [EpisodeHistory() for _ in range(self.num_envs)]
+  def resetEnvs(self, is_expert=False):
+    self.current_episodes = [EpisodeHistory(is_expert) for _ in range(self.num_envs)]
     self.obs = self.envs.reset()
     for i, eps_history in enumerate(self.current_episodes):
       eps_history.logStep(self.obs[0][i], self.obs[1][i], self.obs[2][i], np.array([0,0,0,0,0]), 0, 0, 0, self.config.max_force)
@@ -162,7 +162,7 @@ class DataGenerator(object):
           logger.logEvalEpisode.remote(self.current_episodes[done_idx].reward_history,
                                        self.current_episodes[done_idx].value_history)
 
-        self.current_episodes[done_idx] = EpisodeHistory()
+        self.current_episodes[done_idx] = EpisodeHistory(expert)
         self.current_episodes[done_idx].logStep(
           new_obs_[0][i],
           new_obs_[1][i],
@@ -185,7 +185,7 @@ class EpisodeHistory(object):
   '''
   Class containing the history of an episode.
   '''
-  def __init__(self):
+  def __init__(self, is_expert):
     self.depth_history = list()
     self.force_history = list()
     self.proprio_history = list()
@@ -193,14 +193,13 @@ class EpisodeHistory(object):
     self.value_history = list()
     self.reward_history = list()
     self.done_history = list()
+    self.is_expert = is_expert
 
     self.priorities = None
     self.eps_priority = None
 
   def logStep(self, depth, force, proprio, action, value, reward, done, max_force):
-    self.depth_history.append(
-      torch_utils.normalizeDepth(depth).squeeze()
-    )
+    self.depth_history.append(depth)
     self.force_history.append(
       torch_utils.normalizeForce(force, max_force)
     )
