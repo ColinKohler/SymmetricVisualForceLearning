@@ -27,7 +27,7 @@ class BlockPushingConfig(Config):
 
     # Data Gen
     self.num_data_gen_envs = 5
-    self.num_expert_episodes = 20
+    self.num_expert_episodes = 50
 
     # Training
     if results_path:
@@ -39,7 +39,7 @@ class BlockPushingConfig(Config):
                                        'block_pushing',
                                        datetime.datetime.now().strftime('%Y-%m-%d--%H-%M-%S'))
     self.save_model = True
-    self.training_steps = 10000
+    self.training_steps = 25000
     self.batch_size = 64
     self.target_update_interval = 1
     self.checkpoint_interval = 100

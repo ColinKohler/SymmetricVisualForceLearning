@@ -39,7 +39,7 @@ class BlockPickingConfig(Config):
                                        'block_picking',
                                        datetime.datetime.now().strftime('%Y-%m-%d--%H-%M-%S'))
     self.save_model = True
-    self.training_steps = 50000
+    self.training_steps = 25000
     self.batch_size = 64
     self.target_update_interval = 1
     self.checkpoint_interval = 100

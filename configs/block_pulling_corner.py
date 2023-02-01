@@ -17,7 +17,7 @@ class BlockPullingCornerConfig(Config):
     self.seed = None
 
     # Env
-    self.obs_size = 128
+    self.obs_size = 76
     self.robot = 'panda'
     self.env_type = 'close_loop_block_pulling_corner'
     self.max_steps = 50
@@ -27,7 +27,7 @@ class BlockPullingCornerConfig(Config):
 
     # Data Gen
     self.num_data_gen_envs = 5
-    self.num_expert_episodes = 20
+    self.num_expert_episodes = 50
 
     # Training
     if results_path:
@@ -39,7 +39,7 @@ class BlockPullingCornerConfig(Config):
                                        'block_pulling_corner',
                                        datetime.datetime.now().strftime('%Y-%m-%d--%H-%M-%S'))
     self.save_model = True
-    self.training_steps = 10000
+    self.training_steps = 25000
     self.batch_size = 64
     self.target_update_interval = 1
     self.checkpoint_interval = 100
@@ -86,12 +86,12 @@ class BlockPullingCornerConfig(Config):
       'action_sequence' : self.action_sequence,
       'robot' : self.robot,
       'num_objects' : 1,
-      'object_scale_range' : (1.2, 1.2),
+      'object_scale_range' : (1.0, 1.0),
       'random_orientation' : self.random_orientation,
       'workspace_check' : 'point',
       'reward_type' : self.reward_type,
       'view_type' : self.view_type,
-      'num_sensors' : 2,
+      'num_sensors' : self.num_sensors,
       'obs_type' : self.obs_type,
       'render': render
     }

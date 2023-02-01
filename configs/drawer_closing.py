@@ -17,17 +17,17 @@ class DrawerClosingConfig(Config):
     self.seed = None
 
     # Env
-    self.obs_size = 128
+    self.obs_size = 76
     self.robot = 'panda'
     self.env_type = 'close_loop_drawer_closing'
     self.max_steps = 50
-    self.dpos = 0.05
-    self.drot = np.pi / 4
+    self.dpos = 0.025
+    self.drot = np.pi / 16
     self.max_force = 30
 
     # Data Gen
     self.num_data_gen_envs = 5
-    self.num_expert_episodes = 20
+    self.num_expert_episodes = 50
 
     # Training
     if results_path:
@@ -39,7 +39,7 @@ class DrawerClosingConfig(Config):
                                        'drawer_closing',
                                        datetime.datetime.now().strftime('%Y-%m-%d--%H-%M-%S'))
     self.save_model = True
-    self.training_steps = 10000
+    self.training_steps = 25000
     self.batch_size = 64
     self.target_update_interval = 1
     self.checkpoint_interval = 100
@@ -91,6 +91,7 @@ class DrawerClosingConfig(Config):
       'workspace_check' : 'point',
       'reward_type' : self.reward_type,
       'view_type' : self.view_type,
+      'num_sensors' : self.num_sensors,
       'obs_type' : self.obs_type,
       'render': render
     }

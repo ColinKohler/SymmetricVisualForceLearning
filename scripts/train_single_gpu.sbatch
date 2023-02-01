@@ -1,6 +1,5 @@
 #!/bin/bash
 
-#SBATCH --job-name=force
 #SBATCH --output=scripts/outputs/%j.out
 #SBATCH --error=scripts/outputs/%j.err
 
@@ -17,6 +16,7 @@
 
 #SBATCH --exclude=c[2160,2162-2175,2176-2183],d1008,d1011,d1026
 
+echo "node: $SLURM_NODELIST"
 if [ $# -eq 3 ]; then
   python -u scripts/train.py $1 --num_sensors=$2 --encoder=$3
 elif [ $# -eq 4 ]; then
