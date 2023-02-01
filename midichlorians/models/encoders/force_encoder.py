@@ -5,7 +5,24 @@ import torch.nn.functional as F
 from escnn import gspaces
 from escnn import nn as enn
 
-from midichlorians.models.layers import CausalConv1d, EquivariantBlock
+from midichlorians.models.layers import EquivariantBlock
+
+class AttentionBlock(nn.Module):
+  def __init__(self):
+    super().__init__()
+
+    self.attn  = nn.MultiheadAttention(64, 8, kdim=64, vdim=64, batch_first=True)
+
+  def forward(self, x):
+    residual = x
+    x, attn = self.attn(
+      x,
+      x,
+      x,
+    )
+    x += residual
+
+    return x, attn
 
 class ForceEncoder(nn.Module):
   '''
@@ -14,7 +31,8 @@ class ForceEncoder(nn.Module):
     super().__init__()
 
     self.embed = nn.Linear(6,64)
-    self.attn  = nn.MultiheadAttention(64, 8, kdim=64, vdim=64, batch_first=True)
+    self.attention1 = AttentionBlock()
+    self.attention2 = AttentionBlock()
 
     self.c4_act = gspaces.rot2dOnR2(N)
     self.in_type = enn.FieldType(self.c4_act, 64 * 64 * [self.c4_act.trivial_repr])
@@ -25,12 +43,8 @@ class ForceEncoder(nn.Module):
     batch_size =  x.size(0)
 
     x_embed = self.embed(x.view(batch_size * 64, 6)).view(batch_size, 64, 64)
-    x_attend, attn = self.attn(
-      x_embed,
-      x_embed,
-      x_embed,
-    )
-    x_ = x_embed + x_attend
+    x_, _ = self.attention1(x_embed)
+    x_, _ = self.attention2(x_)
 
     #import matplotlib.pyplot as plt
     #fig, ax = plt.subplots(nrows=2, ncols=1)

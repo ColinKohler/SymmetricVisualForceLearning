@@ -193,15 +193,14 @@ class EpisodeHistory(object):
     self.value_history = list()
     self.reward_history = list()
     self.done_history = list()
+    self.is_expert = is_expert
 
     self.priorities = None
     self.eps_priority = None
     self.is_expert = is_expert
 
   def logStep(self, depth, force, proprio, action, value, reward, done, max_force):
-    self.depth_history.append(
-      torch_utils.normalizeDepth(depth).squeeze()
-    )
+    self.depth_history.append(depth)
     self.force_history.append(
       torch_utils.normalizeForce(force, max_force)
     )

@@ -51,7 +51,8 @@ class Agent(object):
     Returns:
       (numpy.array, double) : (Action, Q-Value)
     '''
-    depth = torch.Tensor(depth.astype(np.float32)).view(depth.shape[0], 1, self.config.depth_size, self.config.depth_size).to(self.device)
+    depth = torch.Tensor(depth.astype(np.float32)).view(depth.shape[0], depth.shape[1], depth.shape[2], depth.shape[3]).to(self.device)
+    depth = torch_utils.centerCrop(depth)
     force = torch.Tensor(torch_utils.normalizeForce(force, self.config.max_force)).view(depth.shape[0], self.config.force_history, self.config.force_dim).to(self.device)
     proprio = torch.Tensor(proprio).view(depth.shape[0], self.config.proprio_dim).to(self.device)
 

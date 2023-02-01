@@ -91,8 +91,9 @@ class ReplayBuffer(object):
      action_batch,
      reward_batch,
      done_batch,
+     is_expert_batch,
      weight_batch
-    ) = [list() for _ in range(11)]
+    ) = [list() for _ in range(12)]
 
     for _ in range(self.config.batch_size):
       eps_id, eps_history, eps_prob = self.sampleEps(uniform=False)
@@ -100,21 +101,17 @@ class ReplayBuffer(object):
 
       force = eps_history.force_history[eps_step].reshape(self.config.force_history, self.config.force_dim)
       force_ = eps_history.force_history[eps_step+1].reshape(self.config.force_history, self.config.force_dim)
+      #force += npr.uniform(-0.1, 0.1, force.shape)
+      #force_ += npr.uniform(-0.1, 0.1, force_.shape)
 
       proprio = eps_history.proprio_history[eps_step].reshape(1, self.config.proprio_dim)
       proprio_ = eps_history.proprio_history[eps_step+1].reshape(1, self.config.proprio_dim)
 
-      depth, force, proprio, depth_, force_, proprio_, action = self.augmentTransitionSO2(
+      depth, depth_, = self.crop(
         eps_history.depth_history[eps_step],
-        force,
-        proprio,
         eps_history.depth_history[eps_step+1],
-        force_,
-        proprio_,
-        eps_history.action_history[eps_step+1]
       )
-      depth = torch_utils.unnormalizeDepth(depth)
-      depth_ = torch_utils.unnormalizeDepth(depth_)
+      action = eps_history.action_history[eps_step+1]
 
       index_batch.append([eps_id, eps_step])
       depth_batch.append(depth)
@@ -126,6 +123,7 @@ class ReplayBuffer(object):
       action_batch.append(action)
       reward_batch.append(eps_history.reward_history[eps_step+1])
       done_batch.append(eps_history.done_history[eps_step+1])
+      is_expert_batch.append(eps_history.is_expert)
 
       training_step = ray.get(shared_storage.getInfo.remote('training_step'))
       weight_batch.append((1 / (self.total_samples * eps_prob * step_prob)) ** self.config.getPerBeta(training_step))
@@ -140,6 +138,7 @@ class ReplayBuffer(object):
     reward_batch = torch.tensor(reward_batch).float()
     done_batch = torch.tensor(done_batch).int()
     non_final_mask_batch = (done_batch ^ 1).float()
+    is_expert_batch = torch.tensor(is_expert_batch).long()
     weight_batch = torch.tensor(weight_batch).float()
 
     return (
@@ -150,6 +149,7 @@ class ReplayBuffer(object):
         action_batch,
         reward_batch,
         non_final_mask_batch,
+        is_expert_batch,
         weight_batch
       )
     )
@@ -194,44 +194,29 @@ class ReplayBuffer(object):
 
     return step_idx, step_prob
 
-  def augmentTransitionSO2(self, depth, force, proprio, depth_, force_, proprio_, action):
+  def augmentTransitionSO2(self, depth, depth_):
     ''''''
-    depth, fxy_1, fxy_2, pxy, depth_, fxy_1_, fxy_2_, pxy_, dxy, transform_params = torch_utils.perturb(
+    depth_aug, depth_aug_, transform_params = torch_utils.perturb(
       depth.copy(),
-      force[:,:2].copy(),
-      force[:,3:5].copy(),
-      proprio[:,2:4].copy(),
       depth_.copy(),
-      force_[:,:2].copy(),
-      force_[:,3:5].copy(),
-      proprio_[:,2:4].copy(),
-      action[1:3].copy(),
-      set_trans_zero=True
+      set_theta_zero=True
     )
 
-    depth = depth.reshape(1, *depth.shape)
-    force = force.copy()
-    force[:,0] = fxy_1[:,0]
-    force[:,1] = fxy_1[:,1]
-    force[:,3] = fxy_2[:,0]
-    force[:,4] = fxy_2[:,1]
-    proprio = proprio.copy()
-    proprio[:,2:4] = pxy
+    depth = depth_aug.reshape(*depth.shape)
+    depth_ = depth_aug_.reshape(*depth_.shape)
 
-    depth_ = depth_.reshape(1, *depth_.shape)
-    force_ = force_.copy()
-    force_[:,0] = fxy_1_[:,0]
-    force_[:,1] = fxy_1_[:,1]
-    force_[:,3] = fxy_2_[:,0]
-    force_[:,4] = fxy_2_[:,1]
-    proprio_ = proprio_.copy()
-    proprio_[:,2:4] = pxy_
+    return depth, depth_
 
-    action = action.copy()
-    action[1] = dxy[0]
-    action[2] = dxy[1]
+  def crop(self, depth, depth_):
+    s = depth.shape[-1]
 
-    return depth, force, proprio, depth_, force_, proprio_, action
+    crop_max = s - 64 + 1
+    w1 = npr.randint(0, crop_max)
+    w2 = npr.randint(0, crop_max)
+    depth = depth[:, w1:w1+64, w2:w2+64]
+    depth_ = depth_[:, w1:w1+64, w2:w2+64]
+
+    return depth, depth_
 
   def updatePriorities(self, td_errors, idx_info):
     '''
