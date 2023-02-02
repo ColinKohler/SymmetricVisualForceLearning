@@ -185,7 +185,7 @@ class EpisodeHistory(object):
   '''
   Class containing the history of an episode.
   '''
-  def __init__(self, is_expert):
+  def __init__(self, is_expert=False):
     self.depth_history = list()
     self.force_history = list()
     self.proprio_history = list()
@@ -197,6 +197,7 @@ class EpisodeHistory(object):
 
     self.priorities = None
     self.eps_priority = None
+    self.is_expert = is_expert
 
   def logStep(self, depth, force, proprio, action, value, reward, done, max_force):
     self.depth_history.append(depth)

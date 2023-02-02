@@ -210,11 +210,11 @@ class ReplayBuffer(object):
   def crop(self, depth, depth_):
     s = depth.shape[-1]
 
-    crop_max = s - 64 + 1
+    crop_max = s - self.config.depth_size + 1
     w1 = npr.randint(0, crop_max)
     w2 = npr.randint(0, crop_max)
-    depth = depth[:, w1:w1+64, w2:w2+64]
-    depth_ = depth_[:, w1:w1+64, w2:w2+64]
+    depth = depth[:, w1:w1+self.config.depth_size, w2:w2+self.config.depth_size]
+    depth_ = depth_[:, w1:w1+self.config.depth_size, w2:w2+self.config.depth_size]
 
     return depth, depth_
 

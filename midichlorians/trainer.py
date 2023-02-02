@@ -86,7 +86,7 @@ class Trainer(object):
       logger (ray.worker): Logger worker, logs training data across workers.
     '''
     num_expert_eps = 0
-    self.data_generator.resetEnvs(True)
+    self.data_generator.resetEnvs(is_expert=True)
     while num_expert_eps < self.config.num_expert_episodes:
       print(num_expert_eps)
       self.data_generator.stepEnvsAsync(shared_storage, replay_buffer, logger, expert=True)
@@ -102,7 +102,7 @@ class Trainer(object):
       logger (ray.worker): Logger worker, logs training data across workers.
     '''
     current_eps = 0
-    self.data_generator.resetEnvs(False)
+    self.data_generator.resetEnvs(is_expert=False)
     while current_eps < num_eps:
       self.data_generator.stepEnvsAsync(shared_storage, replay_buffer, logger)
       complete_eps = self.data_generator.stepEnvsWait(shared_storage, replay_buffer, logger)
@@ -118,7 +118,7 @@ class Trainer(object):
       shared_storage (ray.worker): Shared storage worker, shares data across workers.
       logger (ray.worker): Logger worker, logs training data across workers.
     '''
-    self.data_generator.resetEnvs(False)
+    self.data_generator.resetEnvs(is_expert=False)
 
     next_batch = replay_buffer.sample.remote(shared_storage)
     while self.training_step < self.config.training_steps and \

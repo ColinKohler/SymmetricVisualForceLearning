@@ -17,7 +17,7 @@ class PegInsertionConfig(Config):
     self.seed = None
 
     # Env
-    self.obs_size = 96
+    self.obs_size = 76
     self.robot = 'panda'
     self.env_type = 'close_loop_peg_insertion'
     self.max_steps = 50
@@ -27,7 +27,7 @@ class PegInsertionConfig(Config):
 
     # Data Gen
     self.num_data_gen_envs = 5
-    self.num_expert_episodes = 50
+    self.num_expert_episodes = 100
 
     # Training
     if results_path:
@@ -39,10 +39,10 @@ class PegInsertionConfig(Config):
                                        'peg_insertion',
                                        datetime.datetime.now().strftime('%Y-%m-%d--%H-%M-%S'))
     self.save_model = True
-    self.training_steps = 10000
+    self.training_steps = 50000
     self.batch_size = 64
     self.target_update_interval = 1
-    self.checkpoint_interval = 500
+    self.checkpoint_interval = 1000
     self.init_temp = 1e-2
     self.tau = 1e-2
     self.discount = 0.99
@@ -50,7 +50,7 @@ class PegInsertionConfig(Config):
     # Eval
     self.num_eval_envs = 5
     self.num_eval_episodes = 100
-    self.eval_interval = 500
+    self.eval_interval = 1000
     self.num_eval_intervals = int(self.training_steps / self.eval_interval)
 
     # LR schedule
@@ -85,12 +85,12 @@ class PegInsertionConfig(Config):
       'action_sequence' : self.action_sequence,
       'robot' : self.robot,
       'num_objects' : 1,
-      'object_scale_range' : (0.1, 0.1),
+      'object_scale_range' : (1.0, 1.0),
       'random_orientation' : self.random_orientation,
       'workspace_check' : 'point',
       'reward_type' : self.reward_type,
       'view_type' : self.view_type,
-      'num_sensors' : 3,
+      'num_sensors' : self.num_sensors,
       'obs_type' : self.obs_type,
       'render': render
     }
