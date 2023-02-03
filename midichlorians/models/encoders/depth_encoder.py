@@ -27,13 +27,13 @@ class DepthEncoder(nn.Module):
     in_type = out_type
     out_type = enn.FieldType(self.c4_act, z_dim // 4 * [self.c4_act.regular_repr])
     self.layers.append(EquivariantBlock(in_type, out_type, kernel_size=3, stride=1, padding=1, initialize=initialize))
-    #self.layers.append(enn.PointwiseMaxPool(out_type, 2))
+    self.layers.append(enn.PointwiseMaxPool(out_type, 2))
 
     # 16x16
     in_type = out_type
     out_type = enn.FieldType(self.c4_act, z_dim // 2 * [self.c4_act.regular_repr])
     self.layers.append(EquivariantBlock(in_type, out_type, kernel_size=3, stride=1, padding=1, initialize=initialize))
-    #self.layers.append(enn.PointwiseMaxPool(out_type, 2))
+    self.layers.append(enn.PointwiseMaxPool(out_type, 2))
 
     # 8x8
     in_type = out_type

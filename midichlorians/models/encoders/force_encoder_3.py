@@ -1,3 +1,4 @@
+import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -7,6 +8,22 @@ from escnn import group
 from escnn import nn as enn
 
 from midichlorians.models.layers import EquivariantBlock
+
+class PositionalEncoding(nn.Module):
+  def __init__(self, d_model, max_len):
+    super().__init__()
+    self.d_model = d_model
+
+    position = torch.arange(max_len).unsqueeze(1)
+    div_term = torch.exp(torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model))
+    pe = torch.zeros(1, max_len, 1, d_model)
+    pe[:, 0, 0::2] = torch.sin(position * div_term)
+    pe[:, 0, 1::2] = torch.cos(position * div_term)
+    self.register_buffer('pe', pe)
+
+  def forward(self, x_geo):
+    x = x.tensor + self.pe[:x.tensor.size(1)]
+    return x
 
 class ScaledDotProductAttention(nn.Module):
   def __init__(self, temperature):
@@ -84,7 +101,8 @@ class ForceEncoder(nn.Module):
     )
     out_type = enn.FieldType(self.c4_act, 8 * [self.c4_act.regular_repr])
     self.embed = EquivariantBlock(self.in_type, out_type, kernel_size=1, stride=1, padding=0, initialize=initialize)
-    self.attn  = MultiheadAttention(n_head=2, d_model=8, d_k=8, d_v=8, initialize=initialize)
+    self.pos_encoder = PositionalEncoding(8, 64)
+    self.attn  = MultiheadAttention(n_head=8, d_model=8, d_k=8, d_v=8, initialize=initialize)
 
     self.c4_act = gspaces.rot2dOnR2(N)
     self.out_type = enn.FieldType(self.c4_act, z_dim * [self.c4_act.regular_repr])
@@ -94,7 +112,8 @@ class ForceEncoder(nn.Module):
     batch_size =  x.size(0)
 
     x_geo = enn.GeometricTensor(x.view(batch_size * 64, 6, 1, 1), self.in_type)
-    x_embed = self.embed(x_geo)
+    x_embed = self.embed(x_geo).tensor.view(batch_size, 64, 64)
+    x_embed = self.pos_encoder(x_embed)
     x_attend, attn = self.attn(
       x_embed,
       x_embed,

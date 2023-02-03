@@ -17,17 +17,17 @@ class DrawerClosingConfig(Config):
     self.seed = None
 
     # Env
-    self.obs_size = 128
+    self.obs_size = 76
     self.robot = 'panda'
     self.env_type = 'close_loop_drawer_closing'
     self.max_steps = 50
-    self.dpos = 0.05
-    self.drot = np.pi / 4
-    self.max_force = 30
+    self.dpos = 0.025
+    self.drot = np.pi / 16
+    self.max_force = 100
 
     # Data Gen
     self.num_data_gen_envs = 5
-    self.num_expert_episodes = 20
+    self.num_expert_episodes = 50
 
     # Training
     if results_path:
