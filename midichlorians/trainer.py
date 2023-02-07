@@ -33,15 +33,15 @@ class Trainer(object):
     self.alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=self.config.actor_lr_init)
 
     # Initialize actor, and critic models
-    self.actor = GaussianPolicy(self.config.action_dim, encoder=self.config.encoder)
+    self.actor = GaussianPolicy(self.config.vision_size, self.config.action_dim, encoder=self.config.encoder)
     self.actor.train()
     self.actor.to(self.device)
 
-    self.critic = Critic(self.config.action_dim, encoder=self.config.encoder)
+    self.critic = Critic(self.config.vision_size, self.config.action_dim, encoder=self.config.encoder)
     self.critic.train()
     self.critic.to(self.device)
 
-    self.critic_target = Critic(self.config.action_dim, encoder=self.config.encoder)
+    self.critic_target = Critic(self.config.vision_size, self.config.action_dim, encoder=self.config.encoder)
     self.critic_target.train()
     self.critic_target.to(self.device)
     for param in self.critic_target.parameters():

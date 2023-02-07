@@ -6,11 +6,12 @@ class Config(object):
   Base task config.
   '''
 
-  def __init__(self, num_sensors=2, encoder='fusion', num_gpus=1):
+  def __init__(self, vision_size=64, num_sensors=2, encoder='fusion', num_gpus=1):
     # Env
     self.obs_type = ['depth', 'force', 'proprio']
-    self.depth_size = 16
-    self.depth_channels = 4
+    self.vision_size = vision_size
+    self.obs_size = vision_size + 12
+    self.vision_channels = 4
     self.force_dim = 6
     self.force_history = 64
     self.max_force = 100

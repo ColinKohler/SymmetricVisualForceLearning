@@ -12,12 +12,11 @@ class PegInsertionConfig(Config):
     num_gpus (int):
     results_path (str):
   '''
-  def __init__(self, num_sensors=2, encoder='fusion', num_gpus=1, results_path=None):
-    super().__init__(num_sensors=num_sensors, encoder=encoder, num_gpus=num_gpus)
+  def __init__(self, vision_size=64, num_sensors=2, encoder='fusion', num_gpus=1, results_path=None):
+    super().__init__(vision_size=vision_size, num_sensors=num_sensors, encoder=encoder, num_gpus=num_gpus)
     self.seed = None
 
     # Env
-    self.obs_size = 76
     self.robot = 'panda'
     self.env_type = 'close_loop_peg_insertion'
     self.max_steps = 50
@@ -27,7 +26,7 @@ class PegInsertionConfig(Config):
 
     # Data Gen
     self.num_data_gen_envs = 5
-    self.num_expert_episodes = 100
+    self.num_expert_episodes = 50
 
     # Training
     if results_path:
@@ -39,10 +38,10 @@ class PegInsertionConfig(Config):
                                        'peg_insertion',
                                        datetime.datetime.now().strftime('%Y-%m-%d--%H-%M-%S'))
     self.save_model = True
-    self.training_steps = 50000
+    self.training_steps = 25000
     self.batch_size = 64
     self.target_update_interval = 1
-    self.checkpoint_interval = 1000
+    self.checkpoint_interval = 500
     self.init_temp = 1e-2
     self.tau = 1e-2
     self.discount = 0.99
@@ -50,7 +49,7 @@ class PegInsertionConfig(Config):
     # Eval
     self.num_eval_envs = 5
     self.num_eval_episodes = 100
-    self.eval_interval = 1000
+    self.eval_interval = 500
     self.num_eval_intervals = int(self.training_steps / self.eval_interval)
 
     # LR schedule
