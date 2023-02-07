@@ -27,7 +27,7 @@ class PegInsertionConfig(Config):
 
     # Data Gen
     self.num_data_gen_envs = 5
-    self.num_expert_episodes = 100
+    self.num_expert_episodes = 50
 
     # Training
     if results_path:
@@ -39,10 +39,10 @@ class PegInsertionConfig(Config):
                                        'peg_insertion',
                                        datetime.datetime.now().strftime('%Y-%m-%d--%H-%M-%S'))
     self.save_model = True
-    self.training_steps = 50000
+    self.training_steps = 25000
     self.batch_size = 64
     self.target_update_interval = 1
-    self.checkpoint_interval = 1000
+    self.checkpoint_interval = 500
     self.init_temp = 1e-2
     self.tau = 1e-2
     self.discount = 0.99
@@ -50,7 +50,7 @@ class PegInsertionConfig(Config):
     # Eval
     self.num_eval_envs = 5
     self.num_eval_episodes = 100
-    self.eval_interval = 1000
+    self.eval_interval = 500
     self.num_eval_intervals = int(self.training_steps / self.eval_interval)
 
     # LR schedule

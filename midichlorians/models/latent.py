@@ -6,8 +6,8 @@ from escnn import nn as enn
 
 from midichlorians.models.layers import EquivariantBlock
 from midichlorians.models.encoders.proprio_encoder import ProprioEncoder
-from midichlorians.models.encoders.depth_encoder import DepthEncoder
-from midichlorians.models.encoders.force_encoder import ForceEncoder
+from midichlorians.models.encoders.vision_encoder import VisionEncoder
+from midichlorians.models.encoders.force_encoder_3 import ForceEncoder
 from midichlorians import torch_utils
 
 class Latent(nn.Module):
@@ -36,8 +36,8 @@ class Latent(nn.Module):
 
     self.encoders = nn.ModuleDict()
     for e in encoder:
-      if e == 'depth':
-        self.encoders[e] = DepthEncoder(z_dim=self.encoder_dim, N=self.N, initialize=initialize)
+      if e == 'vision':
+        self.encoders[e] = VisionEncoder(z_dim=self.encoder_dim, N=self.N, initialize=initialize)
       elif e == 'force':
         self.encoders[e] = ForceEncoder(z_dim=self.encoder_dim, N=self.N, initialize=initialize)
       elif e == 'proprio':
@@ -72,13 +72,13 @@ class Latent(nn.Module):
       self.conv = nn.Sequential(*self.layers)
 
   def forward(self, obs):
-    depth, force, proprio = obs
-    batch_size = depth.size(0)
+    vision, force, proprio = obs
+    batch_size = vision.size(0)
 
     feat = list()
     for et, encoder in self.encoders.items():
-      if et == 'depth':
-        feat.append(encoder(depth))
+      if et == 'vision':
+        feat.append(encoder(vision))
       elif et == 'force':
         feat.append(encoder(force))
       elif et == 'proprio':
@@ -99,12 +99,12 @@ class Latent(nn.Module):
       var_prior_resized = torch_utils.duplicate(var_prior, batch_size).unsqueeze(2)
 
       mu_z_proprio, var_z_proprio = torch_utils.gaussianParameters(proprio_feat.tensor.squeeze(-1), dim=1)
-      mu_z_depth, var_z_depth = torch_utils.gaussianParameters(depth_feat.tensor.squeeze(-1), dim=1)
+      mu_z_vision, var_z_vision = torch_utils.gaussianParameters(vision_feat.tensor.squeeze(-1), dim=1)
       mu_z_force, var_z_force = torch_utils.gaussianParameters(force_feat.tensor.squeeze(-1), dim=1)
 
       # Tile distribution parameters
-      mu_vect = torch.cat([mu_z_proprio, mu_z_depth, mu_z_force, mu_prior_resized], dim=2)
-      var_vect = torch.cat([var_z_proprio, var_z_depth, var_z_force, var_prior_resized], dim=2)
+      mu_vect = torch.cat([mu_z_proprio, mu_z_vision, mu_z_force, mu_prior_resized], dim=2)
+      var_vect = torch.cat([var_z_proprio, var_z_vision, var_z_force, var_prior_resized], dim=2)
 
       # Sample gaussian to get latent encoding
       mu_z, var_z = torch_utils.productOfExperts(mu_vect, var_vect)

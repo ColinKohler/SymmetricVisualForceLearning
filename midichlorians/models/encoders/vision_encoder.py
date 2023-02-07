@@ -7,7 +7,7 @@ from escnn import nn as enn
 
 from midichlorians.models.layers import EquivariantBlock
 
-class DepthEncoder(nn.Module):
+class VisionEncoder(nn.Module):
   '''
   '''
   def __init__(self, z_dim=64, initialize=True, N=8):
@@ -57,6 +57,6 @@ class DepthEncoder(nn.Module):
 
     self.conv = nn.Sequential(*self.layers)
 
-  def forward(self, depth):
-    depth_geo = enn.GeometricTensor(depth, self.in_type)
-    return self.conv(depth_geo)
+  def forward(self, vison):
+    vision_geo = enn.GeometricTensor(vision, self.in_type)
+    return self.conv(vision_geo)

@@ -41,7 +41,7 @@ class Agent(object):
       self.critic.to(self.device)
       self.critic.train()
 
-  def getAction(self, depth, force, proprio, evaluate=False):
+  def getAction(self, vision, force, proprio, evaluate=False):
     '''
     Get the action from the policy.
 
@@ -51,21 +51,21 @@ class Agent(object):
     Returns:
       (numpy.array, double) : (Action, Q-Value)
     '''
-    depth = torch.Tensor(depth.astype(np.float32)).view(depth.shape[0], depth.shape[1], depth.shape[2], depth.shape[3]).to(self.device)
-    depth = torch_utils.centerCrop(depth, out=self.config.depth_size)
-    force = torch.Tensor(torch_utils.normalizeForce(force, self.config.max_force)).view(depth.shape[0], self.config.force_history, self.config.force_dim).to(self.device)
-    proprio = torch.Tensor(proprio).view(depth.shape[0], self.config.proprio_dim).to(self.device)
+    vision = torch.Tensor(vision.astype(np.float32)).view(vision.shape[0], vision.shape[1], vision.shape[2], vision.shape[3]).to(self.device)
+    vision = torch_utils.centerCrop(vision, out=self.config.vision_size)
+    force = torch.Tensor(torch_utils.normalizeForce(force, self.config.max_force)).view(vision.shape[0], self.config.force_history, self.config.force_dim).to(self.device)
+    proprio = torch.Tensor(proprio).view(vision.shape[0], self.config.proprio_dim).to(self.device)
 
     with torch.no_grad():
       if evaluate:
-        _, _, action = self.actor.sample((depth, force, proprio))
+        _, _, action = self.actor.sample((vision, force, proprio))
       else:
-        action, _, _ = self.actor.sample((depth, force, proprio))
+        action, _, _ = self.actor.sample((vision, force, proprio))
 
     action = action.cpu()
     action_idx, action = self.decodeActions(*[action[:,i] for i in range(self.action_shape)])
     with torch.no_grad():
-      value = self.critic((depth, force, proprio), action_idx.to(self.device))
+      value = self.critic((vision, force, proprio), action_idx.to(self.device))
 
     value = torch.min(torch.hstack((value[0], value[1])), dim=1)[0]
     return action_idx, action, value

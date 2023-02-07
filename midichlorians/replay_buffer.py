@@ -20,7 +20,7 @@ class ReplayBuffer(object):
     self.buffer = copy.deepcopy(initial_buffer)
     self.num_eps = initial_checkpoint['num_eps']
     self.num_steps = initial_checkpoint['num_steps']
-    self.total_samples = sum([len(eps_history.depth_history) for eps_history in self.buffer.values()])
+    self.total_samples = sum([len(eps_history.vision_history) for eps_history in self.buffer.values()])
 
   def getBuffer(self):
     '''
@@ -58,13 +58,13 @@ class ReplayBuffer(object):
     # Add to buffer
     self.buffer[self.num_eps] = copy.deepcopy(eps_history)
     self.num_eps += 1
-    self.num_steps += len(eps_history.depth_history)
-    self.total_samples += len(eps_history.depth_history)
+    self.num_steps += len(eps_history.vision_history)
+    self.total_samples += len(eps_history.vision_history)
 
     # Delete the oldest episode if the buffer is full
     if self.config.replay_buffer_size < len(self.buffer):
       del_id = self.num_eps - len(self.buffer)
-      self.total_samples -= len(self.buffer[del_id].depth_history)
+      self.total_samples -= len(self.buffer[del_id].vision_history)
       del self.buffer[del_id]
 
     if shared_storage:
@@ -82,10 +82,10 @@ class ReplayBuffer(object):
       (list[int], list[numpy.array], list[numpy.array], list[double], list[double]) : (Index, Observation, Action, Reward, Weight)
     '''
     (index_batch,
-     depth_batch,
+     vision_batch,
      force_batch,
      proprio_batch,
-     next_depth_batch,
+     next_vision_batch,
      next_force_batch,
      next_proprio_batch,
      action_batch,
@@ -107,17 +107,17 @@ class ReplayBuffer(object):
       proprio = eps_history.proprio_history[eps_step].reshape(1, self.config.proprio_dim)
       proprio_ = eps_history.proprio_history[eps_step+1].reshape(1, self.config.proprio_dim)
 
-      depth, depth_, = self.crop(
-        eps_history.depth_history[eps_step],
-        eps_history.depth_history[eps_step+1],
+      vision, vision_, = self.crop(
+        eps_history.vision_history[eps_step],
+        eps_history.vision_history[eps_step+1],
       )
       action = eps_history.action_history[eps_step+1]
 
       index_batch.append([eps_id, eps_step])
-      depth_batch.append(depth)
+      vision_batch.append(vision)
       force_batch.append(force)
       proprio_batch.append(proprio)
-      next_depth_batch.append(depth_)
+      next_vision_batch.append(vision_)
       next_force_batch.append(force_)
       next_proprio_batch.append(proprio_)
       action_batch.append(action)
@@ -128,10 +128,10 @@ class ReplayBuffer(object):
       training_step = ray.get(shared_storage.getInfo.remote('training_step'))
       weight_batch.append((1 / (self.total_samples * eps_prob * step_prob)) ** self.config.getPerBeta(training_step))
 
-    depth_batch = torch.tensor(np.stack(depth_batch)).float()
+    vision_batch = torch.tensor(np.stack(vision_batch)).float()
     force_batch = torch.tensor(np.stack(force_batch)).float()
     proprio_batch = torch.tensor(np.stack(proprio_batch)).float()
-    next_depth_batch = torch.tensor(np.stack(next_depth_batch)).float()
+    next_vision_batch = torch.tensor(np.stack(next_vision_batch)).float()
     next_force_batch = torch.tensor(np.stack(next_force_batch)).float()
     next_proprio_batch = torch.tensor(np.stack(next_proprio_batch)).float()
     action_batch = torch.tensor(np.stack(action_batch)).float()
@@ -144,8 +144,8 @@ class ReplayBuffer(object):
     return (
       index_batch,
       (
-        (depth_batch, force_batch, proprio_batch),
-        (next_depth_batch, next_force_batch, next_proprio_batch),
+        (vision_batch, force_batch, proprio_batch),
+        (next_vision_batch, next_force_batch, next_proprio_batch),
         action_batch,
         reward_batch,
         non_final_mask_batch,
@@ -194,29 +194,29 @@ class ReplayBuffer(object):
 
     return step_idx, step_prob
 
-  def augmentTransitionSO2(self, depth, depth_):
+  def augmentTransitionSO2(self, vision, vision_):
     ''''''
-    depth_aug, depth_aug_, transform_params = torch_utils.perturb(
-      depth.copy(),
-      depth_.copy(),
+    vision_aug, vision_aug_, transform_params = torch_utils.perturb(
+      vision.copy(),
+      vision_.copy(),
       set_theta_zero=True
     )
 
-    depth = depth_aug.reshape(*depth.shape)
-    depth_ = depth_aug_.reshape(*depth_.shape)
+    vision = vision_aug.reshape(*vision.shape)
+    vision_ = vision_aug_.reshape(*vision_.shape)
 
-    return depth, depth_
+    return vision, vision_
 
-  def crop(self, depth, depth_):
-    s = depth.shape[-1]
+  def crop(self, vision, vision_):
+    s = vision.shape[-1]
 
-    crop_max = s - self.config.depth_size + 1
+    crop_max = s - self.config.vision_size + 1
     w1 = npr.randint(0, crop_max)
     w2 = npr.randint(0, crop_max)
-    depth = depth[:, w1:w1+self.config.depth_size, w2:w2+self.config.depth_size]
-    depth_ = depth_[:, w1:w1+self.config.depth_size, w2:w2+self.config.depth_size]
+    vision = vision[:, w1:w1+self.config.vision_size, w2:w2+self.config.vision_size]
+    vision_ = vision_[:, w1:w1+self.config.vision_size, w2:w2+self.config.vision_size]
 
-    return depth, depth_
+    return vision, vision_
 
   def updatePriorities(self, td_errors, idx_info):
     '''
