@@ -11,7 +11,7 @@ from midichlorians.models.encoders.force_encoder_3 import ForceEncoder
 from midichlorians import torch_utils
 
 class Latent(nn.Module):
-  def __init__(self, z_dim=64, N=8, encoder='fusion', deterministic=True, initialize=True):
+  def __init__(self, vision_size=64, z_dim=64, N=8, encoder='fusion', deterministic=True, initialize=True):
     super().__init__()
 
     # Double parameters for stochastic model (mean and variance)
@@ -37,7 +37,7 @@ class Latent(nn.Module):
     self.encoders = nn.ModuleDict()
     for e in encoder:
       if e == 'vision':
-        self.encoders[e] = VisionEncoder(z_dim=self.encoder_dim, N=self.N, initialize=initialize)
+        self.encoders[e] = VisionEncoder(vision_size=vision_size, z_dim=self.encoder_dim, N=self.N, initialize=initialize)
       elif e == 'force':
         self.encoders[e] = ForceEncoder(z_dim=self.encoder_dim, N=self.N, initialize=initialize)
       elif e == 'proprio':

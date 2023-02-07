@@ -30,14 +30,14 @@ class Agent(object):
     if actor:
       self.actor = actor
     else:
-      self.actor = GaussianPolicy(self.config.action_dim, encoder=self.config.encoder, initialize=initialize_models)
+      self.actor = GaussianPolicy(self.config.vision_size, self.config.action_dim, encoder=self.config.encoder, initialize=initialize_models)
       self.actor.to(self.device)
       self.actor.train()
 
     if critic:
       self.critic = critic
     else:
-      self.critic = Critic(self.config.action_dim, encoder=self.config.encoder, initialize=initialize_models)
+      self.critic = Critic(self.config.vision_size, self.config.action_dim, encoder=self.config.encoder, initialize=initialize_models)
       self.critic.to(self.device)
       self.critic.train()
 

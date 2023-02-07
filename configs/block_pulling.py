@@ -12,12 +12,11 @@ class BlockPullingConfig(Config):
     num_gpus (int):
     results_path (str):
   '''
-  def __init__(self, num_sensors=2, encoder='fusion', num_gpus=1, results_path=None):
-    super().__init__(num_sensors=num_sensors, encoder=encoder, num_gpus=num_gpus)
-    self.seed = 1234
+  def __init__(self, vision_size=64, num_sensors=2, encoder='fusion', num_gpus=1, results_path=None):
+    super().__init__(vision_size=vision_size, num_sensors=num_sensors, encoder=encoder, num_gpus=num_gpus)
+    self.seed = None
 
     # Env
-    self.obs_size = 76
     self.robot = 'panda'
     self.env_type = 'close_loop_block_pulling'
     self.max_steps = 50
@@ -39,7 +38,7 @@ class BlockPullingConfig(Config):
                                        'block_pulling',
                                        datetime.datetime.now().strftime('%Y-%m-%d--%H-%M-%S'))
     self.save_model = True
-    self.training_steps = 50000
+    self.training_steps = 25000
     self.batch_size = 64
     self.target_update_interval = 1
     self.checkpoint_interval = 100

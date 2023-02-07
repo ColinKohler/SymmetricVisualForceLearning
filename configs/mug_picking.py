@@ -12,12 +12,11 @@ class MugPickingConfig(Config):
     num_gpus (int):
     results_path (str):
   '''
-  def __init__(self, num_sensors=2, encoder='fusion', num_gpus=1, results_path=None):
-    super().__init__(num_sensors=num_sensors, encoder=encoder, num_gpus=num_gpus)
+  def __init__(self, vision_size=64, num_sensors=2, encoder='fusion', num_gpus=1, results_path=None):
+    super().__init__(vision_size=vision_size, num_sensors=num_sensors, encoder=encoder, num_gpus=num_gpus)
     self.seed = None
 
     # Env
-    self.obs_size = 128
     self.robot = 'panda'
     self.env_type = 'close_loop_mug_picking'
     self.max_steps = 50
