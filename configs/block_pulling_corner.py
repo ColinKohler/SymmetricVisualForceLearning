@@ -12,8 +12,8 @@ class BlockPullingCornerConfig(Config):
     num_gpus (int):
     results_path (str):
   '''
-  def __init__(self, vision_size=64, num_sensors=2, encoder='fusion', num_gpus=1, results_path=None):
-    super().__init__(num_sensors=num_sensors, encoder=encoder, num_gpus=num_gpus)
+  def __init__(self, vision_size=64, num_sensors=1, encoder='vision+force+proprio', num_gpus=1, results_path=None):
+    super().__init__(vision_size=vision_size, num_sensors=num_sensors, encoder=encoder, num_gpus=num_gpus)
     self.seed = None
 
     # Env
@@ -45,7 +45,6 @@ class BlockPullingCornerConfig(Config):
     self.init_temp = 1e-2
     self.tau = 1e-2
     self.discount = 0.99
-    self.clip_gradient = False
 
     # Eval
     self.num_eval_envs = 5
@@ -85,12 +84,12 @@ class BlockPullingCornerConfig(Config):
       'action_sequence' : self.action_sequence,
       'robot' : self.robot,
       'num_objects' : 1,
-      'object_scale_range' : (1.2, 1.2),
+      'object_scale_range' : (1.0, 1.0),
       'random_orientation' : self.random_orientation,
       'workspace_check' : 'point',
       'reward_type' : self.reward_type,
       'view_type' : self.view_type,
-      'num_sensors' : 2,
+      'num_sensors' : self.num_sensors,
       'obs_type' : self.obs_type,
       'render': render
     }

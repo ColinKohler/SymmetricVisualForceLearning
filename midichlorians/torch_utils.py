@@ -133,3 +133,12 @@ def centerCrop(imgs, out=64):
 
   imgs = imgs[:, :, top:top + out, left:left + out]
   return imgs
+
+def rotateVector(vec, theta):
+  rot = np.array([
+    [np.cos(theta), -np.sin(theta)],
+    [np.sin(theta), np.cos(theta)],
+  ])
+
+  rot_vec = (rot @ vec).T
+  return rot_vec
