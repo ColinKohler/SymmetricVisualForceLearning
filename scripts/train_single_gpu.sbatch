@@ -17,10 +17,10 @@
 #SBATCH --exclude=c[2160,2162-2175,2176-2183],d1008,d1011,d1026
 
 echo "node: $SLURM_NODELIST"
-if [ $# -eq 3 ]; then
-  python -u scripts/train.py $1 --num_sensors=$2 --encoder=$3
-elif [ $# -eq 4 ]; then
-  python -u scripts/train.py $1 --num_sensors=$2 --encoder=$3 --results_path=$4
+if [ $# -eq 4 ]; then
+  python -u scripts/train.py $1 --vision_size=$2 --num_sensors=$3 --encoder=$4
+elif [ $# -eq 5 ]; then
+  python -u scripts/train.py $1 --vision_size=$2 --num_sensors=$3 --encoder=$4 --results_path=$5
 else
-  python -u scripts/train.py $1 --num_sensors=$2 --encoder=$3 --results_path=$4 --checkpoint=$5 --buffer=$6
+  python -u scripts/train.py $1 --vision_size=$2 --num_sensors=$3 --encoder=$4 --results_path=$5 --checkpoint=$6 --buffer=$7
 fi

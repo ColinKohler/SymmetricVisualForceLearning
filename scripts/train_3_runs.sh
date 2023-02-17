@@ -2,13 +2,14 @@
 
 main() {
   local env=$1
-  local num_sensors=$2
-  local encoder=$3
-  local results_path=$4
+  local vision_size=$2
+  local num_sensors=$3
+  local encoder=$4
+  local results_path=$5
 
-  for j in $(seq ${5} ${6}); do
-    sbatch -J ${env}_${results_path}_${j} scripts/train_single_gpu.sbatch $env $num_sensors $encoder ${results_path}_${j}
+  for j in $(seq ${6} ${7}); do
+    sbatch -J ${env}_${results_path}_${j} scripts/train_single_gpu.sbatch $env $vision_size $num_sensors $encoder ${results_path}_${j}
   done
 }
 
-main $1 $2 $3 $4 $5 $6
+main $1 $2 $3 $4 $5 $6 $7
