@@ -18,7 +18,7 @@ from midichlorians.shared_storage import SharedStorage
 from midichlorians.models.sac import Critic, GaussianPolicy
 from midichlorians import torch_utils
 
-from helping_hands_rl_baselines.logger.ray_logger import RayLogger
+from bulletarm_baselines.logger.logger import RayLogger
 
 class Runner(object):
   '''

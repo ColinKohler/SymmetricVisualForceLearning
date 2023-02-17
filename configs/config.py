@@ -15,7 +15,7 @@ class Config(object):
     self.force_dim = 6
     self.force_history = 64
     self.max_force = 100
-    self.proprio_dim = 6
+    self.proprio_dim = 5
     self.num_sensors = num_sensors
 
     self.action_sequence = 'pxyzr'
