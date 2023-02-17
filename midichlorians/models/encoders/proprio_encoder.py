@@ -17,7 +17,7 @@ class ProprioEncoder(nn.Module):
     self.N = N
 
     self.c4_act = gspaces.rot2dOnR2(self.N)
-    self.proprio_repr = 2 * [self.c4_act.trivial_repr] + [self.c4_act.irrep(1)] + 2 * [self.c4_act.trivial_repr]
+    self.proprio_repr = 1 * [self.c4_act.trivial_repr] + [self.c4_act.irrep(1)] + 2 * [self.c4_act.trivial_repr]
 
     self.layers = list()
     self.in_type = enn.FieldType(self.c4_act, self.proprio_repr)

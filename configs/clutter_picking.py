@@ -45,7 +45,6 @@ class ClutterPickingConfig(Config):
     self.init_temp = 1e-2
     self.tau = 1e-2
     self.discount = 0.99
-    self.clip_gradient = False
 
      # Eval
     self.num_eval_envs = 5
@@ -84,7 +83,7 @@ class ClutterPickingConfig(Config):
       'physics_mode' : 'force',
       'action_sequence' : self.action_sequence,
       'robot' : self.robot,
-      'num_objects' : 15,
+      'num_objects' : 1,
       'object_scale_range' : (0.8, 0.8),
       'random_orientation' : self.random_orientation,
       'workspace_check' : 'point',
