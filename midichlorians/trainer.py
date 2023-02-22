@@ -33,17 +33,33 @@ class Trainer(object):
     self.alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=self.config.actor_lr_init)
 
     # Initialize actor, and critic models
-    self.actor = GaussianPolicy(self.config.vision_size, self.config.action_dim, encoder=self.config.encoder)
+    self.actor = GaussianPolicy(
+      self.config.vision_size,
+      self.config.action_dim,
+      encoder=self.config.encoder,
+      equivariant=self.config.equivariant
+    )
     self.actor.train()
     self.actor.to(self.device)
 
-    self.critic = Critic(self.config.vision_size, self.config.action_dim, encoder=self.config.encoder)
+    self.critic = Critic(
+      self.config.vision_size,
+      self.config.action_dim,
+      encoder=self.config.encoder,
+      equivariant=self.config.equivariant
+    )
     self.critic.train()
     self.critic.to(self.device)
 
-    self.critic_target = Critic(self.config.vision_size, self.config.action_dim, encoder=self.config.encoder)
+    self.critic_target = Critic(
+      self.config.vision_size,
+      self.config.action_dim,
+      encoder=self.config.encoder,
+      equivariant=self.config.equivariant
+    )
     self.critic_target.train()
     self.critic_target.to(self.device)
+    torch_utils.softUpdate(self.critic_target, self.critic, 1.0)
     for param in self.critic_target.parameters():
       param.requires_grad = False
 
@@ -141,7 +157,7 @@ class Trainer(object):
       self.data_generator.stepEnvsWait(shared_storage, replay_buffer, logger)
 
       # Update target critic towards current critic
-      self.softTargetUpdate()
+      torch_utils.softUpdate(self.critic_target, self.critic, self.config.tau)
 
       # Update LRs
       if self.training_step > 0 and self.training_step % self.config.lr_decay_interval == 0:
@@ -252,10 +268,3 @@ class Trainer(object):
       self.alpha = self.log_alpha.exp()
 
     return td_error, (actor_loss.item(), critic_loss.item(), alpha_loss.item(), entropy.item())
-
-  def softTargetUpdate(self):
-    '''
-    Update the target critic model to the current critic model.
-    '''
-    for t_param, l_param in zip(self.critic_target.parameters(), self.critic.parameters()):
-      t_param.data.copy_(self.config.tau * l_param.data + (1.0 - self.config.tau) * t_param.data)

@@ -6,9 +6,9 @@ class Config(object):
   Base task config.
   '''
 
-  def __init__(self, vision_size=64, num_sensors=2, encoder='fusion', num_gpus=1):
+  def __init__(self, equivariant=True, vision_size=64, num_sensors=2, encoder='fusion', num_gpus=1):
     # Env
-    self.obs_type = ['depth', 'force', 'proprio']
+    self.obs_type = ['vision', 'force', 'proprio']
     self.vision_size = vision_size
     self.obs_size = vision_size + 12
     self.vision_channels = 4
@@ -30,6 +30,8 @@ class Config(object):
     self.dpos = 1e-3
     self.drot = np.pi / self.dpos
 
+    # Model
+    self.equivariant = equivariant
     self.encoder = encoder.split('+')
 
     # Training

@@ -5,9 +5,20 @@ import torch.nn.functional as F
 from escnn import gspaces
 from escnn import nn as enn
 
-from midichlorians.models.layers import EquivariantBlock
+from midichlorians.models.layers import EquivariantBlock, ResnetBlock
 
 class ProprioEncoder(nn.Module):
+  def __init__(self, equivariant=False, z_dim=64, initialize=True, N=8):
+    super().__init__()
+    if equivariant:
+      self.encoder = EquivProprioEncoder(z_dim=z_dim, initialize=initialize, N=N)
+    else:
+      self.encoder = CnnProprioEncoder(z_dim=z_dim)
+
+  def forward(self, x):
+    return self.encoder(x)
+
+class EquivProprioEncoder(nn.Module):
   '''
   '''
   def __init__(self, z_dim=64, initialize=True, N=8):
@@ -44,3 +55,25 @@ class ProprioEncoder(nn.Module):
     proprio = proprio.reshape(batch_size, -1, 1, 1)
     proprio_geo = enn.GeometricTensor(proprio, self.in_type)
     return self.conv(proprio_geo)
+
+class CnnProprioEncoder(nn.Module):
+  '''
+  '''
+  def __init__(self, z_dim=64):
+    super().__init__()
+
+    self.z_dim = z_dim
+
+    self.layers = list()
+    self.layers.append(ResnetBlock(5, z_dim // 4 * 2, kernel_size=1, stride=1, padding=0))
+    self.layers.append(ResnetBlock(z_dim // 4 * 2, z_dim // 2 * 2, kernel_size=1, stride=1, padding=0))
+    self.layers.append(ResnetBlock(z_dim // 2 * 2, z_dim * 2, kernel_size=1, stride=1, padding=0))
+    self.layers.append(ResnetBlock(z_dim * 2, z_dim, kernel_size=1, stride=1, padding=0))
+
+    self.conv = nn.Sequential(*self.layers)
+
+  def forward(self, proprio):
+    batch_size = proprio.size(0)
+
+    proprio = proprio.reshape(batch_size, -1, 1, 1)
+    return self.conv(proprio)
