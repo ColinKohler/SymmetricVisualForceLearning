@@ -7,7 +7,18 @@ from escnn import gspaces
 from escnn import group
 from escnn import nn as enn
 
-from midichlorians.models.layers import EquivariantBlock
+from midichlorians.models.layers import EquivariantBlock, ResnetBlock
+
+class ForceEncoder(nn.Module):
+  def __init__(self, equivariant=False, z_dim=64, initialize=True, N=8):
+    super().__init__()
+    if equivariant:
+      self.encoder = EquivForceEncoder(z_dim=z_dim, initialize=initialize, N=N)
+    else:
+      self.encoder = CnnForceEncoder(z_dim=z_dim)
+
+  def forward(self, x):
+    return self.encoder(x)
 
 class PositionalEncoding(nn.Module):
   def __init__(self, d_model, max_len):
@@ -90,7 +101,7 @@ class MultiheadAttention(nn.Module):
 
     return q_out.tensor.view(b, len_q, d_model * self.c), attn
 
-class ForceEncoder(nn.Module):
+class EquivForceEncoder(nn.Module):
   '''
   '''
   def __init__(self, z_dim=64, N=8, initialize=True):
@@ -136,3 +147,40 @@ class ForceEncoder(nn.Module):
     x_attend = enn.GeometricTensor(x_attend.view(batch_size, -1, 1, 1), self.fc_in_type)
 
     return self.conv(x_attend)
+
+class AttentionBlock(nn.Module):
+  def __init__(self):
+    super().__init__()
+
+    self.attn  = nn.MultiheadAttention(64 * 2, 8, kdim=64*2, vdim=64*2, batch_first=True)
+
+  def forward(self, x):
+    residual = x
+    x, attn = self.attn(
+      x,
+      x,
+      x,
+    )
+    x += residual
+
+    return x, attn
+
+class CnnForceEncoder(nn.Module):
+  '''
+  '''
+  def __init__(self, z_dim=64):
+    super().__init__()
+
+    self.embed = nn.Linear(6,64 * 2)
+    self.attn = AttentionBlock()
+    self.conv = ResnetBlock(64 * 64 * 2, z_dim, kernel_size=1, stride=1, padding=0)
+
+  def forward(self, x):
+    batch_size =  x.size(0)
+
+    x_embed = self.embed(x.view(batch_size * 64, 6)).view(batch_size, 64, 64*2)
+    x_, _ = self.attn(x_embed)
+
+    x_ = x_.reshape(batch_size, -1, 1, 1)
+
+    return self.conv(x_)

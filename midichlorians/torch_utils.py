@@ -24,6 +24,11 @@ def dictToCpu(state_dict):
 
   return cpu_dict
 
+def softUpdate(target, source, tau):
+  for t, s in zip(target.parameters(), source.parameters()):
+    t.data.mul_(1.0 - tau)
+    t.data.add_(tau * s.data)
+
 def clipGradNorm(optimizer, max_norm=None, norm_type=2):
   for param_group in optimizer.param_groups:
     max_norm_x = max_norm

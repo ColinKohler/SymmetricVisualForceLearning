@@ -7,14 +7,16 @@ from escnn import gspaces
 from escnn import nn as enn
 
 from midichlorians.models.latent import Latent
-from midichlorians.models.layers import EquivariantBlock
+from midichlorians.models.layers import EquivariantBlock, ResnetBlock
 
 class Critic(nn.Module):
   '''
   Equivariant critic model.
   '''
-  def __init__(self, vision_size, action_dim, z_dim=64, encoder='fusion', initialize=True, N=8):
+  def __init__(self, vision_size, action_dim, equivariant=True, z_dim=64, encoder='fusion', initialize=True, N=8):
     super().__init__()
+
+    self.equivariant = equivariant
     self.z_dim = z_dim
     self.action_dim = action_dim
     self.N = N
@@ -30,19 +32,29 @@ class Critic(nn.Module):
     self.inner_type_2 = enn.FieldType(self.c4_act, self.z_dim * [self.c4_act.trivial_repr])
     self.out_type = enn.FieldType(self.c4_act, 1 * [self.c4_act.trivial_repr])
 
-    self.encoder = Latent(vision_size=vision_size, encoder=encoder, initialize=initialize)
+    self.encoder = Latent(equivariant=equivariant, vision_size=vision_size, encoder=encoder, initialize=initialize)
 
-    self.critic_1 = nn.Sequential(
-      EquivariantBlock(self.in_type, self.inner_type, kernel_size=1, stride=1, padding=0, initialize=initialize),
-      enn.GroupPooling(self.inner_type),
-      EquivariantBlock(self.inner_type_2, self.out_type, kernel_size=1, stride=1, padding=0, initialize=initialize, act=False)
-    )
+    if self.equivariant:
+      self.critic_1 = nn.Sequential(
+        EquivariantBlock(self.in_type, self.inner_type, kernel_size=1, stride=1, padding=0, initialize=initialize),
+        enn.GroupPooling(self.inner_type),
+        EquivariantBlock(self.inner_type_2, self.out_type, kernel_size=1, stride=1, padding=0, initialize=initialize, act=False)
+      )
 
-    self.critic_2 = nn.Sequential(
-      EquivariantBlock(self.in_type, self.inner_type, kernel_size=1, stride=1, padding=0, initialize=initialize),
-      enn.GroupPooling(self.inner_type),
-      EquivariantBlock(self.inner_type_2, self.out_type, kernel_size=1, stride=1, padding=0, initialize=initialize, act=False)
-    )
+      self.critic_2 = nn.Sequential(
+        EquivariantBlock(self.in_type, self.inner_type, kernel_size=1, stride=1, padding=0, initialize=initialize),
+        enn.GroupPooling(self.inner_type),
+        EquivariantBlock(self.inner_type_2, self.out_type, kernel_size=1, stride=1, padding=0, initialize=initialize, act=False)
+      )
+    else:
+      self.critic_1 = nn.Sequential(
+        ResnetBlock(self.z_dim + self.action_dim, 1, kernel_size=1, stride=1, padding=0, act=False)
+      )
+
+      self.critic_2 = nn.Sequential(
+        ResnetBlock(self.z_dim + self.action_dim, 1, kernel_size=1, stride=1, padding=0, act=False)
+      )
+
 
   def forward(self, obs, act):
     batch_size = obs[0].size(0)
@@ -54,11 +66,16 @@ class Critic(nn.Module):
     n_inv = inv_act.shape[1]
     inv_act = inv_act.reshape(batch_size, n_inv, 1, 1)
 
-    cat = torch.cat((z.tensor, inv_act, dxy), dim=1)
-    cat_geo = enn.GeometricTensor(cat, self.in_type)
+    if self.equivariant:
+      cat = torch.cat((z.tensor, inv_act, dxy), dim=1)
+      cat_geo = enn.GeometricTensor(cat, self.in_type)
 
-    out_1 = self.critic_1(cat_geo).tensor.reshape(batch_size, 1)
-    out_2 = self.critic_2(cat_geo).tensor.reshape(batch_size, 1)
+      out_1 = self.critic_1(cat_geo).tensor.reshape(batch_size, 1)
+      out_2 = self.critic_2(cat_geo).tensor.reshape(batch_size, 1)
+    else:
+      cat = torch.cat((z, inv_act, dxy), dim=1)
+      out_1 = self.critic_1(cat).reshape(batch_size, 1)
+      out_2 = self.critic_2(cat).reshape(batch_size, 1)
 
     return out_1, out_2
 
@@ -66,12 +83,13 @@ class GaussianPolicy(nn.Module):
   '''
   Equivariant actor model that uses a Normal distribution to sample actions.
   '''
-  def __init__(self, vision_size, action_dim, z_dim=64, encoder='fusion', initialize=True, N=8):
+  def __init__(self, vision_size, action_dim, equivariant=True, z_dim=64, encoder='fusion', initialize=True, N=8):
     super().__init__()
     self.log_sig_min = -20
     self.log_sig_max = 2
     self.eps = 1e-6
 
+    self.equivariant = equivariant
     self.action_dim = action_dim
     self.z_dim = z_dim
     self.initialize = initialize
@@ -83,21 +101,26 @@ class GaussianPolicy(nn.Module):
     self.invariant_action_repr = (self.action_dim * 2 - 2) * [self.c4_act.trivial_repr]
     self.equivariant_action_repr = self.n_rho1 * [self.c4_act.irrep(1)]
 
-    self.encoder = Latent(vision_size=vision_size, encoder=encoder, initialize=initialize)
+    self.encoder = Latent(equivariant=equivariant, vision_size=vision_size, encoder=encoder, initialize=initialize)
 
     self.layers = list()
 
-    self.in_type = enn.FieldType(self.c4_act, self.z_repr)
-    out_type = enn.FieldType(self.c4_act, self.z_dim // 2 * [self.c4_act.regular_repr])
-    self.layers.append(EquivariantBlock(self.in_type, out_type, kernel_size=1, stride=1, padding=0, initialize=initialize))
+    if self.equivariant:
+      self.in_type = enn.FieldType(self.c4_act, self.z_repr)
+      out_type = enn.FieldType(self.c4_act, self.z_dim // 2 * [self.c4_act.regular_repr])
+      self.layers.append(EquivariantBlock(self.in_type, out_type, kernel_size=1, stride=1, padding=0, initialize=initialize))
 
-    in_type = out_type
-    out_type = enn.FieldType(self.c4_act, self.z_dim // 4 * [self.c4_act.regular_repr])
-    self.layers.append(EquivariantBlock(in_type, out_type, kernel_size=1, stride=1, padding=0, initialize=initialize))
+      in_type = out_type
+      out_type = enn.FieldType(self.c4_act, self.z_dim // 4 * [self.c4_act.regular_repr])
+      self.layers.append(EquivariantBlock(in_type, out_type, kernel_size=1, stride=1, padding=0, initialize=initialize))
 
-    in_type = out_type
-    self.out_type = enn.FieldType(self.c4_act, self.equivariant_action_repr + self.invariant_action_repr)
-    self.layers.append(EquivariantBlock(in_type, self.out_type, kernel_size=1, stride=1, padding=0, initialize=initialize, act=False))
+      in_type = out_type
+      self.out_type = enn.FieldType(self.c4_act, self.equivariant_action_repr + self.invariant_action_repr)
+      self.layers.append(EquivariantBlock(in_type, self.out_type, kernel_size=1, stride=1, padding=0, initialize=initialize, act=False))
+    else:
+      self.layers.append(ResnetBlock(self.z_dim, self.z_dim // 2, kernel_size=1, stride=1, padding=0))
+      self.layers.append(ResnetBlock(self.z_dim // 2, self.z_dim // 4, kernel_size=1, stride=1, padding=0))
+      self.layers.append(ResnetBlock(self.z_dim // 4, self.action_dim*2, kernel_size=1, stride=1, padding=0, act=False))
 
     self.conv = nn.Sequential(*self.layers)
 
@@ -105,7 +128,10 @@ class GaussianPolicy(nn.Module):
     batch_size = obs[0].size(0)
     z  = self.encoder(obs)
 
-    out = self.conv(z).tensor.reshape(batch_size, -1)
+    if self.equivariant:
+      out = self.conv(z).tensor.reshape(batch_size, -1)
+    else:
+      out = self.conv(z).reshape(batch_size, -1)
 
     dxy = out[:, 0:2]
     inv_act = out[:, 2:self.action_dim]
