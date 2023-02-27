@@ -83,7 +83,12 @@ class Runner(object):
     '''
     Initialize the various workers, start the trainers, and run the logging loop.
     '''
-    self.logger_worker = RayLogger.options(num_cpus=0, num_gpus=0).remote(self.config.results_path, self.config.num_eval_episodes, self.config.__dict__)
+    self.logger_worker = RayLogger.options(num_cpus=0, num_gpus=0).remote(
+      self.config.results_path,
+      self.config.__dict__,
+      checkpoint_interval=self.config.checkpoint_interval,
+      num_eval_eps=self.config.num_eval_episodes
+    )
     trainer_gpu_alloc = 1.0 if torch.cuda.is_available() else 0.0
     self.training_worker = Trainer.options(num_cpus=0, num_gpus=trainer_gpu_alloc).remote(self.checkpoint, self.config)
 
