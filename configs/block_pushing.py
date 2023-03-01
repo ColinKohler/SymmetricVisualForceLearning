@@ -22,7 +22,7 @@ class BlockPushingConfig(Config):
     self.max_steps = 50
     self.dpos = 0.025
     self.drot = np.pi / 16
-    self.max_force = 20
+    self.max_force = 50
 
     # Data Gen
     self.num_data_gen_envs = 5
@@ -45,7 +45,6 @@ class BlockPushingConfig(Config):
     self.init_temp = 1e-2
     self.tau = 1e-2
     self.discount = 0.99
-    self.deterministic = True
 
      # Eval
     self.num_eval_envs = 5

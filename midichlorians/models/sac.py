@@ -32,7 +32,7 @@ class Critic(nn.Module):
     self.inner_type_2 = enn.FieldType(self.c4_act, self.z_dim * [self.c4_act.trivial_repr])
     self.out_type = enn.FieldType(self.c4_act, 1 * [self.c4_act.trivial_repr])
 
-    self.encoder = Latent(equivariant=equivariant, vision_size=vision_size, encoder=encoder, initialize=initialize)
+    self.encoder = Latent(equivariant=equivariant, vision_size=vision_size, z_dim=z_dim, encoder=encoder, initialize=initialize)
 
     if self.equivariant:
       self.critic_1 = nn.Sequential(
@@ -48,11 +48,13 @@ class Critic(nn.Module):
       )
     else:
       self.critic_1 = nn.Sequential(
-        ResnetBlock(self.z_dim + self.action_dim, 1, kernel_size=1, stride=1, padding=0, act=False)
+        ResnetBlock(self.z_dim + self.action_dim, self.z_dim, kernel_size=1, stride=1, padding=0, act=True),
+        ResnetBlock(self.z_dim, 1, kernel_size=1, stride=1, padding=0, act=False)
       )
 
       self.critic_2 = nn.Sequential(
-        ResnetBlock(self.z_dim + self.action_dim, 1, kernel_size=1, stride=1, padding=0, act=False)
+        ResnetBlock(self.z_dim + self.action_dim, self.z_dim, kernel_size=1, stride=1, padding=0, act=True),
+        ResnetBlock(self.z_dim, 1, kernel_size=1, stride=1, padding=0, act=False)
       )
 
 
@@ -60,20 +62,20 @@ class Critic(nn.Module):
     batch_size = obs[0].size(0)
     z = self.encoder(obs)
 
-    dxy = act[:, 1:3].reshape(batch_size,  2, 1, 1)
-
-    inv_act = torch.cat((act[:,0:1], act[:,3:]), dim=1)
-    n_inv = inv_act.shape[1]
-    inv_act = inv_act.reshape(batch_size, n_inv, 1, 1)
-
     if self.equivariant:
+      dxy = act[:, 1:3].reshape(batch_size,  2, 1, 1)
+
+      inv_act = torch.cat((act[:,0:1], act[:,3:]), dim=1)
+      n_inv = inv_act.shape[1]
+      inv_act = inv_act.reshape(batch_size, n_inv, 1, 1)
+
       cat = torch.cat((z.tensor, inv_act, dxy), dim=1)
       cat_geo = enn.GeometricTensor(cat, self.in_type)
 
       out_1 = self.critic_1(cat_geo).tensor.reshape(batch_size, 1)
       out_2 = self.critic_2(cat_geo).tensor.reshape(batch_size, 1)
     else:
-      cat = torch.cat((z, inv_act, dxy), dim=1)
+      cat = torch.cat((z, act.reshape(batch_size, -1, 1, 1)), dim=1)
       out_1 = self.critic_1(cat).reshape(batch_size, 1)
       out_2 = self.critic_2(cat).reshape(batch_size, 1)
 
@@ -101,7 +103,7 @@ class GaussianPolicy(nn.Module):
     self.invariant_action_repr = (self.action_dim * 2 - 2) * [self.c4_act.trivial_repr]
     self.equivariant_action_repr = self.n_rho1 * [self.c4_act.irrep(1)]
 
-    self.encoder = Latent(equivariant=equivariant, vision_size=vision_size, encoder=encoder, initialize=initialize)
+    self.encoder = Latent(equivariant=equivariant, vision_size=vision_size, z_dim=z_dim, encoder=encoder, initialize=initialize)
 
     self.layers = list()
 
@@ -130,15 +132,19 @@ class GaussianPolicy(nn.Module):
 
     if self.equivariant:
       out = self.conv(z).tensor.reshape(batch_size, -1)
+
+      dxy = out[:, 0:2]
+      inv_act = out[:, 2:self.action_dim]
+
+      mean = torch.cat((inv_act[:, 0:1], dxy, inv_act[:, 1:]), dim=1)
+      log_std = out[:, self.action_dim:]
+      log_std = torch.clamp(log_std, min=self.log_sig_min, max=self.log_sig_max)
     else:
       out = self.conv(z).reshape(batch_size, -1)
 
-    dxy = out[:, 0:2]
-    inv_act = out[:, 2:self.action_dim]
-
-    mean = torch.cat((inv_act[:, 0:1], dxy, inv_act[:, 1:]), dim=1)
-    log_std = out[:, self.action_dim:]
-    log_std = torch.clamp(log_std, min=self.log_sig_min, max=self.log_sig_max)
+      mean = out[:,:out.shape[1]//2]
+      log_std = out[:, out.shape[1]//2:]
+      log_std = torch.clamp(log_std, min=self.log_sig_min, max=self.log_sig_max)
 
     return mean, log_std
 

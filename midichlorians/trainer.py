@@ -36,6 +36,7 @@ class Trainer(object):
     self.actor = GaussianPolicy(
       self.config.vision_size,
       self.config.action_dim,
+      z_dim=self.config.z_dim,
       encoder=self.config.encoder,
       equivariant=self.config.equivariant
     )
@@ -45,6 +46,7 @@ class Trainer(object):
     self.critic = Critic(
       self.config.vision_size,
       self.config.action_dim,
+      z_dim=self.config.z_dim,
       encoder=self.config.encoder,
       equivariant=self.config.equivariant
     )
@@ -54,6 +56,7 @@ class Trainer(object):
     self.critic_target = Critic(
       self.config.vision_size,
       self.config.action_dim,
+      z_dim=self.config.z_dim,
       encoder=self.config.encoder,
       equivariant=self.config.equivariant
     )
