@@ -39,6 +39,9 @@ class EquivariantBlock(nn.Module):
   '''
   def __init__(self, in_type, out_type, kernel_size=3, stride=1, padding=1, initialize=True, act=True, norm=False):
     super().__init__()
+    self.in_type = in_type
+    self.out_type = out_type
+
     self.norm = norm
     self.act = act
 

@@ -147,11 +147,15 @@ class Trainer(object):
         time.sleep(0.5)
         continue
 
+      self.actor.eval()
+      self.critic.eval()
       self.data_generator.stepEnvsAsync(shared_storage, replay_buffer, logger)
 
       idx_batch, batch = ray.get(next_batch)
       next_batch = replay_buffer.sample.remote(shared_storage)
 
+      self.actor.train()
+      self.critic.train()
       priorities, loss = self.updateWeights(batch)
       replay_buffer.updatePriorities.remote(priorities.cpu(), idx_batch)
       self.training_step += 1
@@ -168,6 +172,8 @@ class Trainer(object):
 
       # Save to shared storage
       if self.training_step % self.config.checkpoint_interval == 0:
+        self.actor.eval()
+        self.critic.eval()
         actor_weights = torch_utils.dictToCpu(self.actor.state_dict())
         critic_weights = torch_utils.dictToCpu(self.critic.state_dict())
         actor_optimizer_state = torch_utils.dictToCpu(self.actor_optimizer.state_dict())

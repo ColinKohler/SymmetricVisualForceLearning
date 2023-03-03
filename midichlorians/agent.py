@@ -39,7 +39,7 @@ class Agent(object):
         equivariant=self.config.equivariant
       )
       self.actor.to(self.device)
-      self.actor.train()
+      self.actor.eval()
 
     if critic:
       self.critic = critic
@@ -53,7 +53,7 @@ class Agent(object):
         equivariant=self.config.equivariant
       )
       self.critic.to(self.device)
-      self.critic.train()
+      self.critic.eval()
 
   def getAction(self, vision, force, proprio, evaluate=False):
     '''
@@ -160,5 +160,8 @@ class Agent(object):
       weights (dict, dict): (actor weights, critic weights)
     '''
     if weights is not None:
+      self.actor.eval()
+      self.critic.eval()
+
       self.actor.load_state_dict(weights[0])
       self.critic.load_state_dict(weights[1])
