@@ -8,7 +8,7 @@ main() {
   local results_path=$5
 
   for j in $(seq ${6} ${7}); do
-    sbatch -J ${env}_${results_path}_${j} scripts/train_single_gpu.sbatch $env $vision_size $num_sensors $encoder ${results_path}_${j}
+    sbatch -J ${env}_${results_path}_${j} scripts/train_two_gpu.sbatch $env $vision_size $num_sensors $encoder ${results_path}_${j}
   done
 }
 
