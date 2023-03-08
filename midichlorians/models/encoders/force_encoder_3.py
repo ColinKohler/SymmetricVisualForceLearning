@@ -21,17 +21,38 @@ class ForceEncoder(nn.Module):
     return self.encoder(x)
 
 class PositionalEncoding(nn.Module):
+  """Positional encoding."""
   def __init__(self, d_model, max_len):
     super().__init__()
     self.d_model = d_model
+    self.max_len = max_len
 
-    pe = torch.zeros(1, max_len, 1, d_model)
-    nn.init.trunc_normal_(pe, std=0.02)
-    self.register_buffer('pe', pe)
+    self.p = torch.zeros((1, max_len, d_model))
+    x = torch.arange(max_len, dtype=torch.float32).reshape(
+        -1, 1) / torch.pow(10000, torch.arange(
+        0, d_model, 2, dtype=torch.float32) / d_model)
+    self.p[:, :, 0::2] = torch.sin(x)
+    self.p[:, :, 1::2] = torch.cos(x)
+    self.p = self.p.view(1, max_len, 1, d_model).repeat(1, 1, 8, 1)
 
   def forward(self, x):
-    x = x + self.pe[:x.size(1)]
-    return x
+    # Increasing embedding values makes the positional encoding relatively smaller.
+    # This seems to be needed to keep model equivariance.
+    return x + math.sqrt(self.d_model) + self.p.to(x.device)
+
+class Norm(nn.Module):
+  def __init__(self, d_model, eps=1e-6):
+    super().__init__()
+
+    self.size = d_model
+    self.alpha = nn.Parameter(torch.ones(self.size))
+    self.bias = nn.Parameter(torch.zeros(self.size))
+    self.eps = eps
+
+  def forward(self, x):
+    norm = self.alpha * (x - x.mean(dim=-1, keepdim=True)) \
+    / (x.std(dim=-1, keepdim=True) + self.eps) + self.bias
+    return norm
 
 class ScaledDotProductAttention(nn.Module):
   def __init__(self, temperature):
@@ -132,7 +153,7 @@ class EquivForceEncoder(nn.Module):
     # Want to add the same position embedding to each element in the regular represenation
     x_geo = enn.GeometricTensor(x.view(batch_size * seq_l, 6, 1, 1), self.in_type)
     x_embed = self.embed(x_geo).tensor.view(batch_size, seq_l, self.N, self.d_model)
-    #x_embed = self.pos_encoder(x_embed)
+    x_embed = self.pos_encoder(x_embed)
 
     # Apply attention and flatten in geo tensor: b x sq*c*d
     x_, _ = self.attn1(
