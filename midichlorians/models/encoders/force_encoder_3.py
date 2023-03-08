@@ -7,7 +7,7 @@ from escnn import gspaces
 from escnn import group
 from escnn import nn as enn
 
-from midichlorians.models.layers import EquivariantBlock, ResnetBlock
+from midichlorians.models.layers import EquivariantBlock, ResnetBlock, Norm
 
 class ForceEncoder(nn.Module):
   def __init__(self, equivariant=False, z_dim=64, initialize=True, N=8):
@@ -38,21 +38,8 @@ class PositionalEncoding(nn.Module):
   def forward(self, x):
     # Increasing embedding values makes the positional encoding relatively smaller.
     # This seems to be needed to keep model equivariance.
-    return x + math.sqrt(self.d_model) + self.p.to(x.device)
-
-class Norm(nn.Module):
-  def __init__(self, d_model, eps=1e-6):
-    super().__init__()
-
-    self.size = d_model
-    self.alpha = nn.Parameter(torch.ones(self.size))
-    self.bias = nn.Parameter(torch.zeros(self.size))
-    self.eps = eps
-
-  def forward(self, x):
-    norm = self.alpha * (x - x.mean(dim=-1, keepdim=True)) \
-    / (x.std(dim=-1, keepdim=True) + self.eps) + self.bias
-    return norm
+    #return x + math.sqrt(self.d_model) + self.p.to(x.device)
+    return x + self.p.to(x.device)
 
 class ScaledDotProductAttention(nn.Module):
   def __init__(self, temperature):
@@ -115,7 +102,7 @@ class MultiheadAttention(nn.Module):
     q = q.transpose(1,2).contiguous().view(b * len_q, n_head * d_model * self.c, 1, 1)
     q_geo = enn.GeometricTensor(q, self.fc_in_type)
     q_out = self.fc(q_geo)
-    q_out += residual
+    #q_out += residual
 
     return q_out.tensor.view(b, len_q, d_model * self.c), attn
 
@@ -129,6 +116,7 @@ class EquivForceEncoder(nn.Module):
     self.N = N
     self.d_model = 32
     self.seq_len = 64
+    self.z_dim = z_dim
 
     self.in_type = enn.FieldType(
       self.c4_act,
@@ -137,6 +125,7 @@ class EquivForceEncoder(nn.Module):
     out_type = enn.FieldType(self.c4_act, self.d_model * [self.c4_act.regular_repr])
     self.embed = EquivariantBlock(self.in_type, out_type, kernel_size=1, stride=1, padding=0, initialize=initialize)
     self.pos_encoder = PositionalEncoding(self.d_model, self.seq_len)
+    self.norm = Norm(self.d_model)
     self.attn1  = MultiheadAttention(n_head=8, d_model=self.d_model, d_k=self.d_model, d_v=self.d_model, initialize=initialize)
 
     self.c4_act = gspaces.rot2dOnR2(N)
@@ -153,7 +142,7 @@ class EquivForceEncoder(nn.Module):
     # Want to add the same position embedding to each element in the regular represenation
     x_geo = enn.GeometricTensor(x.view(batch_size * seq_l, 6, 1, 1), self.in_type)
     x_embed = self.embed(x_geo).tensor.view(batch_size, seq_l, self.N, self.d_model)
-    x_embed = self.pos_encoder(x_embed)
+    #x_embed = self.pos_encoder(x_embed)
 
     # Apply attention and flatten in geo tensor: b x sq*c*d
     x_, _ = self.attn1(
@@ -161,6 +150,7 @@ class EquivForceEncoder(nn.Module):
       x_embed,
       x_embed,
     )
+    x_ = self.norm(x_.view(batch_size, seq_l, self.N, -1))
     x_ = enn.GeometricTensor(x_.view(batch_size, -1, 1, 1), self.fc_in_type)
 
     return self.conv(x_)
