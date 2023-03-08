@@ -32,6 +32,7 @@ class Config(object):
 
     # Model
     self.equivariant = equivariant
+    self.z_dim = 64
     self.encoder = encoder.split('+')
 
     # Training

@@ -7,7 +7,7 @@ from escnn import gspaces
 from escnn import group
 from escnn import nn as enn
 
-from midichlorians.models.layers import EquivariantBlock, ResnetBlock
+from midichlorians.models.layers import EquivariantBlock, ResnetBlock, Norm
 
 class ForceEncoder(nn.Module):
   def __init__(self, equivariant=False, z_dim=64, initialize=True, N=8):
@@ -21,20 +21,25 @@ class ForceEncoder(nn.Module):
     return self.encoder(x)
 
 class PositionalEncoding(nn.Module):
+  """Positional encoding."""
   def __init__(self, d_model, max_len):
     super().__init__()
     self.d_model = d_model
+    self.max_len = max_len
 
-    position = torch.arange(max_len).unsqueeze(1)
-    div_term = torch.exp(torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model))
-    pe = torch.zeros(1, max_len, 1, d_model)
-    pe[0, :, 0, 0::2] = torch.sin(position * div_term)
-    pe[0, :, 0, 1::2] = torch.cos(position * div_term)
-    self.register_buffer('pe', pe)
+    self.p = torch.zeros((1, max_len, d_model))
+    x = torch.arange(max_len, dtype=torch.float32).reshape(
+        -1, 1) / torch.pow(10000, torch.arange(
+        0, d_model, 2, dtype=torch.float32) / d_model)
+    self.p[:, :, 0::2] = torch.sin(x)
+    self.p[:, :, 1::2] = torch.cos(x)
+    self.p = self.p.view(1, max_len, 1, d_model).repeat(1, 1, 8, 1)
 
   def forward(self, x):
-    x = x + self.pe[:x.size(1)]
-    return x
+    # Increasing embedding values makes the positional encoding relatively smaller.
+    # This seems to be needed to keep model equivariance.
+    #return x + math.sqrt(self.d_model) + self.p.to(x.device)
+    return x + self.p.to(x.device)
 
 class ScaledDotProductAttention(nn.Module):
   def __init__(self, temperature):
@@ -72,7 +77,7 @@ class MultiheadAttention(nn.Module):
 
     self.attention = ScaledDotProductAttention(temperature=d_k ** 0.5)
 
-  def forward(self, q, k, v, sz_b):
+  def forward(self, q, k, v):
     b = q.size(0)
     d_model, d_k, d_v, n_head = self.d_model, self.d_k, self.d_v, self.n_head
     len_q, len_k, len_v = 64, 64, 64
@@ -97,7 +102,7 @@ class MultiheadAttention(nn.Module):
     q = q.transpose(1,2).contiguous().view(b * len_q, n_head * d_model * self.c, 1, 1)
     q_geo = enn.GeometricTensor(q, self.fc_in_type)
     q_out = self.fc(q_geo)
-    q_out += residual
+    #q_out += residual
 
     return q_out.tensor.view(b, len_q, d_model * self.c), attn
 
@@ -109,8 +114,9 @@ class EquivForceEncoder(nn.Module):
 
     self.c4_act = gspaces.rot2dOnR2(N)
     self.N = N
-    self.d_model = 8
+    self.d_model = 32
     self.seq_len = 64
+    self.z_dim = z_dim
 
     self.in_type = enn.FieldType(
       self.c4_act,
@@ -119,7 +125,8 @@ class EquivForceEncoder(nn.Module):
     out_type = enn.FieldType(self.c4_act, self.d_model * [self.c4_act.regular_repr])
     self.embed = EquivariantBlock(self.in_type, out_type, kernel_size=1, stride=1, padding=0, initialize=initialize)
     self.pos_encoder = PositionalEncoding(self.d_model, self.seq_len)
-    self.attn  = MultiheadAttention(n_head=8, d_model=self.d_model, d_k=self.d_model, d_v=self.d_model, initialize=initialize)
+    self.norm = Norm(self.d_model)
+    self.attn1  = MultiheadAttention(n_head=8, d_model=self.d_model, d_k=self.d_model, d_v=self.d_model, initialize=initialize)
 
     self.c4_act = gspaces.rot2dOnR2(N)
     self.fc_in_type = enn.FieldType(self.c4_act, self.seq_len * self.d_model * [self.c4_act.regular_repr])
@@ -135,18 +142,18 @@ class EquivForceEncoder(nn.Module):
     # Want to add the same position embedding to each element in the regular represenation
     x_geo = enn.GeometricTensor(x.view(batch_size * seq_l, 6, 1, 1), self.in_type)
     x_embed = self.embed(x_geo).tensor.view(batch_size, seq_l, self.N, self.d_model)
-    x_embed = self.pos_encoder(x_embed)
+    #x_embed = self.pos_encoder(x_embed)
 
     # Apply attention and flatten in geo tensor: b x sq*c*d
-    x_attend, attn = self.attn(
+    x_, _ = self.attn1(
       x_embed,
       x_embed,
       x_embed,
-      batch_size
     )
-    x_attend = enn.GeometricTensor(x_attend.view(batch_size, -1, 1, 1), self.fc_in_type)
+    x_ = self.norm(x_.view(batch_size, seq_l, self.N, -1))
+    x_ = enn.GeometricTensor(x_.view(batch_size, -1, 1, 1), self.fc_in_type)
 
-    return self.conv(x_attend)
+    return self.conv(x_)
 
 class AttentionBlock(nn.Module):
   def __init__(self):

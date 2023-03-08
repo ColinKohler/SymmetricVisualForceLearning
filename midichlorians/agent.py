@@ -33,12 +33,13 @@ class Agent(object):
       self.actor = GaussianPolicy(
         self.config.vision_size,
         self.config.action_dim,
+        z_dim=self.config.z_dim,
         encoder=self.config.encoder,
         initialize=initialize_models,
         equivariant=self.config.equivariant
       )
       self.actor.to(self.device)
-      self.actor.train()
+      self.actor.eval()
 
     if critic:
       self.critic = critic
@@ -46,12 +47,13 @@ class Agent(object):
       self.critic = Critic(
         self.config.vision_size,
         self.config.action_dim,
+        z_dim=self.config.z_dim,
         encoder=self.config.encoder,
         initialize=initialize_models,
         equivariant=self.config.equivariant
       )
       self.critic.to(self.device)
-      self.critic.train()
+      self.critic.eval()
 
   def getAction(self, vision, force, proprio, evaluate=False):
     '''
@@ -158,5 +160,8 @@ class Agent(object):
       weights (dict, dict): (actor weights, critic weights)
     '''
     if weights is not None:
+      self.actor.eval()
+      self.critic.eval()
+
       self.actor.load_state_dict(weights[0])
       self.critic.load_state_dict(weights[1])

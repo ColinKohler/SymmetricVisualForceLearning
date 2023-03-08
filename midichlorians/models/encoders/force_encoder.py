@@ -27,7 +27,7 @@ class AttentionBlock(nn.Module):
 class ForceEncoder(nn.Module):
   '''
   '''
-  def __init__(self, z_dim=64, N=8, initialize=True):
+  def __init__(self, equivariant=False, z_dim=64, N=8, initialize=True):
     super().__init__()
 
     self.embed = nn.Linear(6,64)

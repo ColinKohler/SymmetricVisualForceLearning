@@ -45,7 +45,6 @@ class BlockPushingConfig(Config):
     self.init_temp = 1e-2
     self.tau = 1e-2
     self.discount = 0.99
-    self.deterministic = True
 
      # Eval
     self.num_eval_envs = 5
