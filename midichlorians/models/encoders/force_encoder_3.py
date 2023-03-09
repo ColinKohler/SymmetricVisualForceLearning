@@ -126,7 +126,7 @@ class EquivForceEncoder(nn.Module):
     self.embed = EquivariantBlock(self.in_type, out_type, kernel_size=1, stride=1, padding=0, initialize=initialize)
     self.pos_encoder = PositionalEncoding(self.d_model, self.seq_len)
     self.norm = Norm(self.d_model)
-    self.attn1  = MultiheadAttention(n_head=8, d_model=self.d_model, d_k=self.d_model, d_v=self.d_model, initialize=initialize)
+    self.attn1  = MultiheadAttention(n_head=1, d_model=self.d_model, d_k=self.d_model, d_v=self.d_model, initialize=initialize)
 
     self.c4_act = gspaces.rot2dOnR2(N)
     self.fc_in_type = enn.FieldType(self.c4_act, self.seq_len * self.d_model * [self.c4_act.regular_repr])

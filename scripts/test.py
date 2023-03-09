@@ -23,9 +23,9 @@ if __name__ == '__main__':
     help='Path to the checkpoint to load.')
   parser.add_argument('--num_eps', type=int, default=100,
     help='Number of episodes to test on.')
-  parser.add_argument('--num_sensors', type=int, default=2,
+  parser.add_argument('--num_sensors', type=int, default=1,
     help='Number of sensors to use when rendering the heightmap')
-  parser.add_argument('--encoder', type=str, default='fusion',
+  parser.add_argument('--encoder', type=str, default='vision+force+proprio',
     help='Type of latent encoder to use')
   parser.add_argument('--num_gpus', type=int, default=1,
     help='Number of GPUs to use for training.')
@@ -35,7 +35,14 @@ if __name__ == '__main__':
     help='Render the simulation while evaluating.')
   args = parser.parse_args()
 
-  task_config = task_configs[args.task](args.num_sensors, args.encoder, args.num_gpus, results_path=args.checkpoint)
+  task_config = task_configs[args.task](
+    equivariant=True,
+    vision_size=64,
+    num_sensors=args.num_sensors,
+    encoder=args.encoder,
+    num_gpus=args.num_gpus,
+    results_path=args.checkpoint
+  )
   checkpoint_path = os.path.join(task_config.results_path,
                                  'model.checkpoint')
   if os.path.exists(checkpoint_path):
@@ -77,7 +84,6 @@ if __name__ == '__main__':
       #)
 
       #print('v: {:.3f} | z: {:.3f}'.format(value.item(), zvalue.item()))
-      #if np.mean(np.abs(obs[3])) > 2e-2:
       if args.plot_obs:
         fig, ax = plt.subplots(nrows=1, ncols=3)
         ax[0].imshow(obs[0][3].squeeze(), cmap='gray')
