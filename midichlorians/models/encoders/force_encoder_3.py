@@ -150,7 +150,7 @@ class EquivForceEncoder(nn.Module):
       x_embed,
       x_embed,
     )
-    x_ = self.norm(x_.view(batch_size, seq_l, self.N, -1))
+    #x_ = self.norm(x_.view(batch_size, seq_l, self.N, -1))
     x_ = enn.GeometricTensor(x_.view(batch_size, -1, 1, 1), self.fc_in_type)
 
     return self.conv(x_)

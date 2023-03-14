@@ -35,10 +35,10 @@ class Latent(nn.Module):
 
     self.layers = list()
     if self.equivariant:
-      #out_type = enn.FieldType(self.c4_act, self.z_dim * [self.c4_act.regular_repr])
+      out_type = enn.FieldType(self.c4_act, self.z_dim * [self.c4_act.regular_repr])
       self.layers.append(EquivariantBlock(
         self.in_type,
-        self.out_type,
+        out_type,
         kernel_size=1,
         stride=1,
         padding=0,
@@ -56,15 +56,15 @@ class Latent(nn.Module):
       #  initialize=initialize
       #))
 
-      #in_type = out_type
-      #self.layers.append(EquivariantBlock(
-      #  in_type,
-      #  self.out_type,
-      #  kernel_size=1,
-      #  stride=1,
-      #  padding=0,
-      #  initialize=initialize
-      #))
+      in_type = out_type
+      self.layers.append(EquivariantBlock(
+        in_type,
+        self.out_type,
+        kernel_size=1,
+        stride=1,
+        padding=0,
+        initialize=initialize
+      ))
     else:
       self.layers.append(ResnetBlock(
         len(self.encoders) * self.encoder_dim,
