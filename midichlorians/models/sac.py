@@ -7,7 +7,7 @@ from escnn import gspaces
 from escnn import nn as enn
 
 from midichlorians.models.latent import Latent
-from midichlorians.models.layers import EquivariantBlock, ResnetBlock
+from midichlorians.models.layers import EquivariantBlock, ConvBlock
 
 class Critic(nn.Module):
   '''
@@ -48,13 +48,13 @@ class Critic(nn.Module):
       )
     else:
       self.critic_1 = nn.Sequential(
-        ResnetBlock(self.z_dim + self.action_dim, self.z_dim, kernel_size=1, stride=1, padding=0, act=True),
-        ResnetBlock(self.z_dim, 1, kernel_size=1, stride=1, padding=0, act=False)
+        ConvBlock(self.z_dim + self.action_dim, self.z_dim, kernel_size=1, stride=1, padding=0, act=True),
+        ConvBlock(self.z_dim, 1, kernel_size=1, stride=1, padding=0, act=False)
       )
 
       self.critic_2 = nn.Sequential(
-        ResnetBlock(self.z_dim + self.action_dim, self.z_dim, kernel_size=1, stride=1, padding=0, act=True),
-        ResnetBlock(self.z_dim, 1, kernel_size=1, stride=1, padding=0, act=False)
+        ConvBlock(self.z_dim + self.action_dim, self.z_dim, kernel_size=1, stride=1, padding=0, act=True),
+        ConvBlock(self.z_dim, 1, kernel_size=1, stride=1, padding=0, act=False)
       )
 
 
@@ -120,9 +120,9 @@ class GaussianPolicy(nn.Module):
       self.out_type = enn.FieldType(self.c4_act, self.equivariant_action_repr + self.invariant_action_repr)
       self.layers.append(EquivariantBlock(in_type, self.out_type, kernel_size=1, stride=1, padding=0, initialize=initialize, act=False))
     else:
-      self.layers.append(ResnetBlock(self.z_dim, self.z_dim // 2, kernel_size=1, stride=1, padding=0))
-      self.layers.append(ResnetBlock(self.z_dim // 2, self.z_dim // 4, kernel_size=1, stride=1, padding=0))
-      self.layers.append(ResnetBlock(self.z_dim // 4, self.action_dim*2, kernel_size=1, stride=1, padding=0, act=False))
+      self.layers.append(ConvBlock(self.z_dim, self.z_dim // 2, kernel_size=1, stride=1, padding=0))
+      self.layers.append(ConvBlock(self.z_dim // 2, self.z_dim // 4, kernel_size=1, stride=1, padding=0))
+      self.layers.append(ConvBlock(self.z_dim // 4, self.action_dim*2, kernel_size=1, stride=1, padding=0, act=False))
 
     self.conv = nn.Sequential(*self.layers)
 

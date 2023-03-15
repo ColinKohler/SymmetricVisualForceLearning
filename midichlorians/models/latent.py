@@ -4,7 +4,7 @@ import torch.nn as nn
 from escnn import gspaces
 from escnn import nn as enn
 
-from midichlorians.models.layers import EquivariantBlock, ResnetBlock
+from midichlorians.models.layers import EquivariantBlock, ConvBlock
 from midichlorians.models.encoders.proprio_encoder import ProprioEncoder
 from midichlorians.models.encoders.vision_encoder import VisionEncoder
 from midichlorians.models.encoders.force_encoder_3 import ForceEncoder
@@ -66,7 +66,7 @@ class Latent(nn.Module):
         initialize=initialize
       ))
     else:
-      self.layers.append(ResnetBlock(
+      self.layers.append(ConvBlock(
         len(self.encoders) * self.encoder_dim,
         self.z_dim,
         kernel_size=1,
@@ -74,7 +74,7 @@ class Latent(nn.Module):
         padding=0
       ))
 
-      self.layers.append(ResnetBlock(
+      self.layers.append(ConvBlock(
         self.z_dim,
         self.z_dim,
         kernel_size=1,

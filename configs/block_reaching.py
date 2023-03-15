@@ -12,7 +12,7 @@ class BlockReachingConfig(Config):
     num_gpus (int):
     results_path (str):
   '''
-  def __init__(self, equivariant=True, vision_size=64, num_sensors=2, encoder='fusion', num_gpus=1, results_path=None):
+  def __init__(self, equivariant=True, vision_size=64, num_sensors=1, encoder='vision+force+proprio', num_gpus=1, results_path=None):
     super().__init__(equivariant=equivariant, vision_size=vision_size, num_sensors=num_sensors, encoder=encoder, num_gpus=num_gpus)
     self.seed = None
 
@@ -81,7 +81,7 @@ class BlockReachingConfig(Config):
       'max_steps' : self.max_steps,
       'obs_size' : self.obs_size,
       'fast_mode' : True,
-      'physics_mode' : 'fast',
+      'physics_mode' : 'force',
       'action_sequence' : self.action_sequence,
       'robot' : self.robot,
       'num_objects' : 1,
@@ -90,6 +90,7 @@ class BlockReachingConfig(Config):
       'workspace_check' : 'point',
       'reward_type' : self.reward_type,
       'view_type' : self.view_type,
+      'num_sensors' : self.num_sensors,
       'obs_type' : self.obs_type,
       'render': render
     }
