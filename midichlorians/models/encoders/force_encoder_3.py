@@ -10,7 +10,7 @@ from escnn import nn as enn
 from midichlorians.models.layers import EquivariantBlock, ConvBlock, Norm
 
 class ForceEncoder(nn.Module):
-  def __init__(self, equivariant=False, z_dim=64, initialize=True, N=8):
+  def __init__(self, equivariant=False, z_dim=64, initialize=True, N=4):
     super().__init__()
     if equivariant:
       self.encoder = EquivForceEncoder(z_dim=z_dim, initialize=initialize, N=N)
@@ -63,16 +63,16 @@ class MultiheadAttention(nn.Module):
     self.d_k = d_k
     self.d_v = d_v
 
-    self.c4_act = gspaces.rot2dOnR2(self.c)
+    self.group = gspaces.rot2dOnR2(self.c)
 
-    self.w_in_type = enn.FieldType(self.c4_act, d_model * [self.c4_act.regular_repr])
-    w_out_type = enn.FieldType(self.c4_act, n_head * d_k * [self.c4_act.regular_repr])
+    self.w_in_type = enn.FieldType(self.group, d_model * [self.group.regular_repr])
+    w_out_type = enn.FieldType(self.group, n_head * d_k * [self.group.regular_repr])
     self.w_qs = EquivariantBlock(self.w_in_type, w_out_type, kernel_size=1, stride=1, padding=0, act=False, initialize=initialize)
     self.w_ks = EquivariantBlock(self.w_in_type, w_out_type, kernel_size=1, stride=1, padding=0, act=False, initialize=initialize)
     self.w_vs = EquivariantBlock(self.w_in_type, w_out_type, kernel_size=1, stride=1, padding=0, act=False, initialize=initialize)
 
-    self.fc_in_type = enn.FieldType(self.c4_act, n_head * d_v * [self.c4_act.regular_repr])
-    self.out_type = enn.FieldType(self.c4_act, d_model * [self.c4_act.regular_repr])
+    self.fc_in_type = enn.FieldType(self.group, n_head * d_v * [self.group.regular_repr])
+    self.out_type = enn.FieldType(self.group, d_model * [self.group.regular_repr])
     self.fc = EquivariantBlock(self.fc_in_type, self.out_type, kernel_size=1, stride=1, padding=0, act=False, initialize=initialize)
 
     self.attention = ScaledDotProductAttention(temperature=d_k ** 0.5)
@@ -109,28 +109,28 @@ class MultiheadAttention(nn.Module):
 class EquivForceEncoder(nn.Module):
   '''
   '''
-  def __init__(self, z_dim=64, N=8, initialize=True):
+  def __init__(self, z_dim=64, N=4, initialize=True):
     super().__init__()
 
-    self.c4_act = gspaces.rot2dOnR2(N)
+    self.group = gspaces.flipRot2dOnR2(self.N)
     self.N = N
     self.d_model = 32
     self.seq_len = 64
     self.z_dim = z_dim
 
     self.in_type = enn.FieldType(
-      self.c4_act,
-      [self.c4_act.irrep(1)] + [self.c4_act.trivial_repr] + [self.c4_act.irrep(1)] + [self.c4_act.trivial_repr]
+      self.group,
+      [self.group.irrep(1)] + [self.group.trivial_repr] + [self.group.irrep(1)] + [self.group.trivial_repr]
     )
-    out_type = enn.FieldType(self.c4_act, self.d_model * [self.c4_act.regular_repr])
+    out_type = enn.FieldType(self.group, self.d_model * [self.group.regular_repr])
     self.embed = EquivariantBlock(self.in_type, out_type, kernel_size=1, stride=1, padding=0, initialize=initialize)
     self.pos_encoder = PositionalEncoding(self.d_model, self.seq_len)
     self.norm = Norm(self.d_model)
     self.attn1  = MultiheadAttention(n_head=1, d_model=self.d_model, d_k=self.d_model, d_v=self.d_model, initialize=initialize)
 
-    self.c4_act = gspaces.rot2dOnR2(N)
-    self.fc_in_type = enn.FieldType(self.c4_act, self.seq_len * self.d_model * [self.c4_act.regular_repr])
-    self.out_type = enn.FieldType(self.c4_act, z_dim * [self.c4_act.regular_repr])
+    self.group = gspaces.rot2dOnR2(N)
+    self.fc_in_type = enn.FieldType(self.group, self.seq_len * self.d_model * [self.group.regular_repr])
+    self.out_type = enn.FieldType(self.group, z_dim * [self.group.regular_repr])
     self.conv = EquivariantBlock(self.fc_in_type, self.out_type, kernel_size=1, stride=1, padding=0, initialize=initialize)
 
   def forward(self, x):

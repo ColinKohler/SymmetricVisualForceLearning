@@ -6,14 +6,15 @@ from torch.distributions import Normal
 from escnn import gspaces
 from escnn import nn as enn
 
+from midichlorians import torch_utils
 from midichlorians.models.latent import Latent
 from midichlorians.models.layers import EquivariantBlock, ConvBlock
 
 class Critic(nn.Module):
   '''
-  Equivariant critic model.
+  Twin-head Critic model.
   '''
-  def __init__(self, vision_size, action_dim, equivariant=True, z_dim=64, encoder='fusion', initialize=True, N=8):
+  def __init__(self, vision_size, action_dim, equivariant=True, z_dim=64, encoder='fusion', initialize=True, N=4):
     super().__init__()
 
     self.equivariant = equivariant
@@ -21,16 +22,16 @@ class Critic(nn.Module):
     self.action_dim = action_dim
     self.N = N
 
-    self.c4_act = gspaces.rot2dOnR2(self.N)
+    self.group = gspaces.flipRot2dOnR2(self.N)
     self.n_rho1 = 1
-    self.z_repr = self.z_dim * [self.c4_act.regular_repr]
-    self.invariant_action_repr = (self.action_dim - 2) * [self.c4_act.trivial_repr]
-    self.equivariant_action_repr = self.n_rho1 * [self.c4_act.irrep(1)]
+    self.z_repr = self.z_dim * [self.group.regular_repr]
+    self.invariant_action_repr = (self.action_dim - 2) * [self.group.trivial_repr]
+    self.equivariant_action_repr = self.n_rho1 * [self.group.irrep(1)]
 
-    self.in_type = enn.FieldType(self.c4_act, self.z_repr + self.invariant_action_repr + self.equivariant_action_repr)
-    self.inner_type = enn.FieldType(self.c4_act, self.z_dim * [self.c4_act.regular_repr])
-    self.inner_type_2 = enn.FieldType(self.c4_act, self.z_dim * [self.c4_act.trivial_repr])
-    self.out_type = enn.FieldType(self.c4_act, 1 * [self.c4_act.trivial_repr])
+    self.in_type = enn.FieldType(self.group, self.z_repr + self.invariant_action_repr + self.equivariant_action_repr)
+    self.inner_type = enn.FieldType(self.group, self.z_dim * [self.group.regular_repr])
+    self.inner_type_2 = enn.FieldType(self.group, self.z_dim * [self.group.trivial_repr])
+    self.out_type = enn.FieldType(self.group, 1 * [self.group.trivial_repr])
 
     self.encoder = Latent(equivariant=equivariant, vision_size=vision_size, z_dim=z_dim, encoder=encoder, initialize=initialize)
 
@@ -57,6 +58,7 @@ class Critic(nn.Module):
         ConvBlock(self.z_dim, 1, kernel_size=1, stride=1, padding=0, act=False)
       )
 
+      self.apply(torch_utils.initWeights)
 
   def forward(self, obs, act):
     batch_size = obs[0].size(0)
@@ -83,9 +85,9 @@ class Critic(nn.Module):
 
 class GaussianPolicy(nn.Module):
   '''
-  Equivariant actor model that uses a Normal distribution to sample actions.
+  Policy model that uses a Normal distribution to sample actions.
   '''
-  def __init__(self, vision_size, action_dim, equivariant=True, z_dim=64, encoder='fusion', initialize=True, N=8):
+  def __init__(self, vision_size, action_dim, equivariant=True, z_dim=64, encoder='fusion', initialize=True, N=4):
     super().__init__()
     self.log_sig_min = -20
     self.log_sig_max = 2
@@ -97,27 +99,27 @@ class GaussianPolicy(nn.Module):
     self.initialize = initialize
     self.N = N
 
-    self.c4_act = gspaces.rot2dOnR2(N)
+    self.group = gspaces.flipRot2dOnR2(self.N)
     self.n_rho1 = 1
-    self.z_repr = self.z_dim * [self.c4_act.regular_repr]
-    self.invariant_action_repr = (self.action_dim * 2 - 2) * [self.c4_act.trivial_repr]
-    self.equivariant_action_repr = self.n_rho1 * [self.c4_act.irrep(1)]
+    self.z_repr = self.z_dim * [self.group.regular_repr]
+    self.invariant_action_repr = (self.action_dim * 2 - 2) * [self.group.trivial_repr]
+    self.equivariant_action_repr = self.n_rho1 * [self.group.irrep(1)]
 
     self.encoder = Latent(equivariant=equivariant, vision_size=vision_size, z_dim=z_dim, encoder=encoder, initialize=initialize)
 
     self.layers = list()
 
     if self.equivariant:
-      self.in_type = enn.FieldType(self.c4_act, self.z_repr)
-      out_type = enn.FieldType(self.c4_act, self.z_dim // 2 * [self.c4_act.regular_repr])
+      self.in_type = enn.FieldType(self.group, self.z_repr)
+      out_type = enn.FieldType(self.group, self.z_dim // 2 * [self.group.regular_repr])
       self.layers.append(EquivariantBlock(self.in_type, out_type, kernel_size=1, stride=1, padding=0, initialize=initialize))
 
       in_type = out_type
-      out_type = enn.FieldType(self.c4_act, self.z_dim // 4 * [self.c4_act.regular_repr])
+      out_type = enn.FieldType(self.group, self.z_dim // 4 * [self.group.regular_repr])
       self.layers.append(EquivariantBlock(in_type, out_type, kernel_size=1, stride=1, padding=0, initialize=initialize))
 
       in_type = out_type
-      self.out_type = enn.FieldType(self.c4_act, self.equivariant_action_repr + self.invariant_action_repr)
+      self.out_type = enn.FieldType(self.group, self.equivariant_action_repr + self.invariant_action_repr)
       self.layers.append(EquivariantBlock(in_type, self.out_type, kernel_size=1, stride=1, padding=0, initialize=initialize, act=False))
     else:
       self.layers.append(ConvBlock(self.z_dim, self.z_dim // 2, kernel_size=1, stride=1, padding=0))
@@ -125,6 +127,8 @@ class GaussianPolicy(nn.Module):
       self.layers.append(ConvBlock(self.z_dim // 4, self.action_dim*2, kernel_size=1, stride=1, padding=0, act=False))
 
     self.conv = nn.Sequential(*self.layers)
+    if not self.equivariant:
+      self.apply(torch_utils.initWeights)
 
   def forward(self, obs):
     batch_size = obs[0].size(0)

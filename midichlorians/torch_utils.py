@@ -7,6 +7,14 @@ import numpy as np
 import numpy.random as npr
 import scipy.ndimage
 
+
+def initWeights(m):
+  if isinstance(m, nn.Linear):
+    nn.init.xavier_uniform_(m.weight, gain=1)
+    nn.init.constant_(m.bias, 0)
+  elif isinstance(m, nn.Conv2d):
+    nn.init.xavier_normal_(m.weight.data)
+
 def detachGeoTensor(geo, t):
   return enn.GeometricTensor(geo.tensor.detach(), t)
 

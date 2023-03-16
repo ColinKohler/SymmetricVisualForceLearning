@@ -22,7 +22,7 @@ class BlockReachingConfig(Config):
     self.max_steps = 50
     self.dpos = 0.025
     self.drot = np.pi / 16
-    self.max_force = 15
+    self.max_force = 50
 
     # Data Gen
     self.num_data_gen_envs = 5
@@ -50,7 +50,7 @@ class BlockReachingConfig(Config):
     # Eval
     self.num_eval_envs = 5
     self.num_eval_episodes = 100
-    self.eval_interval = 100
+    self.eval_interval = 500
     self.num_eval_intervals = int(self.training_steps / self.eval_interval)
 
     # LR schedule
@@ -90,7 +90,6 @@ class BlockReachingConfig(Config):
       'workspace_check' : 'point',
       'reward_type' : self.reward_type,
       'view_type' : self.view_type,
-      'num_sensors' : self.num_sensors,
       'obs_type' : self.obs_type,
       'render': render
     }

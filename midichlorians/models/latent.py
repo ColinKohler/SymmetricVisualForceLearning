@@ -11,14 +11,14 @@ from midichlorians.models.encoders.force_encoder_3 import ForceEncoder
 from midichlorians import torch_utils
 
 class Latent(nn.Module):
-  def __init__(self, vision_size=64, z_dim=64, N=8, encoder='fusion', equivariant=True, initialize=True):
+  def __init__(self, vision_size=64, z_dim=64, N=4, encoder='fusion', equivariant=True, initialize=True):
     super().__init__()
 
     self.equivariant = equivariant
     self.encoder_dim = z_dim
     self.z_dim = z_dim
     self.N = N
-    self.c4_act = gspaces.rot2dOnR2(self.N)
+    self.group = gspaces.flipRot2dOnR2(self.N)
 
     self.encoders = nn.ModuleDict()
     for e in encoder:
@@ -30,12 +30,12 @@ class Latent(nn.Module):
         self.encoders[e] = ProprioEncoder(equivariant=equivariant, z_dim=self.encoder_dim, N=self.N, initialize=initialize)
       else:
         raise ValueError('Invalid latent encoder specified: {}'.format(e))
-    self.in_type = enn.FieldType(self.c4_act, len(self.encoders) * self.encoder_dim * [self.c4_act.regular_repr])
-    self.out_type = enn.FieldType(self.c4_act, self.z_dim * [self.c4_act.regular_repr])
+    self.in_type = enn.FieldType(self.group, len(self.encoders) * self.encoder_dim * [self.group.regular_repr])
+    self.out_type = enn.FieldType(self.group, self.z_dim * [self.group.regular_repr])
 
     self.layers = list()
     if self.equivariant:
-      out_type = enn.FieldType(self.c4_act, self.z_dim * [self.c4_act.regular_repr])
+      out_type = enn.FieldType(self.group, self.z_dim * [self.group.regular_repr])
       self.layers.append(EquivariantBlock(
         self.in_type,
         out_type,
@@ -44,17 +44,6 @@ class Latent(nn.Module):
         padding=0,
         initialize=initialize
       ))
-
-      #in_type = out_type
-      #out_type = enn.FieldType(self.c4_act, self.z_dim // 2 * [self.c4_act.regular_repr])
-      #self.layers.append(EquivariantBlock(
-      #  in_type,
-      #  out_type,
-      #  kernel_size=1,
-      #  stride=1,
-      #  padding=0,
-      #  initialize=initialize
-      #))
 
       in_type = out_type
       self.layers.append(EquivariantBlock(
