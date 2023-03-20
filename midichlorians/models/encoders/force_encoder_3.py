@@ -120,7 +120,7 @@ class EquivForceEncoder(nn.Module):
 
     self.in_type = enn.FieldType(
       self.group,
-      [self.group.irrep(1)] + [self.group.trivial_repr] + [self.group.irrep(1)] + [self.group.trivial_repr]
+      [self.group.irrep(1, 1)] + [self.group.trivial_repr] + [self.group.irrep(1, 1)] + [self.group.trivial_repr]
     )
     out_type = enn.FieldType(self.group, self.d_model * [self.group.regular_repr])
     self.embed = EquivariantBlock(self.in_type, out_type, kernel_size=1, stride=1, padding=0, initialize=initialize)

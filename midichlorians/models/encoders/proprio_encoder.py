@@ -28,7 +28,7 @@ class EquivProprioEncoder(nn.Module):
     self.N = N
 
     self.group = gspaces.flipRot2dOnR2(self.N)
-    self.proprio_repr = 1 * [self.group.trivial_repr] + [self.group.irrep(1)] + 2 * [self.group.trivial_repr]
+    self.proprio_repr = 1 * [self.group.trivial_repr] + [self.group.irrep(1, 1)] + 2 * [self.group.trivial_repr]
 
     self.layers = list()
     self.in_type = enn.FieldType(self.group, self.proprio_repr)

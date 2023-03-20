@@ -26,7 +26,7 @@ class Critic(nn.Module):
     self.n_rho1 = 1
     self.z_repr = self.z_dim * [self.group.regular_repr]
     self.invariant_action_repr = (self.action_dim - 2) * [self.group.trivial_repr]
-    self.equivariant_action_repr = self.n_rho1 * [self.group.irrep(1)]
+    self.equivariant_action_repr = self.n_rho1 * [self.group.irrep(1, 1)]
 
     self.in_type = enn.FieldType(self.group, self.z_repr + self.invariant_action_repr + self.equivariant_action_repr)
     self.inner_type = enn.FieldType(self.group, self.z_dim * [self.group.regular_repr])
@@ -103,7 +103,7 @@ class GaussianPolicy(nn.Module):
     self.n_rho1 = 1
     self.z_repr = self.z_dim * [self.group.regular_repr]
     self.invariant_action_repr = (self.action_dim * 2 - 2) * [self.group.trivial_repr]
-    self.equivariant_action_repr = self.n_rho1 * [self.group.irrep(1)]
+    self.equivariant_action_repr = self.n_rho1 * [self.group.irrep(1, 1)]
 
     self.encoder = Latent(equivariant=equivariant, vision_size=vision_size, z_dim=z_dim, encoder=encoder, initialize=initialize)
 

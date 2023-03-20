@@ -91,8 +91,15 @@ class Runner(object):
     )
     self.training_worker = Trainer.options(num_cpus=0, num_gpus=0.75).remote(self.checkpoint, self.config)
 
-    self.replay_buffer_worker = ReplayBuffer.options(num_cpus=0, num_gpus=0).remote(self.checkpoint, self.replay_buffer, self.config)
-    self.eval_worker = EvalDataGenerator.options(num_cpus=0, num_gpus=0.25).remote(self.config, self.config.seed+self.config.num_data_gen_envs if self.config.seed else None)
+    self.replay_buffer_worker = ReplayBuffer.options(num_cpus=0, num_gpus=0).remote(
+      self.checkpoint,
+      self.replay_buffer,
+      self.config
+    )
+    self.eval_worker = EvalDataGenerator.options(num_cpus=0, num_gpus=0.25).remote(
+      self.config,
+      self.config.seed+self.config.num_data_gen_envs if self.config.seed else None
+    )
 
     self.shared_storage_worker = SharedStorage.remote(self.checkpoint, self.config)
     self.shared_storage_worker.setInfo.remote('terminate', False)
