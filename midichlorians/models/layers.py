@@ -19,37 +19,9 @@ class Norm(nn.Module):
     / (x.std(dim=-1, keepdim=True) + self.eps) + self.bias
     return norm
 
-class EquivariantLinearBlock(nn.Module):
-  '''
-  A equivariant ResNet block.
-  '''
-  def __init__(self, in_type, out_type, initialize=True, act=True, norm=False):
-    super().__init__()
-    self.norm = norm
-    self.act = act
-
-    self.fc = enn.Linear(
-      in_type,
-      out_type,
-      initialize=initialize
-    )
-    if self.norm:
-      self.bn = enn.InnerBatchNorm(out_type)
-    if self.act:
-      self.relu = enn.ReLU(out_type, inplace=True)
-
-  def forward(self, x):
-    out = self.fc(x)
-    if self.norm:
-      out = self.bn(out)
-    if self.act:
-      out = self.relu(out)
-
-    return out
-
 class EquivariantBlock(nn.Module):
   '''
-  A equivariant ResNet block.
+  A equivariant block.
   '''
   def __init__(self, in_type, out_type, kernel_size=3, stride=1, padding=1, initialize=True, act=True, norm=False):
     super().__init__()
@@ -81,9 +53,9 @@ class EquivariantBlock(nn.Module):
 
     return out
 
-class ResnetBlock(nn.Module):
+class ConvBlock(nn.Module):
   '''
-  A ResNet block.
+  A conv block.
   '''
   def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1, act=True, norm=False):
     super().__init__()
