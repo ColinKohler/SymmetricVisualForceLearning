@@ -25,7 +25,7 @@ if __name__ == '__main__':
     help='Number of episodes to test on.')
   parser.add_argument('--vision_size', type=int, default=64,
     help='The size of the RGB-D image used for vision.')
-  parser.add_argument('--num_sensors', type=int, default=2,
+  parser.add_argument('--num_sensors', type=int, default=1,
     help='Number of sensors to use when rendering the heightmap')
   parser.add_argument('--encoder', type=str, default='vision+force+proprio',
     help='Type of latent encoder to use')
@@ -37,7 +37,14 @@ if __name__ == '__main__':
     help='Render the simulation while evaluating.')
   args = parser.parse_args()
 
-  task_config = task_configs[args.task](True, args.vision_size, args.num_sensors, args.encoder, args.num_gpus, results_path=args.checkpoint)
+  task_config = task_configs[args.task](
+    equivariant=True,
+    vision_size=args.vision_size,
+    num_sensors=args.num_sensors,
+    encoder=args.encoder,
+    num_gpus=args.num_gpus,
+    results_path=args.checkpoint
+  )
   checkpoint_path = os.path.join(task_config.results_path,
                                  'model.checkpoint')
   if os.path.exists(checkpoint_path):
@@ -80,6 +87,7 @@ if __name__ == '__main__':
 
       print('v: {:.3f} | z: {:.3f}'.format(value.item(), zvalue.item()))
       print(action)
+      print()
       if args.plot_obs:
         norm_force = torch_utils.normalizeForce(obs[1], task_config.max_force)
 

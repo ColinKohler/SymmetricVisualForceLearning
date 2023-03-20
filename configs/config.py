@@ -6,7 +6,7 @@ class Config(object):
   Base task config.
   '''
 
-  def __init__(self, equivariant=True, vision_size=64, num_sensors=2, encoder='fusion', num_gpus=1):
+  def __init__(self, equivariant=True, vision_size=64, num_sensors=2, encoder='vision+force+proprio', num_gpus=1):
     # Env
     self.obs_type = ['vision', 'force', 'proprio']
     self.vision_size = vision_size

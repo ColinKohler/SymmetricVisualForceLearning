@@ -45,6 +45,17 @@ class Latent(nn.Module):
         initialize=initialize
       ))
 
+      #in_type = out_type
+      #out_type = enn.FieldType(self.c4_act, self.z_dim // 2 * [self.c4_act.regular_repr])
+      #self.layers.append(EquivariantBlock(
+      #  in_type,
+      #  out_type,
+      #  kernel_size=1,
+      #  stride=1,
+      #  padding=0,
+      #  initialize=initialize
+      #))
+
       in_type = out_type
       self.layers.append(EquivariantBlock(
         in_type,
