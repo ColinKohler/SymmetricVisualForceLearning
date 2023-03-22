@@ -8,7 +8,7 @@ from escnn import nn as enn
 from midichlorians.models.layers import EquivariantBlock, ConvBlock
 
 class ProprioEncoder(nn.Module):
-  def __init__(self, equivariant=False, z_dim=64, initialize=True, N=4):
+  def __init__(self, equivariant=False, z_dim=64, initialize=True, N=8):
     super().__init__()
     if equivariant:
       self.encoder = EquivProprioEncoder(z_dim=z_dim, initialize=initialize, N=N)
@@ -21,14 +21,14 @@ class ProprioEncoder(nn.Module):
 class EquivProprioEncoder(nn.Module):
   '''
   '''
-  def __init__(self, z_dim=64, initialize=True, N=4):
+  def __init__(self, z_dim=64, initialize=True, N=8):
     super().__init__()
 
     self.z_dim = z_dim
     self.N = N
 
-    self.group = gspaces.flipRot2dOnR2(self.N)
-    self.proprio_repr = 1 * [self.group.trivial_repr] + [self.group.irrep(1, 1)] + 2 * [self.group.trivial_repr]
+    self.group = gspaces.rot2dOnR2(self.N)
+    self.proprio_repr = 1 * [self.group.trivial_repr] + [self.group.irrep(1)] + 2 * [self.group.trivial_repr]
 
     self.layers = list()
     self.in_type = enn.FieldType(self.group, self.proprio_repr)

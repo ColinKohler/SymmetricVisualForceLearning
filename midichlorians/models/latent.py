@@ -11,14 +11,14 @@ from midichlorians.models.encoders.force_encoder_3 import ForceEncoder
 from midichlorians import torch_utils
 
 class Latent(nn.Module):
-  def __init__(self, vision_size=64, z_dim=64, N=4, encoder='fusion', equivariant=True, initialize=True):
+  def __init__(self, vision_size=64, z_dim=64, N=8, encoder='fusion', equivariant=True, initialize=True):
     super().__init__()
 
     self.equivariant = equivariant
     self.encoder_dim = z_dim
     self.z_dim = z_dim
     self.N = N
-    self.group = gspaces.flipRot2dOnR2(self.N)
+    self.group = gspaces.rot2dOnR2(self.N)
 
     self.encoders = nn.ModuleDict()
     for e in encoder:

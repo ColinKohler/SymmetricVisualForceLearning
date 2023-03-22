@@ -10,7 +10,7 @@ from escnn import nn as enn
 from midichlorians.models.layers import EquivariantBlock, ConvBlock, Norm
 
 class ForceEncoder(nn.Module):
-  def __init__(self, equivariant=False, z_dim=64, initialize=True, N=4):
+  def __init__(self, equivariant=False, z_dim=64, initialize=True, N=8):
     super().__init__()
     if equivariant:
       self.encoder = EquivForceEncoder(z_dim=z_dim, initialize=initialize, N=N)
@@ -109,18 +109,18 @@ class MultiheadAttention(nn.Module):
 class EquivForceEncoder(nn.Module):
   '''
   '''
-  def __init__(self, z_dim=64, N=4, initialize=True):
+  def __init__(self, z_dim=64, N=8, initialize=True):
     super().__init__()
 
-    self.group = gspaces.flipRot2dOnR2(self.N)
     self.N = N
+    self.group = gspaces.rot2dOnR2(self.N)
     self.d_model = 32
     self.seq_len = 64
     self.z_dim = z_dim
 
     self.in_type = enn.FieldType(
       self.group,
-      [self.group.irrep(1, 1)] + [self.group.trivial_repr] + [self.group.irrep(1, 1)] + [self.group.trivial_repr]
+      [self.group.irrep(1)] + [self.group.trivial_repr] + [self.group.irrep(1)] + [self.group.trivial_repr]
     )
     out_type = enn.FieldType(self.group, self.d_model * [self.group.regular_repr])
     self.embed = EquivariantBlock(self.in_type, out_type, kernel_size=1, stride=1, padding=0, initialize=initialize)
@@ -128,7 +128,6 @@ class EquivForceEncoder(nn.Module):
     self.norm = Norm(self.d_model)
     self.attn1  = MultiheadAttention(n_head=1, d_model=self.d_model, d_k=self.d_model, d_v=self.d_model, initialize=initialize)
 
-    self.group = gspaces.rot2dOnR2(N)
     self.fc_in_type = enn.FieldType(self.group, self.seq_len * self.d_model * [self.group.regular_repr])
     self.out_type = enn.FieldType(self.group, z_dim * [self.group.regular_repr])
     self.conv = EquivariantBlock(self.fc_in_type, self.out_type, kernel_size=1, stride=1, padding=0, initialize=initialize)

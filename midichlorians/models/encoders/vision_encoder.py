@@ -8,7 +8,7 @@ from escnn import nn as enn
 from midichlorians.models.layers import EquivariantBlock, ConvBlock
 
 class VisionEncoder(nn.Module):
-  def __init__(self, equivariant=False, vision_size=64, z_dim=64, initialize=True, N=4):
+  def __init__(self, equivariant=False, vision_size=64, z_dim=64, initialize=True, N=8):
     super().__init__()
     if equivariant:
       self.encoder = EquivVisionEncoder(
@@ -27,11 +27,11 @@ class VisionEncoder(nn.Module):
 class EquivVisionEncoder(nn.Module):
   '''
   '''
-  def __init__(self, vision_size=64, z_dim=64, initialize=True, N=4):
+  def __init__(self, vision_size=64, z_dim=64, initialize=True, N=8):
     super().__init__()
 
     self.z_dim = z_dim
-    self.group = gspaces.flipRot2dOnR2(N)
+    self.group = gspaces.rot2dOnR2(N)
     self.layers = list()
 
     # 64x64

@@ -14,7 +14,7 @@ class Critic(nn.Module):
   '''
   Twin-head Critic model.
   '''
-  def __init__(self, vision_size, action_dim, equivariant=True, z_dim=64, encoder='fusion', initialize=True, N=4):
+  def __init__(self, vision_size, action_dim, equivariant=True, z_dim=64, encoder='fusion', initialize=True, N=8):
     super().__init__()
 
     self.equivariant = equivariant
@@ -22,11 +22,11 @@ class Critic(nn.Module):
     self.action_dim = action_dim
     self.N = N
 
-    self.group = gspaces.flipRot2dOnR2(self.N)
+    self.group = gspaces.rot2dOnR2(self.N)
     self.n_rho1 = 1
     self.z_repr = self.z_dim * [self.group.regular_repr]
     self.invariant_action_repr = (self.action_dim - 2) * [self.group.trivial_repr]
-    self.equivariant_action_repr = self.n_rho1 * [self.group.irrep(1, 1)]
+    self.equivariant_action_repr = self.n_rho1 * [self.group.irrep(1)]
 
     self.in_type = enn.FieldType(self.group, self.z_repr + self.invariant_action_repr + self.equivariant_action_repr)
     self.inner_type = enn.FieldType(self.group, self.z_dim * [self.group.regular_repr])
@@ -87,7 +87,7 @@ class GaussianPolicy(nn.Module):
   '''
   Policy model that uses a Normal distribution to sample actions.
   '''
-  def __init__(self, vision_size, action_dim, equivariant=True, z_dim=64, encoder='fusion', initialize=True, N=4):
+  def __init__(self, vision_size, action_dim, equivariant=True, z_dim=64, encoder='fusion', initialize=True, N=8):
     super().__init__()
     self.log_sig_min = -20
     self.log_sig_max = 2
@@ -99,11 +99,11 @@ class GaussianPolicy(nn.Module):
     self.initialize = initialize
     self.N = N
 
-    self.group = gspaces.flipRot2dOnR2(self.N)
+    self.group = gspaces.rot2dOnR2(self.N)
     self.n_rho1 = 1
     self.z_repr = self.z_dim * [self.group.regular_repr]
     self.invariant_action_repr = (self.action_dim * 2 - 2) * [self.group.trivial_repr]
-    self.equivariant_action_repr = self.n_rho1 * [self.group.irrep(1, 1)]
+    self.equivariant_action_repr = self.n_rho1 * [self.group.irrep(1)]
 
     self.encoder = Latent(equivariant=equivariant, vision_size=vision_size, z_dim=z_dim, encoder=encoder, initialize=initialize)
 
