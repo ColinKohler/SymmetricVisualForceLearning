@@ -30,7 +30,7 @@ class Trainer(object):
     self.alpha = self.config.init_temp
     self.target_entropy = -self.config.action_dim
     self.log_alpha = torch.tensor(np.log(self.alpha), requires_grad=True, device=self.device)
-    self.alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=self.config.actor_lr_init)
+    self.alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=1e-3)
 
     # Initialize actor, and critic models
     self.actor = GaussianPolicy(
@@ -143,9 +143,8 @@ class Trainer(object):
           not ray.get(shared_storage.getInfo.remote('terminate')):
 
       # Pause training if we need to wait for eval interval to end
-      if ray.get(shared_storage.getInfo.remote('pause_training')):
-        time.sleep(0.5)
-        continue
+      while ray.get(shared_storage.getInfo.remote('pause_training')):
+        time.sleep(0.1)
 
       self.actor.eval()
       self.critic.eval()
@@ -156,8 +155,8 @@ class Trainer(object):
 
       self.actor.train()
       self.critic.train()
-      priorities, loss = self.updateWeights(batch)
-      replay_buffer.updatePriorities.remote(priorities.cpu(), idx_batch)
+      td_error, loss = self.updateWeights(batch)
+      replay_buffer.updatePriorities.remote(td_error.cpu(), idx_batch)
       self.training_step += 1
 
       self.data_generator.stepEnvsWait(shared_storage, replay_buffer, logger)
@@ -197,11 +196,17 @@ class Trainer(object):
           'run_eval_interval' : self.training_step > 0 and self.training_step % self.config.eval_interval == 0
         }
       )
+
+      # Wait until evaluation has started
+      while ray.get(shared_storage.getInfo.remote('run_eval_interval')):
+        time.sleep(0.1)
+
       logger.updateScalars.remote(
         {
           '3.Loss/4.Actor_lr' : self.actor_optimizer.param_groups[0]['lr'],
           '3.Loss/5.Critic_lr' : self.critic_optimizer.param_groups[0]['lr'],
-          '3.Loss/6.Entropy' : loss[3]
+          '3.Loss/6.Entropy' : loss[3],
+          '3.Loss/7.TD_error' : torch.mean(td_error.cpu()),
         }
       )
       logger.logTrainingStep.remote(
@@ -258,7 +263,7 @@ class Trainer(object):
 
     actor_loss = torch.mean((self.alpha * log_pi) - torch.min(q1, q2))
     if is_expert_batch.sum():
-      actor_loss += 0.1 * F.mse_loss(action[is_expert_batch], action_batch[is_expert_batch])
+      actor_loss += 0.0 * F.mse_loss(action[is_expert_batch], action_batch[is_expert_batch])
 
     self.actor_optimizer.zero_grad()
     actor_loss.backward()
