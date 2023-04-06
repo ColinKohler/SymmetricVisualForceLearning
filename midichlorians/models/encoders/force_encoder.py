@@ -20,41 +20,20 @@ class ForceEncoder(nn.Module):
   def forward(self, x):
     return self.encoder(x)
 
-class PositionalEncoding(nn.Module):
-  """Positional encoding."""
-  def __init__(self, d_model, max_len):
-    super().__init__()
-    self.d_model = d_model
-    self.max_len = max_len
-
-    self.p = torch.zeros((1, max_len, d_model))
-    x = torch.arange(max_len, dtype=torch.float32).reshape(
-        -1, 1) / torch.pow(10000, torch.arange(
-        0, d_model, 2, dtype=torch.float32) / d_model)
-    self.p[:, :, 0::2] = torch.sin(x)
-    self.p[:, :, 1::2] = torch.cos(x)
-    self.p = self.p.view(1, max_len, 1, d_model).repeat(1, 1, 8, 1)
-
-  def forward(self, x):
-    # Increasing embedding values makes the positional encoding relatively smaller.
-    # This seems to be needed to keep model equivariance.
-    #return x + math.sqrt(self.d_model) + self.p.to(x.device)
-    return x + self.p.to(x.device)
-
 class ScaledDotProductAttention(nn.Module):
   def __init__(self, temperature):
     super().__init__()
     self.temperature = temperature
 
   def forward(self, q, k, v):
-    attn = torch.matmul(q / self.temperature, k.transpose(3,4))
+    attn = torch.matmul(q / self.temperature, k.transpose(-2,-1))
 
     attn = F.softmax(attn, dim=-1)
     output = torch.matmul(attn, v)
 
     return output, attn
 
-class MultiheadAttention(nn.Module):
+class EquivMultiHeadAttention(nn.Module):
   def __init__(self, n_head, d_model, d_k, d_v, initialize=True):
     super().__init__()
     self.n_head = n_head
@@ -99,10 +78,9 @@ class MultiheadAttention(nn.Module):
 
     # Transpose to move the head dimension back: b x lq x n x dv x c
     # Combine the last two dimensions to concatenate all the heads together: b*lq x (n*dv*c)
-    q = q.transpose(1,2).contiguous().view(b * len_q, n_head * d_model * self.c, 1, 1)
+    q = q.permute(0,3,1,4,2).contiguous().view(b * len_q, n_head * d_model * self.c, 1, 1)
     q_geo = enn.GeometricTensor(q, self.fc_in_type)
     q_out = self.fc(q_geo)
-    #q_out += residual
 
     return q_out.tensor.view(b, len_q, d_model * self.c), attn
 
@@ -124,9 +102,7 @@ class EquivForceEncoder(nn.Module):
     )
     out_type = enn.FieldType(self.group, self.d_model * [self.group.regular_repr])
     self.embed = EquivariantBlock(self.in_type, out_type, kernel_size=1, stride=1, padding=0, initialize=initialize)
-    self.pos_encoder = PositionalEncoding(self.d_model, self.seq_len)
-    self.norm = Norm(self.d_model)
-    self.attn1  = MultiheadAttention(n_head=1, d_model=self.d_model, d_k=self.d_model, d_v=self.d_model, initialize=initialize)
+    self.attn  = EquivMultiHeadAttention(n_head=1, d_model=self.d_model, d_k=self.d_model, d_v=self.d_model, initialize=initialize)
 
     self.fc_in_type = enn.FieldType(self.group, self.seq_len * self.d_model * [self.group.regular_repr])
     self.out_type = enn.FieldType(self.group, z_dim * [self.group.regular_repr])
@@ -141,35 +117,54 @@ class EquivForceEncoder(nn.Module):
     # Want to add the same position embedding to each element in the regular represenation
     x_geo = enn.GeometricTensor(x.view(batch_size * seq_l, 6, 1, 1), self.in_type)
     x_embed = self.embed(x_geo).tensor.view(batch_size, seq_l, self.N, self.d_model)
-    #x_embed = self.pos_encoder(x_embed)
 
     # Apply attention and flatten in geo tensor: b x sq*c*d
-    x_, _ = self.attn1(
+    x_, _ = self.attn(
       x_embed,
       x_embed,
       x_embed,
     )
-    #x_ = self.norm(x_.view(batch_size, seq_l, self.N, -1))
     x_ = enn.GeometricTensor(x_.view(batch_size, -1, 1, 1), self.fc_in_type)
 
     return self.conv(x_)
 
-class AttentionBlock(nn.Module):
-  def __init__(self):
+class MultiHeadAttention(nn.Module):
+  def __init__(self, n_head, d_model, d_k, d_v):
     super().__init__()
+    self.n_head = n_head
+    self.d_model = d_model
+    self.d_k = d_k
+    self.d_v = d_v
 
-    self.attn  = nn.MultiheadAttention(64 * 2, 8, kdim=64*2, vdim=64*2, batch_first=True)
+    self.w_qs = ConvBlock(d_model, n_head * d_k, kernel_size=1, stride=1, padding=0, act=False)
+    self.w_ks = ConvBlock(d_model, n_head * d_k, kernel_size=1, stride=1, padding=0, act=False)
+    self.w_vs = ConvBlock(d_model, n_head * d_k, kernel_size=1, stride=1, padding=0, act=False)
+    self.fc = ConvBlock(n_head * d_v, d_model, kernel_size=1, stride=1, padding=0, act=False)
 
-  def forward(self, x):
-    residual = x
-    x, attn = self.attn(
-      x,
-      x,
-      x,
-    )
-    x += residual
+    self.attention = ScaledDotProductAttention(temperature=d_k ** 0.5)
 
-    return x, attn
+  def forward(self, q, k, v):
+    b = q.size(0)
+    d_model, d_k, d_v, n_head = self.d_model, self.d_k, self.d_v, self.n_head
+    len_q, len_k, len_v = 64, 64, 64
+
+    # Pass through the pre-attention projection: b x lq x (n*dv)
+    # Seperate different heads: b x lq x n x dv
+    q = self.w_qs(q.view(b * len_q, d_model, 1, 1)).view(b, len_q, n_head, d_k)
+    k = self.w_ks(k.view(b * len_q, d_model, 1, 1)).view(b, len_k, n_head, d_k)
+    v = self.w_vs(v.view(b * len_q, d_model, 1, 1)).view(b, len_v, n_head, d_v)
+
+    # Transpose for attention dot product: b x n x lq x dv
+    q, k, v = q.transpose(1,2), k.transpose(1,2), v.transpose(1,2)
+    q, attn = self.attention(q, k, v)
+
+    # Transpose to move the head dimension back: b x lq x n x dv
+    # Combine the last two dimensions to concatenate all the heads together: b x lq x (n*dv)
+    q = q.transpose(1,2).contiguous().view(b * len_q, n_head * d_model, 1, 1)
+    q = self.fc(q)
+
+    return q.view(b, len_q, d_model), attn
+
 
 class CnnForceEncoder(nn.Module):
   '''
@@ -177,15 +172,19 @@ class CnnForceEncoder(nn.Module):
   def __init__(self, z_dim=64):
     super().__init__()
 
-    self.embed = nn.Linear(6,64 * 2)
-    self.attn = AttentionBlock()
-    self.conv = ConvBlock(64 * 64 * 2, z_dim, kernel_size=1, stride=1, padding=0)
+    self.d_model = 32
+    self.seq_len = 64
+    self.z_dim = z_dim
+
+    self.embed = ConvBlock(6, self.d_model, kernel_size=1, stride=1, padding=0)
+    self.attn = MultiHeadAttention(n_head=1, d_model=self.d_model, d_k=self.d_model, d_v=self.d_model)
+    self.conv = ConvBlock(self.seq_len * self.d_model, z_dim, kernel_size=1, stride=1, padding=0)
 
   def forward(self, x):
     batch_size =  x.size(0)
 
-    x_embed = self.embed(x.view(batch_size * 64, 6)).view(batch_size, 64, 64*2)
-    x_, _ = self.attn(x_embed)
+    x_embed = self.embed(x.view(batch_size * self.seq_len, 6, 1, 1)).view(batch_size, self.seq_len, self.d_model, 1, 1)
+    x_, _ = self.attn(x_embed, x_embed, x_embed)
 
     x_ = x_.reshape(batch_size, -1, 1, 1)
 
