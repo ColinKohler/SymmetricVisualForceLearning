@@ -23,6 +23,8 @@ if __name__ == '__main__':
     help='Path to the checkpoint to load.')
   parser.add_argument('--num_eps', type=int, default=100,
     help='Number of episodes to test on.')
+  parser.add_argument('--vision_size', type=int, default=64,
+    help='The size of the RGB-D image used for vision.')
   parser.add_argument('--num_sensors', type=int, default=1,
     help='Number of sensors to use when rendering the heightmap')
   parser.add_argument('--encoder', type=str, default='vision+force+proprio',
@@ -37,7 +39,7 @@ if __name__ == '__main__':
 
   task_config = task_configs[args.task](
     equivariant=True,
-    vision_size=64,
+    vision_size=args.vision_size,
     num_sensors=args.num_sensors,
     encoder=args.encoder,
     num_gpus=args.num_gpus,
@@ -76,24 +78,28 @@ if __name__ == '__main__':
         evaluate=True
       )
 
-      #_, _, zvalue = agent.getAction(
-      #  obs[0].reshape(1, *obs[0].shape),
-      #  np.zeros_like(obs[1]),
-      #  obs[2],
-      #  evaluate=True
-      #)
+      _, _, zvalue = agent.getAction(
+        obs[0].reshape(1, *obs[0].shape),
+        np.zeros_like(obs[1]),
+        obs[2],
+        evaluate=True
+      )
 
-      #print('v: {:.3f} | z: {:.3f}'.format(value.item(), zvalue.item()))
+      print('v: {:.3f} | z: {:.3f}'.format(value.item(), zvalue.item()))
+      print(action)
+      print()
       if args.plot_obs:
+        norm_force = torch_utils.normalizeForce(obs[1], task_config.max_force)
+
         fig, ax = plt.subplots(nrows=1, ncols=3)
         ax[0].imshow(obs[0][3].squeeze(), cmap='gray')
         ax[1].imshow(obs[0][:3].transpose(1,2,0))
-        ax[2].plot(obs[1][:,0], label='Fx')
-        ax[2].plot(obs[1][:,1], label='Fy')
-        ax[2].plot(obs[1][:,2], label='Fz')
-        ax[2].plot(obs[1][:,3], label='Mx')
-        ax[2].plot(obs[1][:,4], label='My')
-        ax[2].plot(obs[1][:,5], label='Mz')
+        ax[2].plot(norm_force[:,0], label='Fx')
+        ax[2].plot(norm_force[:,1], label='Fy')
+        ax[2].plot(norm_force[:,2], label='Fz')
+        ax[2].plot(norm_force[:,3], label='Mx')
+        ax[2].plot(norm_force[:,4], label='My')
+        ax[2].plot(norm_force[:,5], label='Mz')
         plt.legend()
         plt.show()
 

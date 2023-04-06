@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from escnn import gspaces
 from escnn import nn as enn
 
-from midichlorians.models.layers import EquivariantBlock, ResnetBlock
+from midichlorians.models.layers import EquivariantBlock, ConvBlock
 
 class ProprioEncoder(nn.Module):
   def __init__(self, equivariant=False, z_dim=64, initialize=True, N=8):
@@ -27,24 +27,24 @@ class EquivProprioEncoder(nn.Module):
     self.z_dim = z_dim
     self.N = N
 
-    self.c4_act = gspaces.rot2dOnR2(self.N)
-    self.proprio_repr = 1 * [self.c4_act.trivial_repr] + [self.c4_act.irrep(1)] + 2 * [self.c4_act.trivial_repr]
+    self.group = gspaces.rot2dOnR2(self.N)
+    self.proprio_repr = 1 * [self.group.trivial_repr] + [self.group.irrep(1)] + 2 * [self.group.trivial_repr]
 
     self.layers = list()
-    self.in_type = enn.FieldType(self.c4_act, self.proprio_repr)
-    out_type = enn.FieldType(self.c4_act, z_dim // 4 * [self.c4_act.regular_repr])
+    self.in_type = enn.FieldType(self.group, self.proprio_repr)
+    out_type = enn.FieldType(self.group, z_dim // 4 * [self.group.regular_repr])
     self.layers.append(EquivariantBlock(self.in_type, out_type, kernel_size=1, stride=1, padding=0, initialize=initialize))
 
     in_type = out_type
-    out_type = enn.FieldType(self.c4_act, z_dim // 2 * [self.c4_act.regular_repr])
+    out_type = enn.FieldType(self.group, z_dim // 2 * [self.group.regular_repr])
     self.layers.append(EquivariantBlock(in_type, out_type, kernel_size=1, stride=1, padding=0, initialize=initialize))
 
     in_type = out_type
-    out_type = enn.FieldType(self.c4_act, z_dim * [self.c4_act.regular_repr])
+    out_type = enn.FieldType(self.group, z_dim * [self.group.regular_repr])
     self.layers.append(EquivariantBlock(in_type, out_type, kernel_size=1, stride=1, padding=0, initialize=initialize))
 
     in_type = out_type
-    self.out_type = enn.FieldType(self.c4_act, z_dim * [self.c4_act.regular_repr])
+    self.out_type = enn.FieldType(self.group, z_dim * [self.group.regular_repr])
     self.layers.append(EquivariantBlock(in_type, self.out_type, kernel_size=1, stride=1, padding=0, initialize=initialize))
 
     self.conv = nn.Sequential(*self.layers)
@@ -65,10 +65,10 @@ class CnnProprioEncoder(nn.Module):
     self.z_dim = z_dim
 
     self.layers = list()
-    self.layers.append(ResnetBlock(5, z_dim // 4 * 2, kernel_size=1, stride=1, padding=0))
-    self.layers.append(ResnetBlock(z_dim // 4 * 2, z_dim // 2 * 2, kernel_size=1, stride=1, padding=0))
-    self.layers.append(ResnetBlock(z_dim // 2 * 2, z_dim * 2, kernel_size=1, stride=1, padding=0))
-    self.layers.append(ResnetBlock(z_dim * 2, z_dim, kernel_size=1, stride=1, padding=0))
+    self.layers.append(ConvBlock(5, z_dim // 4 * 2, kernel_size=1, stride=1, padding=0))
+    self.layers.append(ConvBlock(z_dim // 4 * 2, z_dim // 2 * 2, kernel_size=1, stride=1, padding=0))
+    self.layers.append(ConvBlock(z_dim // 2 * 2, z_dim * 2, kernel_size=1, stride=1, padding=0))
+    self.layers.append(ConvBlock(z_dim * 2, z_dim, kernel_size=1, stride=1, padding=0))
 
     self.conv = nn.Sequential(*self.layers)
 
