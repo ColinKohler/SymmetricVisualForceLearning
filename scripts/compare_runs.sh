@@ -13,6 +13,10 @@ main() {
   done
 
   for j in $(seq ${3} ${4}); do
+    sbatch -J ${env}_${vision_size}_vision_force_${j} scripts/train_single_gpu.sbatch $env $vision_size 1 vision+force ${vision_size}_vision_force_${j}
+  done
+
+  for j in $(seq ${3} ${4}); do
     sbatch -J ${env}_${vision_size}_fusion_${j} scripts/train_single_gpu.sbatch $env $vision_size 1 vision+force+proprio ${vision_size}_fusion_${j}
   done
 }
