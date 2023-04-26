@@ -22,11 +22,11 @@ class PegInsertionConfig(Config):
     self.max_steps = 50
     self.dpos = 0.025
     self.drot = np.pi / 16
-    self.max_force = 30
+    self.max_force = 50
 
     # Data Gen
     self.num_data_gen_envs = 5
-    self.num_expert_episodes = 50
+    self.num_expert_episodes = 100
 
     # Training
     if results_path:

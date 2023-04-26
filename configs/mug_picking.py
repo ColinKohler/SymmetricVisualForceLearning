@@ -26,7 +26,7 @@ class MugPickingConfig(Config):
 
     # Data Gen
     self.num_data_gen_envs = 5
-    self.num_expert_episodes = 20
+    self.num_expert_episodes = 50
 
     # Training
     if results_path:

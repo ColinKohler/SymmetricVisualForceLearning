@@ -38,7 +38,7 @@ class EquivVisionEncoder(nn.Module):
     self.in_type = enn.FieldType(self.group, 4 * [self.group.trivial_repr])
     out_type = enn.FieldType(self.group, z_dim // 8 * [self.group.regular_repr])
     self.layers.append(EquivariantBlock(self.in_type, out_type, kernel_size=3, stride=1, padding=1, initialize=initialize))
-    if vision_size >= 64:
+    if vision_size >= 16:
       self.layers.append(enn.PointwiseMaxPool(out_type, 2))
 
     # 32x32
@@ -52,13 +52,15 @@ class EquivVisionEncoder(nn.Module):
     in_type = out_type
     out_type = enn.FieldType(self.group, z_dim // 2 * [self.group.regular_repr])
     self.layers.append(EquivariantBlock(in_type, out_type, kernel_size=3, stride=1, padding=1, initialize=initialize))
-    if vision_size >= 16:
+    if vision_size >= 64:
       self.layers.append(enn.PointwiseMaxPool(out_type, 2))
 
     # 8x8
     in_type = out_type
     out_type = enn.FieldType(self.group, z_dim * [self.group.regular_repr])
     self.layers.append(EquivariantBlock(in_type, out_type, kernel_size=3, stride=1, padding=1, initialize=initialize))
+    if vision_size >= 128:
+      self.layers.append(enn.PointwiseMaxPool(out_type, 2))
 
     in_type = out_type
     out_type = enn.FieldType(self.group, 2 * z_dim * [self.group.regular_repr])
@@ -91,7 +93,7 @@ class CnnVisionEncoder(nn.Module):
 
     # 64x64
     self.layers.append(ConvBlock(4, z_dim // 8 * 2, kernel_size=3, stride=1, padding=1))
-    if vision_size >= 64:
+    if vision_size >= 16:
       self.layers.append(nn.MaxPool2d(2))
 
     # 32x32
@@ -101,11 +103,13 @@ class CnnVisionEncoder(nn.Module):
 
     # 16x16
     self.layers.append(ConvBlock(z_dim // 4 * 2, z_dim // 2 * 2, kernel_size=3, stride=1, padding=1))
-    if vision_size >= 16:
+    if vision_size >= 64:
       self.layers.append(nn.MaxPool2d(2))
 
     # 8x8
     self.layers.append(ConvBlock(z_dim // 2 * 2, z_dim * 2, kernel_size=3, stride=1, padding=1))
+    if vision_size >= 128:
+      self.layers.append(nn.MaxPool2d(2))
 
     self.layers.append(ConvBlock(z_dim * 2, 2 * z_dim * 2, kernel_size=3, stride=1, padding=1))
 

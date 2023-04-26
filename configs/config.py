@@ -10,7 +10,12 @@ class Config(object):
     # Env
     self.obs_type = ['vision', 'force', 'proprio']
     self.vision_size = vision_size
-    self.obs_size = vision_size + 12
+    if vision_size == 64 or vision_size == 32:
+      self.obs_size = vision_size + 12
+    elif vision_size == 16:
+      self.obs_size = vision_size + 4
+    elif vision_size == 8:
+      self.obs_size = vision_size + 2
     self.vision_channels = 4
     self.force_dim = 6
     self.force_history = 64
