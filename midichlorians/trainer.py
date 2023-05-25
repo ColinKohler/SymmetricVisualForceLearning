@@ -27,6 +27,16 @@ class Trainer(object):
     self.config = config
     self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
+    # Action related
+    self.normalizeForce = partial(torch_utils.normalizeForce, max_force=self.config.max_force)
+    self.p_range = torch.tensor([0, 1])
+    self.dx_range = torch.tensor([-self.config.dpos, self.config.dpos])
+    self.dy_range = torch.tensor([-self.config.dpos, self.config.dpos])
+    self.dz_range = torch.tensor([-self.config.dpos, self.config.dpos])
+    self.dtheta_range = torch.tensor([-self.config.drot, self.config.drot])
+    self.action_shape = 5
+
+    # Exploration
     self.alpha = self.config.init_temp
     self.target_entropy = -self.config.action_dim
     self.log_alpha = torch.tensor(np.log(self.alpha), requires_grad=True, device=self.device)
@@ -95,71 +105,36 @@ class Trainer(object):
       npr.seed(self.config.seed)
       torch.manual_seed(self.config.seed)
 
-  def generateExpertData(self, replay_buffer, shared_storage, logger):
+  def getAction(self, obs, evaluate=False):
+    self.actor.eval()
+    self.critic.eval()
+
+    vision = torch.Tensor(vision.astype(np.float32)).view(vision.shape[0], vision.shape[1], vision.shape[2], vision.shape[3]).to(self.device)
+    vision = torch_utils.centerCrop(vision, out=self.config.vision_size)
+    force = torch.Tensor(torch_utils.normalizeForce(force, self.config.max_force)).view(vision.shape[0], self.config.force_history, self.config.force_dim).to(self.device)
+    proprio = torch.Tensor(proprio).view(vision.shape[0], self.config.proprio_dim).to(self.device)
+
+    with torch.no_grad():
+      if evaluate:
+        _, _, action = self.actor.sample((vision, force, proprio))
+      else:
+        action, _, _ = self.actor.sample((vision, force, proprio))
+
+    action = action.cpu()
+    action_idx, action = self.decodeActions(*[action[:,i] for i in range(self.action_shape)])
+    with torch.no_grad():
+      value = self.critic((vision, force, proprio), action_idx.to(self.device))
+
+    value = torch.min(torch.hstack((value[0], value[1])), dim=1)[0]
+    return action_idx, action, value
+
+  def updateWeights(self, replay_buffer, shared_storage, logger):
     '''
-    Generate the amount of expert data defined in the task config.
-
-    Args:
-      replay_buffer (ray.worker): Replay buffer worker containing data samples.
-      shared_storage (ray.worker): Shared storage worker, shares data across workers.
-      logger (ray.worker): Logger worker, logs training data across workers.
     '''
-    num_expert_eps = 0
-    self.data_generator.resetEnvs(is_expert=True)
-    while num_expert_eps < self.config.num_expert_episodes:
-      self.data_generator.stepEnvsAsync(shared_storage, replay_buffer, logger, expert=True)
-      complete_eps = self.data_generator.stepEnvsWait(shared_storage, replay_buffer, logger, expert=True)
-      num_expert_eps += complete_eps
-
-  def generateData(self, num_eps, replay_buffer, shared_storage, logger):
-    '''
-
-    Args:
-      replay_buffer (ray.worker): Replay buffer worker containing data samples.
-      shared_storage (ray.worker): Shared storage worker, shares data across workers.
-      logger (ray.worker): Logger worker, logs training data across workers.
-    '''
-    current_eps = 0
-    self.data_generator.resetEnvs(is_expert=False)
-    while current_eps < num_eps:
-      self.data_generator.stepEnvsAsync(shared_storage, replay_buffer, logger)
-      complete_eps = self.data_generator.stepEnvsWait(shared_storage, replay_buffer, logger)
-      current_eps += complete_eps
-
-  def continuousUpdateWeights(self, replay_buffer, shared_storage, logger):
-    '''
-    Continuously sample batches from the replay buffer and perform weight updates.
-    This continuous until the desired number of training steps has been reached.
-
-    Args:
-      replay_buffer (ray.worker): Replay buffer worker containing data samples.
-      shared_storage (ray.worker): Shared storage worker, shares data across workers.
-      logger (ray.worker): Logger worker, logs training data across workers.
-    '''
-    self.data_generator.resetEnvs(is_expert=False)
-
-    next_batch = replay_buffer.sample.remote(shared_storage)
-    while self.training_step < self.config.training_steps and \
-          not ray.get(shared_storage.getInfo.remote('terminate')):
-
-      # Pause training if we need to wait for eval interval to end
-      while ray.get(shared_storage.getInfo.remote('pause_training')):
-        time.sleep(0.1)
-
-      self.actor.eval()
-      self.critic.eval()
-      self.data_generator.stepEnvsAsync(shared_storage, replay_buffer, logger)
-
-      idx_batch, batch = ray.get(next_batch)
-      next_batch = replay_buffer.sample.remote(shared_storage)
-
       self.actor.train()
       self.critic.train()
-      td_error, loss = self.updateWeights(batch)
-      replay_buffer.updatePriorities.remote(td_error.cpu(), idx_batch)
+      td_error, loss = self.update(batch)
       self.training_step += 1
-
-      self.data_generator.stepEnvsWait(shared_storage, replay_buffer, logger)
 
       # Update target critic towards current critic
       torch_utils.softUpdate(self.critic_target, self.critic, self.config.tau)
@@ -186,20 +161,15 @@ class Trainer(object):
         )
 
         if self.config.save_model:
-          #shared_storage.saveReplayBuffer.remote(replay_buffer.getBuffer.remote())
+          shared_storage.saveReplayBuffer.remote(ray.get(replay_buffer.getBuffer.remote()))
           shared_storage.saveCheckpoint.remote()
 
       # Logger/Shared storage updates
       shared_storage.setInfo.remote(
         {
           'training_step' : self.training_step,
-          'run_eval_interval' : self.training_step > 0 and self.training_step % self.config.eval_interval == 0
         }
       )
-
-      # Wait until evaluation has started
-      while ray.get(shared_storage.getInfo.remote('run_eval_interval')):
-        time.sleep(0.1)
 
       logger.updateScalars.remote(
         {
@@ -217,7 +187,7 @@ class Trainer(object):
         }
       )
 
-  def updateWeights(self, batch):
+  def update(self, batch):
     '''
     Perform one training step.
 
@@ -281,3 +251,29 @@ class Trainer(object):
       self.alpha = self.log_alpha.exp()
 
     return td_error, (actor_loss.item(), critic_loss.item(), alpha_loss.item(), entropy.item())
+
+  def decodeActions(self, unscaled_p, unscaled_dx, unscaled_dy, unscaled_dz, unscaled_dtheta):
+    '''
+    Convert action from model to environment action.
+
+    Args:
+      unscaled_p (double):
+      unscaled_dx (double):
+      unscaled_dy (double):
+      unscaled_dz (double):
+      unscaled_dtheta (double):
+
+    Returns:
+      (torch.Tensor, torch.Tensor) : Unscaled actions, scaled actions
+    '''
+    p = 0.5 * (unscaled_p + 1) * (self.p_range[1] - self.p_range[0]) + self.p_range[0]
+    dx = 0.5 * (unscaled_dx + 1) * (self.dx_range[1] - self.dx_range[0]) + self.dx_range[0]
+    dy = 0.5 * (unscaled_dy + 1) * (self.dy_range[1] - self.dy_range[0]) + self.dy_range[0]
+    dz = 0.5 * (unscaled_dz + 1) * (self.dz_range[1] - self.dz_range[0]) + self.dz_range[0]
+
+    dtheta = 0.5 * (unscaled_dtheta + 1) * (self.dtheta_range[1] - self.dtheta_range[0]) + self.dtheta_range[0]
+    actions = torch.stack([p, dx, dy, dz, dtheta], dim=1)
+    unscaled_actions = torch.stack([unscaled_p, unscaled_dx, unscaled_dy, unscaled_dz, unscaled_dtheta], dim=1)
+
+    return unscaled_actions, actions
+
