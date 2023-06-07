@@ -25,8 +25,6 @@ if __name__ == '__main__':
     help='Number of episodes to test on.')
   parser.add_argument('--vision_size', type=int, default=64,
     help='The size of the RGB-D image used for vision.')
-  parser.add_argument('--num_sensors', type=int, default=1,
-    help='Number of sensors to use when rendering the heightmap')
   parser.add_argument('--encoder', type=str, default='vision+force+proprio',
     help='Type of latent encoder to use')
   parser.add_argument('--num_gpus', type=int, default=1,
@@ -40,7 +38,6 @@ if __name__ == '__main__':
   task_config = task_configs[args.task](
     equivariant=True,
     vision_size=args.vision_size,
-    num_sensors=args.num_sensors,
     encoder=args.encoder,
     num_gpus=args.num_gpus,
     results_path=args.checkpoint
@@ -78,16 +75,6 @@ if __name__ == '__main__':
         evaluate=True
       )
 
-      _, _, zvalue = agent.getAction(
-        obs[0].reshape(1, *obs[0].shape),
-        np.zeros_like(obs[1]),
-        obs[2],
-        evaluate=True
-      )
-
-      print('v: {:.3f} | z: {:.3f}'.format(value.item(), zvalue.item()))
-      print(action)
-      print()
       if args.plot_obs:
         norm_force = torch_utils.normalizeForce(obs[1], task_config.max_force)
 

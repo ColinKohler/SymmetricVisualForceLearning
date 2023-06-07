@@ -34,9 +34,7 @@ if __name__ == '__main__':
     help='Path to save results & logs to while training. Defaults to current timestamp.')
   parser.add_argument('--vision_size', type=int, default=64,
     help='The size of the RGB-D image used for vision.')
-  parser.add_argument('--num_sensors', type=int, default=1,
-    help='Number of sensors to use when rendering the heightmap')
-  parser.add_argument('--encoder', type=str, default='depth+force+proprio',
+  parser.add_argument('--encoder', type=str, default='vision+force+proprio',
     help='Type of latent encoder to use')
   parser.add_argument('--checkpoint', type=str, default=None,
     help='Path to the checkpoint to load.')
@@ -46,7 +44,7 @@ if __name__ == '__main__':
     help='Run vanilla CNN instead of equivairant CNN.')
   args = parser.parse_args()
 
-  task_config = task_configs[args.task](not args.cnn, args.vision_size, args.num_sensors, args.encoder, args.num_gpus, results_path=args.results_path)
+  task_config = task_configs[args.task](not args.cnn, args.vision_size, args.encoder, args.num_gpus, results_path=args.results_path)
   runner = Runner(task_config, checkpoint=args.checkpoint, replay_buffer=args.buffer)
 
   runner.train()
