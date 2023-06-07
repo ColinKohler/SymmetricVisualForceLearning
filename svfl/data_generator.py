@@ -4,8 +4,8 @@ import torch
 import numpy as np
 import numpy.random as npr
 
-from midichlorians.agent import Agent
-from midichlorians import torch_utils
+from svfl.agent import Agent
+from svfl import torch_utils
 
 from bulletarm import env_factory
 

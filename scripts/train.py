@@ -6,7 +6,7 @@ import ray
 import argparse
 
 from configs import *
-from midichlorians.runner import Runner
+from svfl.runner import Runner
 
 task_configs = {
   'block_reaching' : BlockReachingConfig,

@@ -7,7 +7,7 @@ from escnn import gspaces
 from escnn import group
 from escnn import nn as enn
 
-from midichlorians.models.layers import EquivariantBlock, ConvBlock, Norm
+from svfl.models.layers import EquivariantBlock, ConvBlock, Norm
 
 class ForceEncoder(nn.Module):
   def __init__(self, equivariant=False, z_dim=64, initialize=True, N=8):

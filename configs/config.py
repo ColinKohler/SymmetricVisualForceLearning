@@ -26,8 +26,8 @@ class Config(object):
     self.action_sequence = 'pxyzr'
     self.action_dim =  len(self.action_sequence)
 
-    #self.workspace = np.array([[0.25, 0.65], [-0.2, 0.2], [-0.01, 0.25]])
-    self.workspace = np.array([[0.30, 0.60], [-0.15, 0.15], [-0.01, 0.25]])
+    self.workspace = np.array([[0.25, 0.65], [-0.2, 0.2], [-0.01, 0.25]])
+    #self.workspace = np.array([[0.30, 0.60], [-0.15, 0.15], [-0.01, 0.25]])
     self.view_type = 'camera_side_rgbd'
     self.random_orientation = True
     self.robot = 'panda'

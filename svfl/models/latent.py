@@ -4,11 +4,11 @@ import torch.nn as nn
 from escnn import gspaces
 from escnn import nn as enn
 
-from midichlorians.models.layers import EquivariantBlock, ConvBlock
-from midichlorians.models.encoders.proprio_encoder import ProprioEncoder
-from midichlorians.models.encoders.vision_encoder import VisionEncoder
-from midichlorians.models.encoders.force_encoder import ForceEncoder
-from midichlorians import torch_utils
+from svfl.models.layers import EquivariantBlock, ConvBlock
+from svfl.models.encoders.proprio_encoder import ProprioEncoder
+from svfl.models.encoders.vision_encoder import VisionEncoder
+from svfl.models.encoders.force_encoder import ForceEncoder
+from svfl import torch_utils
 
 class Latent(nn.Module):
   def __init__(self, vision_size=64, z_dim=64, N=8, encoder='fusion', equivariant=True, initialize=True):

@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from escnn import gspaces
 from escnn import nn as enn
 
-from midichlorians.models.layers import EquivariantBlock, ConvBlock
+from svfl.models.layers import EquivariantBlock, ConvBlock
 
 class ProprioEncoder(nn.Module):
   def __init__(self, equivariant=False, z_dim=64, initialize=True, N=8):

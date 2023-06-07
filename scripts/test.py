@@ -10,8 +10,8 @@ import numpy.random as npr
 import matplotlib
 import matplotlib.pyplot as plt
 
-from midichlorians.agent import Agent
-from midichlorians import torch_utils
+from svfl.agent import Agent
+from svfl import torch_utils
 from scripts.train import task_configs
 from bulletarm import env_factory
 
