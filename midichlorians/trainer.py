@@ -277,3 +277,15 @@ class Trainer(object):
 
     return unscaled_actions, actions
 
+  def saveWeights(self, shared_storage):
+    actor_weights = torch_utils.dictToCpu(self.actor.state_dict())
+    critic_weights = torch_utils.dictToCpu(self.critic.state_dict())
+    actor_optimizer_state = torch_utils.dictToCpu(self.actor_optimizer.state_dict())
+    critic_optimizer_state = torch_utils.dictToCpu(self.critic_optimizer.state_dict())
+
+    shared_storage.setInfo.remote(
+        {
+          'weights' : copy.deepcopy((actor_weights, critic_weights)),
+          'optimizer_state' : (copy.deepcopy(actor_optimizer_state), copy.deepcopy(critic_optimizer_state))
+        }
+      )
