@@ -6,11 +6,11 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 import numpy.random as npr
+from functools import partial
 
 from escnn import nn as enn
 
 from midichlorians.agent import Agent
-from midichlorians.data_generator import DataGenerator, EvalDataGenerator
 from midichlorians.models.sac import Critic, GaussianPolicy
 from midichlorians import torch_utils
 
@@ -98,7 +98,6 @@ class Trainer(object):
 
     # Initialize data generator
     self.agent = Agent(self.config, self.device, actor=self.actor, critic=self.critic)
-    self.data_generator = DataGenerator(self.agent, self.config, self.config.seed)
 
     # Set random number generator seed
     if self.config.seed:
@@ -109,10 +108,11 @@ class Trainer(object):
     self.actor.eval()
     self.critic.eval()
 
-    vision = torch.Tensor(vision.astype(np.float32)).view(vision.shape[0], vision.shape[1], vision.shape[2], vision.shape[3]).to(self.device)
+    vision, force, proprio = obs
+    vision = torch.Tensor(vision.astype(np.float32)).view(1, vision.shape[0], vision.shape[1], vision.shape[2]).to(self.device)
     vision = torch_utils.centerCrop(vision, out=self.config.vision_size)
-    force = torch.Tensor(torch_utils.normalizeForce(force, self.config.max_force)).view(vision.shape[0], self.config.force_history, self.config.force_dim).to(self.device)
-    proprio = torch.Tensor(proprio).view(vision.shape[0], self.config.proprio_dim).to(self.device)
+    force = torch.Tensor(torch_utils.normalizeForce(force, self.config.max_force)).view(1, self.config.force_history, self.config.force_dim).to(self.device)
+    proprio = torch.Tensor(proprio).view(1, self.config.proprio_dim).to(self.device)
 
     with torch.no_grad():
       if evaluate:
@@ -128,64 +128,64 @@ class Trainer(object):
     value = torch.min(torch.hstack((value[0], value[1])), dim=1)[0]
     return action_idx, action, value
 
-  def updateWeights(self, replay_buffer, shared_storage, logger):
-    '''
-    '''
-      self.actor.train()
-      self.critic.train()
-      td_error, loss = self.update(batch)
-      self.training_step += 1
+  def updateWeights(self, batch, replay_buffer, shared_storage, logger):
+    self.actor.train()
+    self.critic.train()
+    td_error, loss = self.update(batch)
+    self.training_step += 1
 
-      # Update target critic towards current critic
-      torch_utils.softUpdate(self.critic_target, self.critic, self.config.tau)
+    # Update target critic towards current critic
+    torch_utils.softUpdate(self.critic_target, self.critic, self.config.tau)
 
-      # Update LRs
-      if self.training_step > 0 and self.training_step % self.config.lr_decay_interval == 0:
-        self.actor_scheduler.step()
-        self.critic_scheduler.step()
+    # Update LRs
+    if self.training_step > 0 and self.training_step % self.config.lr_decay_interval == 0:
+      self.actor_scheduler.step()
+      self.critic_scheduler.step()
 
-      # Save to shared storage
-      if self.training_step % self.config.checkpoint_interval == 0:
-        self.actor.eval()
-        self.critic.eval()
-        actor_weights = torch_utils.dictToCpu(self.actor.state_dict())
-        critic_weights = torch_utils.dictToCpu(self.critic.state_dict())
-        actor_optimizer_state = torch_utils.dictToCpu(self.actor_optimizer.state_dict())
-        critic_optimizer_state = torch_utils.dictToCpu(self.critic_optimizer.state_dict())
+    # Save to shared storage
+    if self.training_step % self.config.checkpoint_interval == 0:
+      self.actor.eval()
+      self.critic.eval()
+      actor_weights = torch_utils.dictToCpu(self.actor.state_dict())
+      critic_weights = torch_utils.dictToCpu(self.critic.state_dict())
+      actor_optimizer_state = torch_utils.dictToCpu(self.actor_optimizer.state_dict())
+      critic_optimizer_state = torch_utils.dictToCpu(self.critic_optimizer.state_dict())
 
-        shared_storage.setInfo.remote(
-          {
-            'weights' : copy.deepcopy((actor_weights, critic_weights)),
-            'optimizer_state' : (copy.deepcopy(actor_optimizer_state), copy.deepcopy(critic_optimizer_state))
-          }
-        )
-
-        if self.config.save_model:
-          shared_storage.saveReplayBuffer.remote(ray.get(replay_buffer.getBuffer.remote()))
-          shared_storage.saveCheckpoint.remote()
-
-      # Logger/Shared storage updates
       shared_storage.setInfo.remote(
         {
-          'training_step' : self.training_step,
+          'weights' : copy.deepcopy((actor_weights, critic_weights)),
+          'optimizer_state' : (copy.deepcopy(actor_optimizer_state), copy.deepcopy(critic_optimizer_state))
         }
       )
 
-      logger.updateScalars.remote(
-        {
-          '3.Loss/4.Actor_lr' : self.actor_optimizer.param_groups[0]['lr'],
-          '3.Loss/5.Critic_lr' : self.critic_optimizer.param_groups[0]['lr'],
-          '3.Loss/6.Entropy' : loss[3],
-          '3.Loss/7.TD_error' : torch.mean(td_error.cpu()),
-        }
-      )
-      logger.logTrainingStep.remote(
-        {
-          'Actor' : loss[0],
-          'Critic' : loss[1],
-          'Alpha' : loss[2],
-        }
-      )
+      if self.config.save_model:
+        shared_storage.saveReplayBuffer.remote(ray.get(replay_buffer.getBuffer.remote()))
+        shared_storage.saveCheckpoint.remote()
+
+    # Logger/Shared storage updates
+    shared_storage.setInfo.remote(
+      {
+        'training_step' : self.training_step,
+      }
+    )
+
+    logger.updateScalars.remote(
+      {
+        '3.Loss/4.Actor_lr' : self.actor_optimizer.param_groups[0]['lr'],
+        '3.Loss/5.Critic_lr' : self.critic_optimizer.param_groups[0]['lr'],
+        '3.Loss/6.Entropy' : loss[3],
+        '3.Loss/7.TD_error' : torch.mean(td_error.cpu()),
+      }
+    )
+    logger.logTrainingStep.remote(
+      {
+        'Actor' : loss[0],
+        'Critic' : loss[1],
+        'Alpha' : loss[2],
+      }
+    )
+
+    return td_error, loss
 
   def update(self, batch):
     '''
