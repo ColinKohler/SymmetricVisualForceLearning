@@ -36,6 +36,8 @@ class Config(object):
     self.encoder = encoder.split('+')
 
     # Training
+    self.pre_training_steps = 0
+    self.training_steps_per_action = 1
     self.root_path = '/home/helpinghands/workspace/data/'
     self.num_gpus = num_gpus
     self.per_beta_anneal_steps = None

@@ -30,7 +30,9 @@ class BlockReachingConfig(Config):
                                        'block_reaching',
                                        datetime.datetime.now().strftime('%Y-%m-%d--%H-%M-%S'))
     self.save_model = True
-    self.training_steps = 25000
+    self.pre_training_steps = 1000
+    self.training_steps = 10000
+    self.training_steps_per_action = 1
     self.batch_size = 64
     self.target_update_interval = 1
     self.checkpoint_interval = 100
