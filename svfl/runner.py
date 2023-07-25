@@ -11,12 +11,12 @@ import numpy.random as npr
 import matplotlib
 import matplotlib.pyplot as plt
 
-from midichlorians.trainer import Trainer
-from midichlorians.replay_buffer import ReplayBuffer
-from midichlorians.data_generator import DataGenerator, EvalDataGenerator
-from midichlorians.shared_storage import SharedStorage
-from midichlorians.models.sac import Critic, GaussianPolicy
-from midichlorians import torch_utils
+from svfl.trainer import Trainer
+from svfl.replay_buffer import ReplayBuffer
+from svfl.data_generator import DataGenerator, EvalDataGenerator
+from svfl.shared_storage import SharedStorage
+from svfl.models.sac import Critic, GaussianPolicy
+from svfl import torch_utils
 
 from bulletarm_baselines.logger.logger import RayLogger
 

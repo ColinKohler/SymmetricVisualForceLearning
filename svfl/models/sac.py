@@ -6,9 +6,9 @@ from torch.distributions import Normal
 from escnn import gspaces
 from escnn import nn as enn
 
-from midichlorians import torch_utils
-from midichlorians.models.latent import Latent
-from midichlorians.models.layers import EquivariantBlock, ConvBlock
+from svfl import torch_utils
+from svfl.models.latent import Latent
+from svfl.models.layers import EquivariantBlock, ConvBlock
 
 class Critic(nn.Module):
   '''

@@ -3,8 +3,8 @@ import numpy as np
 import numpy.random as npr
 from functools import partial
 
-from midichlorians import torch_utils
-from midichlorians.models.sac import Critic, GaussianPolicy
+from svfl import torch_utils
+from svfl.models.sac import Critic, GaussianPolicy
 
 class Agent(object):
   '''

@@ -4,7 +4,7 @@ import torch
 import numpy as np
 import numpy.random as npr
 
-from midichlorians import torch_utils
+from svfl import torch_utils
 from functools import partial
 
 @ray.remote

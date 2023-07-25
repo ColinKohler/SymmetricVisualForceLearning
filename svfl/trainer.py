@@ -10,9 +10,9 @@ from functools import partial
 
 from escnn import nn as enn
 
-from midichlorians.agent import Agent
-from midichlorians.models.sac import Critic, GaussianPolicy
-from midichlorians import torch_utils
+from svfl.agent import Agent
+from svfl.models.sac import Critic, GaussianPolicy
+from svfl import torch_utils
 
 @ray.remote
 class Trainer(object):
