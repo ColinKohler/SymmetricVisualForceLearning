@@ -10,7 +10,9 @@ class Config(object):
     # Env
     self.obs_type = ['vision', 'force', 'proprio']
     self.vision_size = vision_size
-    if vision_size == 64 or vision_size == 32:
+    if vision_size == 128:
+      self.obs_size = vision_size + 12
+    elif vision_size == 64 or vision_size == 32:
       self.obs_size = vision_size + 12
     elif vision_size == 16:
       self.obs_size = vision_size + 4
@@ -25,7 +27,7 @@ class Config(object):
     self.action_sequence = 'pxyzr'
     self.action_dim =  len(self.action_sequence)
 
-    self.workspace = np.array([[-0.15, 0.15], [0.35, 0.65], [0.10, 0.45]])
+    self.workspace = np.array([[-0.15, 0.15], [0.40, 0.70], [0.10, 0.37]])
 
     self.dpos = 0.025
     self.drot = np.pi / 16

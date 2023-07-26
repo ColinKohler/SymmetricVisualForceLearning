@@ -10,7 +10,6 @@ from functools import partial
 
 from escnn import nn as enn
 
-from svfl.agent import Agent
 from svfl.models.sac import Critic, GaussianPolicy
 from svfl import torch_utils
 
@@ -88,6 +87,14 @@ class Trainer(object):
     self.critic_scheduler = torch.optim.lr_scheduler.ExponentialLR(self.critic_optimizer,
                                                                    self.config.lr_decay)
 
+    # Load initial checkpoint weights
+    if initial_checkpoint['weights'] is not None:
+      self.actor.eval()
+      self.critic.eval()
+
+      self.actor.load_state_dict(initial_checkpoint['weights'][0])
+      self.critic.load_state_dict(initial_checkpoint['weights'][1])
+      torch_utils.softUpdate(self.critic_target, self.critic, 1.0)
     if initial_checkpoint['optimizer_state'] is not None:
       self.actor_optimizer.load_state_dict(
         copy.deepcopy(initial_checkpoint['optimizer_state'][0])
@@ -95,9 +102,8 @@ class Trainer(object):
       self.critic_optimizer.load_state_dict(
         copy.deepcopy(initial_checkpoint['optimizer_state'][1])
       )
-
-    # Initialize data generator
-    self.agent = Agent(self.config, self.device, actor=self.actor, critic=self.critic)
+    self.actor.train()
+    self.critic.train()
 
     # Set random number generator seed
     if self.config.seed:
@@ -276,6 +282,43 @@ class Trainer(object):
     unscaled_actions = torch.stack([unscaled_p, unscaled_dx, unscaled_dy, unscaled_dz, unscaled_dtheta], dim=1)
 
     return unscaled_actions, actions
+
+  def convertPlanAction(self, plan_action):
+    '''
+    Convert actions from planner to actions by unscalling/scalling them.
+
+    Args:
+      plan_action (numpy.array): Action received from planner
+
+    Returns:
+      (torch.Tensor, torch.Tensor) : Unscaled actions, scaled actions
+    '''
+    p = plan_action[0].clip(*self.p_range).reshape(1)
+    dx = plan_action[1].clip(*self.dx_range).reshape(1)
+    dy = plan_action[2].clip(*self.dy_range).reshape(1)
+    dz = plan_action[3].clip(*self.dz_range).reshape(1)
+    dtheta = plan_action[4].clip(*self.dtheta_range).reshape(1)
+
+    return self.decodeActions(
+      self.getUnscaledActions(p, self.p_range),
+      self.getUnscaledActions(dx, self.dx_range),
+      self.getUnscaledActions(dy, self.dy_range),
+      self.getUnscaledActions(dz, self.dz_range),
+      self.getUnscaledActions(dtheta, self.dtheta_range)
+    )
+
+  def getUnscaledActions(self, action, action_range):
+    '''
+    Convert action to the unscalled version using the given range.
+
+    Args:
+      action (double): Action
+      action_range (list[double]): Min and max range for the given action
+
+    Returns:
+      double: The unscalled action
+    '''
+    return 2 * (action - action_range[0]) / (action_range[1] - action_range[0]) - 1
 
   def saveWeights(self, shared_storage):
     actor_weights = torch_utils.dictToCpu(self.actor.state_dict())

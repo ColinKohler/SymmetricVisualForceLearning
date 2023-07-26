@@ -55,7 +55,7 @@ class Agent(object):
       self.critic.to(self.device)
       self.critic.eval()
 
-  def getAction(self, vision, force, proprio, evaluate=False):
+  def getAction(self, obs, evaluate=False):
     '''
     Get the action from the policy.
 
@@ -65,10 +65,11 @@ class Agent(object):
     Returns:
       (numpy.array, double) : (Action, Q-Value)
     '''
-    vision = torch.Tensor(vision.astype(np.float32)).view(vision.shape[0], vision.shape[1], vision.shape[2], vision.shape[3]).to(self.device)
+    vision, force, proprio = obs
+    vision = torch.Tensor(vision.astype(np.float32)).view(1, vision.shape[0], vision.shape[1], vision.shape[2]).to(self.device)
     vision = torch_utils.centerCrop(vision, out=self.config.vision_size)
-    force = torch.Tensor(torch_utils.normalizeForce(force, self.config.max_force)).view(vision.shape[0], self.config.force_history, self.config.force_dim).to(self.device)
-    proprio = torch.Tensor(proprio).view(vision.shape[0], self.config.proprio_dim).to(self.device)
+    force = torch.Tensor(torch_utils.normalizeForce(force, self.config.max_force)).view(1, self.config.force_history, self.config.force_dim).to(self.device)
+    proprio = torch.Tensor(proprio).view(1, self.config.proprio_dim).to(self.device)
 
     with torch.no_grad():
       if evaluate:
