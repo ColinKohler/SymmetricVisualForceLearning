@@ -161,8 +161,8 @@ class Agent(object):
       weights (dict, dict): (actor weights, critic weights)
     '''
     if weights is not None:
-      self.actor.eval()
-      self.critic.eval()
+      self.actor.train()
+      self.critic.train()
 
       self.actor.load_state_dict(weights[0])
       self.critic.load_state_dict(weights[1])

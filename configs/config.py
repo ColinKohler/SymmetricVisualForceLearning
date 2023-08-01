@@ -29,8 +29,10 @@ class Config(object):
 
     self.workspace = np.array([[-0.15, 0.15], [0.40, 0.70], [0.10, 0.37]])
 
-    self.dpos = 0.025
-    self.drot = np.pi / 16
+    #self.dpos = 0.025
+    #self.drot = np.pi / 16
+    self.dpos = 0.05
+    self.drot = np.pi / 8
 
     # Model
     self.equivariant = equivariant
@@ -42,7 +44,17 @@ class Config(object):
     self.training_steps_per_action = 1
     self.root_path = '/home/helpinghands/workspace/data/'
     self.num_gpus = num_gpus
+    self.expert_weight_anneal_steps = None
     self.per_beta_anneal_steps = None
+
+  def getExpertWeight(self, step):
+    if self.expert_weight_anneal_steps:
+      anneal_steps = self.expert_weight_anneal_steps
+    else:
+      anneal_steps = self.training_steps
+
+    r = max((anneal_steps - step) / anneal_steps, 0)
+    return (self.init_expert_weight - self.end_expert_weight) * r + self.end_expert_weight
 
   def getPerBeta(self, step):
     if self.per_beta_anneal_steps:

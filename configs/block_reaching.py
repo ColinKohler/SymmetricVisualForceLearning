@@ -39,6 +39,8 @@ class BlockReachingConfig(Config):
     self.init_temp = 1e-2
     self.tau = 1e-2
     self.discount = 0.99
+    self.init_expert_weight = 1.0
+    self.end_expert_weight = 1.0
 
     # LR schedule
     self.actor_lr_init = 1e-3

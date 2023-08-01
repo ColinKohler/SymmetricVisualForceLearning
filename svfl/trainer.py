@@ -239,7 +239,7 @@ class Trainer(object):
 
     actor_loss = torch.mean((self.alpha * log_pi) - torch.min(q1, q2))
     if is_expert_batch.sum():
-      actor_loss += 0.0 * F.mse_loss(action[is_expert_batch], action_batch[is_expert_batch])
+      actor_loss += self.config.getExpertWeight(self.training_step) * F.mse_loss(action[is_expert_batch], action_batch[is_expert_batch])
 
     self.actor_optimizer.zero_grad()
     actor_loss.backward()
@@ -321,6 +321,9 @@ class Trainer(object):
     return 2 * (action - action_range[0]) / (action_range[1] - action_range[0]) - 1
 
   def saveWeights(self, shared_storage):
+    self.actor.eval()
+    self.critic.eval()
+
     actor_weights = torch_utils.dictToCpu(self.actor.state_dict())
     critic_weights = torch_utils.dictToCpu(self.critic.state_dict())
     actor_optimizer_state = torch_utils.dictToCpu(self.actor_optimizer.state_dict())
