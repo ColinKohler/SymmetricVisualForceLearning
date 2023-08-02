@@ -27,7 +27,7 @@ class Config(object):
     self.action_sequence = 'pxyzr'
     self.action_dim =  len(self.action_sequence)
 
-    self.workspace = np.array([[-0.15, 0.15], [0.40, 0.70], [0.10, 0.37]])
+    self.workspace = np.array([[-0.15, 0.15], [0.40, 0.70], [0.12, 0.32]])
 
     #self.dpos = 0.025
     #self.drot = np.pi / 16

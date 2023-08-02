@@ -18,7 +18,7 @@ class BlockPickingConfig(Config):
     self.seed = None
 
     # Env
-    self.max_steps = 50
+    self.max_steps = 20
     self.dpos = 0.05
     self.drot = np.pi / 8
     self.max_force = 10
@@ -41,8 +41,8 @@ class BlockPickingConfig(Config):
     self.init_temp = 1e-2
     self.tau = 1e-2
     self.discount = 0.99
-    self.init_expert_weight = 0.0
-    self.end_expert_weight = 0.0
+    self.init_expert_weight = 1.0
+    self.end_expert_weight = 1.0
 
     # LR schedule
     self.actor_lr_init = 1e-3
