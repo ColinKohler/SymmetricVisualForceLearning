@@ -24,10 +24,11 @@ class Config(object):
     self.max_force = 100
     self.proprio_dim = 5
 
-    self.action_sequence = 'pxyzr'
+    self.action_sequence = 'pxyz'
     self.action_dim =  len(self.action_sequence)
 
-    self.workspace = np.array([[-0.15, 0.15], [0.40, 0.70], [0.12, 0.32]])
+    #self.workspace = np.array([[-0.15, 0.15], [0.40, 0.70], [0.12, 0.32]]) # Larger workspace
+    self.workspace = np.array([[-0.08, 0.08], [0.47, 0.63], [0.12, 0.25]]) # Small workspace for testing
 
     #self.dpos = 0.025
     #self.drot = np.pi / 16

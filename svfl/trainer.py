@@ -33,7 +33,7 @@ class Trainer(object):
     self.dy_range = torch.tensor([-self.config.dpos, self.config.dpos])
     self.dz_range = torch.tensor([-self.config.dpos, self.config.dpos])
     self.dtheta_range = torch.tensor([-self.config.drot, self.config.drot])
-    self.action_shape = 5
+    self.action_shape = 4
 
     # Exploration
     self.alpha = self.config.init_temp
@@ -95,12 +95,18 @@ class Trainer(object):
       self.actor.load_state_dict(initial_checkpoint['weights'][0])
       self.critic.load_state_dict(initial_checkpoint['weights'][1])
       torch_utils.softUpdate(self.critic_target, self.critic, 1.0)
+      self.alpha = copy.deepcopy(initial_checkpoint['weights'][2])
+      self.log_alpha = torch.tensor(np.log(self.alpha), requires_grad=True, device=self.device)
+
     if initial_checkpoint['optimizer_state'] is not None:
       self.actor_optimizer.load_state_dict(
         copy.deepcopy(initial_checkpoint['optimizer_state'][0])
       )
       self.critic_optimizer.load_state_dict(
         copy.deepcopy(initial_checkpoint['optimizer_state'][1])
+      )
+      self.alpha_optimizer.load_state_dict(
+        copy.deepcopy(initial_checkpoint['optimizer_state'][2])
       )
     self.actor.train()
     self.critic.train()
@@ -258,7 +264,7 @@ class Trainer(object):
 
     return td_error, (actor_loss.item(), critic_loss.item(), alpha_loss.item(), entropy.item())
 
-  def decodeActions(self, unscaled_p, unscaled_dx, unscaled_dy, unscaled_dz, unscaled_dtheta):
+  def decodeActions(self, unscaled_p, unscaled_dx, unscaled_dy, unscaled_dz):#, unscaled_dtheta):
     '''
     Convert action from model to environment action.
 
@@ -277,9 +283,11 @@ class Trainer(object):
     dy = 0.5 * (unscaled_dy + 1) * (self.dy_range[1] - self.dy_range[0]) + self.dy_range[0]
     dz = 0.5 * (unscaled_dz + 1) * (self.dz_range[1] - self.dz_range[0]) + self.dz_range[0]
 
-    dtheta = 0.5 * (unscaled_dtheta + 1) * (self.dtheta_range[1] - self.dtheta_range[0]) + self.dtheta_range[0]
-    actions = torch.stack([p, dx, dy, dz, dtheta], dim=1)
-    unscaled_actions = torch.stack([unscaled_p, unscaled_dx, unscaled_dy, unscaled_dz, unscaled_dtheta], dim=1)
+    #dtheta = 0.5 * (unscaled_dtheta + 1) * (self.dtheta_range[1] - self.dtheta_range[0]) + self.dtheta_range[0]
+    #actions = torch.stack([p, dx, dy, dz, dtheta], dim=1)
+    #unscaled_actions = torch.stack([unscaled_p, unscaled_dx, unscaled_dy, unscaled_dz, unscaled_dtheta], dim=1)
+    actions = torch.stack([p, dx, dy, dz], dim=1)
+    unscaled_actions = torch.stack([unscaled_p, unscaled_dx, unscaled_dy, unscaled_dz], dim=1)
 
     return unscaled_actions, actions
 
@@ -297,14 +305,14 @@ class Trainer(object):
     dx = plan_action[1].clip(*self.dx_range).reshape(1)
     dy = plan_action[2].clip(*self.dy_range).reshape(1)
     dz = plan_action[3].clip(*self.dz_range).reshape(1)
-    dtheta = plan_action[4].clip(*self.dtheta_range).reshape(1)
+    #dtheta = plan_action[4].clip(*self.dtheta_range).reshape(1)
 
     return self.decodeActions(
       self.getUnscaledActions(p, self.p_range),
       self.getUnscaledActions(dx, self.dx_range),
       self.getUnscaledActions(dy, self.dy_range),
       self.getUnscaledActions(dz, self.dz_range),
-      self.getUnscaledActions(dtheta, self.dtheta_range)
+      #self.getUnscaledActions(dtheta, self.dtheta_range)
     )
 
   def getUnscaledActions(self, action, action_range):
@@ -328,10 +336,11 @@ class Trainer(object):
     critic_weights = torch_utils.dictToCpu(self.critic.state_dict())
     actor_optimizer_state = torch_utils.dictToCpu(self.actor_optimizer.state_dict())
     critic_optimizer_state = torch_utils.dictToCpu(self.critic_optimizer.state_dict())
+    alpha_optimizer_state = torch_utils.dictToCpu(self.alpha_optimizer.state_dict())
 
     shared_storage.setInfo.remote(
         {
-          'weights' : copy.deepcopy((actor_weights, critic_weights)),
-          'optimizer_state' : (copy.deepcopy(actor_optimizer_state), copy.deepcopy(critic_optimizer_state))
+          'weights' : copy.deepcopy((actor_weights, critic_weights, self.alpha)),
+          'optimizer_state' : (copy.deepcopy(actor_optimizer_state), copy.deepcopy(critic_optimizer_state), copy.deepcopy(alpha_optimizer_state))
         }
       )
