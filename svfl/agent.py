@@ -25,7 +25,7 @@ class Agent(object):
     self.dy_range = torch.tensor([-self.config.dpos, self.config.dpos])
     self.dz_range = torch.tensor([-self.config.dpos, self.config.dpos])
     self.dtheta_range = torch.tensor([-self.config.drot, self.config.drot])
-    self.action_shape = 5
+    self.action_shape = 4
 
     if actor:
       self.actor = actor
@@ -85,7 +85,7 @@ class Agent(object):
     value = torch.min(torch.hstack((value[0], value[1])), dim=1)[0]
     return action_idx, action, value
 
-  def decodeActions(self, unscaled_p, unscaled_dx, unscaled_dy, unscaled_dz, unscaled_dtheta):
+  def decodeActions(self, unscaled_p, unscaled_dx, unscaled_dy, unscaled_dz):#, unscaled_dtheta):
     '''
     Convert action from model to environment action.
 
@@ -104,9 +104,11 @@ class Agent(object):
     dy = 0.5 * (unscaled_dy + 1) * (self.dy_range[1] - self.dy_range[0]) + self.dy_range[0]
     dz = 0.5 * (unscaled_dz + 1) * (self.dz_range[1] - self.dz_range[0]) + self.dz_range[0]
 
-    dtheta = 0.5 * (unscaled_dtheta + 1) * (self.dtheta_range[1] - self.dtheta_range[0]) + self.dtheta_range[0]
-    actions = torch.stack([p, dx, dy, dz, dtheta], dim=1)
-    unscaled_actions = torch.stack([unscaled_p, unscaled_dx, unscaled_dy, unscaled_dz, unscaled_dtheta], dim=1)
+    #dtheta = 0.5 * (unscaled_dtheta + 1) * (self.dtheta_range[1] - self.dtheta_range[0]) + self.dtheta_range[0]
+    #actions = torch.stack([p, dx, dy, dz, dtheta], dim=1)
+    actions = torch.stack([p, dx, dy, dz], dim=1)
+    #unscaled_actions = torch.stack([unscaled_p, unscaled_dx, unscaled_dy, unscaled_dz, unscaled_dtheta], dim=1)
+    unscaled_actions = torch.stack([unscaled_p, unscaled_dx, unscaled_dy, unscaled_dz], dim=1)
 
     return unscaled_actions, actions
 
@@ -124,14 +126,14 @@ class Agent(object):
     dx = plan_action[:, 1].clamp(*self.dx_range)
     dy = plan_action[:, 2].clamp(*self.dy_range)
     dz = plan_action[:, 3].clamp(*self.dz_range)
-    dtheta = plan_action[:, 4].clamp(*self.dtheta_range)
+    #dtheta = plan_action[:, 4].clamp(*self.dtheta_range)
 
     return self.decodeActions(
       self.getUnscaledActions(p, self.p_range),
       self.getUnscaledActions(dx, self.dx_range),
       self.getUnscaledActions(dy, self.dy_range),
       self.getUnscaledActions(dz, self.dz_range),
-      self.getUnscaledActions(dtheta, self.dtheta_range)
+      #self.getUnscaledActions(dtheta, self.dtheta_range)
     )
 
   def getUnscaledActions(self, action, action_range):
@@ -161,8 +163,8 @@ class Agent(object):
       weights (dict, dict): (actor weights, critic weights)
     '''
     if weights is not None:
-      self.actor.train()
-      self.critic.train()
+      self.actor.eval()
+      self.critic.eval()
 
       self.actor.load_state_dict(weights[0])
       self.critic.load_state_dict(weights[1])

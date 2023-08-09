@@ -162,11 +162,12 @@ class Trainer(object):
       critic_weights = torch_utils.dictToCpu(self.critic.state_dict())
       actor_optimizer_state = torch_utils.dictToCpu(self.actor_optimizer.state_dict())
       critic_optimizer_state = torch_utils.dictToCpu(self.critic_optimizer.state_dict())
+      alpha_optimizer_state = torch_utils.dictToCpu(self.alpha_optimizer.state_dict())
 
       shared_storage.setInfo.remote(
         {
-          'weights' : copy.deepcopy((actor_weights, critic_weights)),
-          'optimizer_state' : (copy.deepcopy(actor_optimizer_state), copy.deepcopy(critic_optimizer_state))
+          'weights' : copy.deepcopy((actor_weights, critic_weights, self.alpha.cpu())),
+          'optimizer_state' : (copy.deepcopy(actor_optimizer_state), copy.deepcopy(critic_optimizer_state), copy.deepcopy(alpha_optimizer_state))
         }
       )
 
