@@ -25,7 +25,8 @@ class Config(object):
     self.action_sequence = 'pxyzr'
     self.action_dim =  len(self.action_sequence)
 
-    self.workspace = np.array([[0.25, 0.65], [-0.2, 0.2], [-0.01, 0.25]])
+    #self.workspace = np.array([[0.25, 0.65], [-0.2, 0.2], [-0.01, 0.25]])
+    self.workspace = np.array([[0.32, 0.48], [-0.08, 0.08], [-0.01, 0.15]])
     self.view_type = 'camera_side_rgbd'
     self.random_orientation = True
     self.robot = 'panda'
@@ -45,6 +46,7 @@ class Config(object):
     self.pre_training_steps = 0
     self.gen_data_on_gpu = False
     self.per_beta_anneal_steps = None
+    self.expert_weight_anneal_steps = None
     self.clip_gradient = False
     self.deterministic = True
 
@@ -60,6 +62,15 @@ class Config(object):
 
     r = max((anneal_steps - step) / anneal_steps, 0)
     return (self.init_per_beta - self.end_per_beta) * r + self.end_per_beta
+
+  def getExpertWeight(self, step):
+    if self.expert_weight_anneal_steps:
+      anneal_steps = self.expert_weight_anneal_steps
+    else:
+      anneal_steps = self.training_steps
+
+    r = max((anneal_steps - step) / anneal_steps, 0)
+    return (self.init_expert_weight - self.end_expert_weight) * r + self.end_expert_weight
 
   def getEps(self, step):
     if self.eps_anneal_steps:

@@ -20,12 +20,12 @@ class BlockReachingConfig(Config):
     self.robot = 'panda'
     self.env_type = 'close_loop_block_reaching'
     self.max_steps = 50
-    self.dpos = 0.025
-    self.drot = np.pi / 16
+    self.dpos = 0.05
+    self.drot = np.pi / 8
     self.max_force = 50
 
     # Data Gen
-    self.num_data_gen_envs = 5
+    self.num_data_gen_envs = 1
     self.num_expert_episodes = 50
 
     # Training
@@ -38,14 +38,16 @@ class BlockReachingConfig(Config):
                                        'block_reaching',
                                        datetime.datetime.now().strftime('%Y-%m-%d--%H-%M-%S'))
     self.save_model = True
-    self.training_steps = 25000
+    self.training_steps = 10000
     self.batch_size = 64
     self.target_update_interval = 1
     self.checkpoint_interval = 100
     self.init_temp = 1e-2
     self.tau = 1e-2
     self.discount = 0.99
-    self.deterministic = True
+    self.init_expert_weight = 1.0
+    self.end_expert_weight = 0.0
+    self.expert_weight_anneal_steps = self.training_steps // 2
 
     # Eval
     self.num_eval_envs = 5

@@ -186,7 +186,7 @@ class Trainer(object):
         )
 
         if self.config.save_model:
-          #shared_storage.saveReplayBuffer.remote(replay_buffer.getBuffer.remote())
+          shared_storage.saveReplayBuffer.remote(replay_buffer.getBuffer.remote())
           shared_storage.saveCheckpoint.remote()
 
       # Logger/Shared storage updates
@@ -263,7 +263,8 @@ class Trainer(object):
 
     actor_loss = torch.mean((self.alpha * log_pi) - torch.min(q1, q2))
     if is_expert_batch.sum():
-      actor_loss += 0.0 * F.mse_loss(action[is_expert_batch], action_batch[is_expert_batch])
+      expert_weight = self.config.getExpertWeight(self.training_step)
+      actor_loss += expert_weight * F.mse_loss(action[is_expert_batch], action_batch[is_expert_batch])
 
     self.actor_optimizer.zero_grad()
     actor_loss.backward()

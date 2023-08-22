@@ -197,7 +197,7 @@ class ReplayBuffer(object):
     vision_aug, vision_aug_, transform_params = torch_utils.perturb(
       vision.copy(),
       vision_.copy(),
-      set_theta_zero=True
+      set_trans_zero=True
     )
 
     vision = vision_aug.reshape(*vision.shape)
