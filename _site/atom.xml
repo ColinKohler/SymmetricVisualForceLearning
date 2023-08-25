@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+ <title>Symmetric Models for Visual-Force Learning</title>
+ <link href="http://localhost:4000/atom.xml" rel="self"/>
+ <link href="http://localhost:4000/"/>
+ <updated>2023-08-25T10:58:06-04:00</updated>
+ <id>http://localhost:4000</id>
+ <author>
+   <name>Colin Kohler</name>
+   <email>kohler.c@northeastern.edu</email>
+ </author>
+
+ 
+ <entry>
+   <title>Symmetric Models for Visual-Force Learning</title>
+   <link href="http://localhost:4000/2023/08/25/project/"/>
+   <updated>2023-08-25T00:00:00-04:00</updated>
+   <id>http://localhost:4000/2023/08/25/project</id>
+   <content type="html">&lt;p&gt;&lt;strong&gt;Abstract:&lt;/strong&gt; While it is generally acknowledged that force feedback is beneficial to robotic control, applications of policy learning to robotic manipulationtypically only 
+leverage visual feedback. Recently, symmetric neural models have been used to significantly improve the sample efficiency and performance of policy learning across a variety
+of robotic manipulation domains. This paper explores an application of symmetric policy learning to visual-force problems. We present Symmetric Visual Force Learning (SVFL), 
+a novel method for robotic control which leverages visual and force feedback. We demonstrate that SVFL can significantly outperform state of the art baselines for visual 
+force learning and report several interesting empiricalfindings related to the utility of learning force feedback control policies in both general manipulation tasks and
+scenarios with low visual acuity.&lt;/p&gt;
+
+&lt;h2 id=&quot;paper&quot;&gt;Paper&lt;/h2&gt;
+
+&lt;h2 id=&quot;method&quot;&gt;Method&lt;/h2&gt;
+
+&lt;h2 id=&quot;experiments&quot;&gt;Experiments&lt;/h2&gt;
+
+&lt;h3 id=&quot;simulation&quot;&gt;Simulation&lt;/h3&gt;
+
+&lt;h3 id=&quot;on-robot-learning&quot;&gt;On-Robot Learning&lt;/h3&gt;
+
+&lt;h2 id=&quot;video&quot;&gt;Video&lt;/h2&gt;
+
+&lt;h2 id=&quot;code&quot;&gt;Code&lt;/h2&gt;
+&lt;p&gt;The code for this project is avaliable on &lt;a href=&quot;https://github.com/ColinKohler/SymmetricVisualForceLearning&quot;&gt;github&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;cite&quot;&gt;Cite&lt;/h2&gt;
+
+&lt;h2 id=&quot;contact&quot;&gt;Contact&lt;/h2&gt;
+&lt;p&gt;For comments or questions, please feel free to contact &lt;a href=&quot;colinkohler.github.io&quot;&gt;Colin Kohler&lt;/a&gt; at kohler.c@northeastern.edu.&lt;/p&gt;
+</content>
+ </entry>
+ 
+
+</feed>
