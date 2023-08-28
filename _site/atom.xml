@@ -4,7 +4,7 @@
  <title>Symmetric Models for Visual-Force Learning</title>
  <link href="http://localhost:4000/atom.xml" rel="self"/>
  <link href="http://localhost:4000/"/>
- <updated>2023-08-25T10:58:06-04:00</updated>
+ <updated>2023-08-28T12:40:06-04:00</updated>
  <id>http://localhost:4000</id>
  <author>
    <name>Colin Kohler</name>
@@ -25,12 +25,25 @@ force learning and report several interesting empiricalfindings related to the u
 scenarios with low visual acuity.&lt;/p&gt;
 
 &lt;h2 id=&quot;paper&quot;&gt;Paper&lt;/h2&gt;
+&lt;p&gt;Under review.&lt;br /&gt;
+&lt;a href=&quot;&quot;&gt;arXiv&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;&quot;&gt;Colin Kohler&lt;/a&gt;, &lt;a href=&quot;&quot;&gt;Anuj Shrivatsav Srikanth&lt;/a&gt;, &lt;a href=&quot;&quot;&gt;Eshan Arora&lt;/a&gt;, &lt;a href=&quot;&quot;&gt;Robert Platt&lt;/a&gt;&lt;br /&gt;
+Khoury College of Computer Science&lt;br /&gt;
+Northeastern University&lt;/p&gt;
 
 &lt;h2 id=&quot;method&quot;&gt;Method&lt;/h2&gt;
 
 &lt;h2 id=&quot;experiments&quot;&gt;Experiments&lt;/h2&gt;
 
-&lt;h3 id=&quot;simulation&quot;&gt;Simulation&lt;/h3&gt;
+&lt;p&gt;We test our method in both simulation and in the real-world on robotic hardware. In simulation, we focus on evaluating the overall performance of SVFL against 
+alternative approaches and measuring the contributions of the different input modalities for different tasks under both ideal and degraded visual observations.&lt;/p&gt;
+
+&lt;h3 id=&quot;benchmarking-performance&quot;&gt;Benchmarking Performance&lt;/h3&gt;
+
+&lt;h3 id=&quot;sensor-modality-ablation&quot;&gt;Sensor Modality Ablation&lt;/h3&gt;
+
+&lt;h3 id=&quot;role-of-force-feedback-when-visual-acuity-is-degraded&quot;&gt;Role of Force Feedback When Visual Acuity is Degraded&lt;/h3&gt;
 
 &lt;h3 id=&quot;on-robot-learning&quot;&gt;On-Robot Learning&lt;/h3&gt;
 
