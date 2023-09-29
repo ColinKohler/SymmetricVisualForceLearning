@@ -6,9 +6,7 @@ from escnn import group
 from escnn import gspaces
 from escnn import nn as enn
 
-from svfl.models.layers import EquivariantBlock, ConvBlock
-
-class ProprioEncoder(nn.Module):
+class PoseEncoder(nn.Module):
   '''
   '''
   def __init__(self, z_dim=8, initialize=True, N=8):
@@ -20,7 +18,7 @@ class ProprioEncoder(nn.Module):
     self.gspace = gspaces.no_base_space(self.G)
 
     self.in_type = self.gspace.type(
-      self.G.standard_representation() + self.G.standard_representation() + self.G.irrep(0) + self.G.irrep(0)
+      self.G.standard_representation() + self.G.standard_representation() + self.G.irrep(0)
     )
 
     # 3 signals, bandlimited up to freq 1

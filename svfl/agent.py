@@ -55,7 +55,7 @@ class Agent(object):
       self.critic.to(self.device)
       self.critic.eval()
 
-  def getAction(self, vision, force, proprio, evaluate=False):
+  def getAction(self, pose, force, proprio, evaluate=False):
     '''
     Get the action from the policy.
 
@@ -65,21 +65,22 @@ class Agent(object):
     Returns:
       (numpy.array, double) : (Action, Q-Value)
     '''
-    vision = torch.Tensor(vision.astype(np.float32)).view(vision.shape[0], vision.shape[1], vision.shape[2], vision.shape[3]).to(self.device)
-    vision = torch_utils.centerCrop(vision, out=self.config.vision_size)
-    force = torch.Tensor(torch_utils.normalizeForce(force, self.config.max_force)).view(vision.shape[0], self.config.force_history, self.config.force_dim).to(self.device)
-    proprio = torch.Tensor(proprio).view(vision.shape[0], self.config.proprio_dim).to(self.device)
+    #vision = torch.Tensor(vision.astype(np.float32)).view(vision.shape[0], vision.shape[1], vision.shape[2], vision.shape[3]).to(self.device)
+    #vision = torch_utils.centerCrop(vision, out=self.config.vision_size)
+    pose = torch.Tensor(pose).view(pose.shape[0], 5).to(self.device)
+    force = torch.Tensor(torch_utils.normalizeForce(force, self.config.max_force)).view(pose.shape[0], self.config.force_history, self.config.force_dim).to(self.device)
+    proprio = torch.Tensor(proprio).view(pose.shape[0], self.config.proprio_dim).to(self.device)
 
     with torch.no_grad():
       if evaluate:
-        _, _, action = self.actor.sample((vision, force, proprio))
+        _, _, action = self.actor.sample((pose, force, proprio))
       else:
-        action, _, _ = self.actor.sample((vision, force, proprio))
+        action, _, _ = self.actor.sample((pose, force, proprio))
 
     action = action.cpu()
     action_idx, action = self.decodeActions(*[action[:,i] for i in range(self.action_shape)])
     with torch.no_grad():
-      value = self.critic((vision, force, proprio), action_idx.to(self.device))
+      value = self.critic((pose, force, proprio), action_idx.to(self.device))
 
     value = torch.min(torch.hstack((value[0], value[1])), dim=1)[0]
     return action_idx, action, value

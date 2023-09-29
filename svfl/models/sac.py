@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal
 
+from escnn import group
 from escnn import gspaces
 from escnn import nn as enn
 
@@ -14,7 +15,7 @@ class Critic(nn.Module):
   '''
   Twin-head Critic model.
   '''
-  def __init__(self, vision_size, action_dim, equivariant=True, z_dim=64, encoder='fusion', initialize=True, N=8):
+  def __init__(self, vision_size, action_dim, equivariant=True, z_dim=8, encoder='fusion', initialize=True, N=8):
     super().__init__()
 
     self.equivariant = equivariant
@@ -22,64 +23,30 @@ class Critic(nn.Module):
     self.action_dim = action_dim
     self.N = N
 
-    self.group = gspaces.rot2dOnR2(self.N)
-    self.n_rho1 = 1
-    self.z_repr = self.z_dim * [self.group.regular_repr]
-    self.invariant_action_repr = (self.action_dim - 2) * [self.group.trivial_repr]
-    self.equivariant_action_repr = self.n_rho1 * [self.group.irrep(1)]
-
-    self.in_type = enn.FieldType(self.group, self.z_repr + self.invariant_action_repr + self.equivariant_action_repr)
-    self.inner_type = enn.FieldType(self.group, self.z_dim * [self.group.regular_repr])
-    self.inner_type_2 = enn.FieldType(self.group, self.z_dim * [self.group.trivial_repr])
-    self.out_type = enn.FieldType(self.group, 1 * [self.group.trivial_repr])
+    self.G = group.so2_group()
+    self.gspace = gspaces.no_base_space(self.G)
 
     self.encoder = Latent(equivariant=equivariant, vision_size=vision_size, z_dim=z_dim, encoder=encoder, initialize=initialize)
 
-    if self.equivariant:
-      self.critic_1 = nn.Sequential(
-        EquivariantBlock(self.in_type, self.inner_type, kernel_size=1, stride=1, padding=0, initialize=initialize),
-        enn.GroupPooling(self.inner_type),
-        EquivariantBlock(self.inner_type_2, self.out_type, kernel_size=1, stride=1, padding=0, initialize=initialize, act=False)
-      )
+    self.action_type = self.gspace.type(self.G.irrep(0) + self.G.irrep(0) + self.G.irrep(0) + self.G.standard_representation())
+    self.in_type = self.encoder.out_type + self.action_type
+    self.out_type = self.gspace.type(self.G.irrep(0))
 
-      self.critic_2 = nn.Sequential(
-        EquivariantBlock(self.in_type, self.inner_type, kernel_size=1, stride=1, padding=0, initialize=initialize),
-        enn.GroupPooling(self.inner_type),
-        EquivariantBlock(self.inner_type_2, self.out_type, kernel_size=1, stride=1, padding=0, initialize=initialize, act=False)
-      )
-    else:
-      self.critic_1 = nn.Sequential(
-        ConvBlock(self.z_dim + self.action_dim, self.z_dim, kernel_size=1, stride=1, padding=0, act=True),
-        ConvBlock(self.z_dim, 1, kernel_size=1, stride=1, padding=0, act=False)
-      )
-
-      self.critic_2 = nn.Sequential(
-        ConvBlock(self.z_dim + self.action_dim, self.z_dim, kernel_size=1, stride=1, padding=0, act=True),
-        ConvBlock(self.z_dim, 1, kernel_size=1, stride=1, padding=0, act=False)
-      )
-
-      self.apply(torch_utils.initWeights)
+    self.critic_1 = enn.Linear(self.in_type, self.out_type)
+    self.critic_2 = enn.Linear(self.in_type, self.out_type)
 
   def forward(self, obs, act):
     batch_size = obs[0].size(0)
     z = self.encoder(obs)
 
-    if self.equivariant:
-      dxy = act[:, 1:3].reshape(batch_size,  2, 1, 1)
+    dxy = act[:, 1:3]
+    inv_act = torch.cat((act[:,0:1], act[:,3:]), dim=1)
 
-      inv_act = torch.cat((act[:,0:1], act[:,3:]), dim=1)
-      n_inv = inv_act.shape[1]
-      inv_act = inv_act.reshape(batch_size, n_inv, 1, 1)
+    cat = torch.cat((z.tensor, inv_act, dxy), dim=1)
+    cat_geo = enn.GeometricTensor(cat, self.in_type)
 
-      cat = torch.cat((z.tensor, inv_act, dxy), dim=1)
-      cat_geo = enn.GeometricTensor(cat, self.in_type)
-
-      out_1 = self.critic_1(cat_geo).tensor.reshape(batch_size, 1)
-      out_2 = self.critic_2(cat_geo).tensor.reshape(batch_size, 1)
-    else:
-      cat = torch.cat((z, act.reshape(batch_size, -1, 1, 1)), dim=1)
-      out_1 = self.critic_1(cat).reshape(batch_size, 1)
-      out_2 = self.critic_2(cat).reshape(batch_size, 1)
+    out_1 = self.critic_1(cat_geo).tensor
+    out_2 = self.critic_2(cat_geo).tensor
 
     return out_1, out_2
 
@@ -87,7 +54,7 @@ class GaussianPolicy(nn.Module):
   '''
   Policy model that uses a Normal distribution to sample actions.
   '''
-  def __init__(self, vision_size, action_dim, equivariant=True, z_dim=64, encoder='fusion', initialize=True, N=8):
+  def __init__(self, vision_size, action_dim, equivariant=True, z_dim=8, encoder='fusion', initialize=True, N=8):
     super().__init__()
     self.log_sig_min = -20
     self.log_sig_max = 2
@@ -99,56 +66,29 @@ class GaussianPolicy(nn.Module):
     self.initialize = initialize
     self.N = N
 
-    self.group = gspaces.rot2dOnR2(self.N)
-    self.n_rho1 = 1
-    self.z_repr = self.z_dim * [self.group.regular_repr]
-    self.invariant_action_repr = (self.action_dim * 2 - 2) * [self.group.trivial_repr]
-    self.equivariant_action_repr = self.n_rho1 * [self.group.irrep(1)]
+    self.G = group.so2_group()
+    self.gspace = gspaces.no_base_space(self.G)
 
     self.encoder = Latent(equivariant=equivariant, vision_size=vision_size, z_dim=z_dim, encoder=encoder, initialize=initialize)
+    self.in_type = self.encoder.out_type
+    self.out_type = self.gspace.type(
+      self.G.standard_representation() + self.G.irrep(0) + self.G.irrep(0) + self.G.irrep(0) + \
+      self.G.irrep(0) + self.G.irrep(0) + self.G.irrep(0) + self.G.irrep(0) + self.G.irrep(0)
+    )
 
-    self.layers = list()
-
-    if self.equivariant:
-      self.in_type = enn.FieldType(self.group, self.z_repr)
-      out_type = enn.FieldType(self.group, self.z_dim // 2 * [self.group.regular_repr])
-      self.layers.append(EquivariantBlock(self.in_type, out_type, kernel_size=1, stride=1, padding=0, initialize=initialize))
-
-      in_type = out_type
-      out_type = enn.FieldType(self.group, self.z_dim // 4 * [self.group.regular_repr])
-      self.layers.append(EquivariantBlock(in_type, out_type, kernel_size=1, stride=1, padding=0, initialize=initialize))
-
-      in_type = out_type
-      self.out_type = enn.FieldType(self.group, self.equivariant_action_repr + self.invariant_action_repr)
-      self.layers.append(EquivariantBlock(in_type, self.out_type, kernel_size=1, stride=1, padding=0, initialize=initialize, act=False))
-    else:
-      self.layers.append(ConvBlock(self.z_dim, self.z_dim // 2, kernel_size=1, stride=1, padding=0))
-      self.layers.append(ConvBlock(self.z_dim // 2, self.z_dim // 4, kernel_size=1, stride=1, padding=0))
-      self.layers.append(ConvBlock(self.z_dim // 4, self.action_dim*2, kernel_size=1, stride=1, padding=0, act=False))
-
-    self.conv = nn.Sequential(*self.layers)
-    if not self.equivariant:
-      self.apply(torch_utils.initWeights)
+    self.policy = enn.Linear(self.in_type, self.out_type)
 
   def forward(self, obs):
-    batch_size = obs[0].size(0)
     z  = self.encoder(obs)
 
-    if self.equivariant:
-      out = self.conv(z).tensor.reshape(batch_size, -1)
+    out = self.policy(z).tensor
 
-      dxy = out[:, 0:2]
-      inv_act = out[:, 2:self.action_dim]
+    dxy = out[:, 0:2]
+    inv_act = out[:, 2:self.action_dim]
 
-      mean = torch.cat((inv_act[:, 0:1], dxy, inv_act[:, 1:]), dim=1)
-      log_std = out[:, self.action_dim:]
-      log_std = torch.clamp(log_std, min=self.log_sig_min, max=self.log_sig_max)
-    else:
-      out = self.conv(z).reshape(batch_size, -1)
-
-      mean = out[:,:out.shape[1]//2]
-      log_std = out[:, out.shape[1]//2:]
-      log_std = torch.clamp(log_std, min=self.log_sig_min, max=self.log_sig_max)
+    mean = torch.cat((inv_act[:, 0:1], dxy, inv_act[:, 1:]), dim=1)
+    log_std = out[:, self.action_dim:]
+    log_std = torch.clamp(log_std, min=self.log_sig_min, max=self.log_sig_max)
 
     return mean, log_std
 

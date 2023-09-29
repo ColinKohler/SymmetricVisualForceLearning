@@ -175,7 +175,7 @@ class EpisodeHistory(object):
   Class containing the history of an episode.
   '''
   def __init__(self, is_expert=False):
-    self.vision_history = list()
+    self.pose_history = list()
     self.force_history = list()
     self.proprio_history = list()
     self.action_history = list()
@@ -188,8 +188,8 @@ class EpisodeHistory(object):
     self.eps_priority = None
     self.is_expert = is_expert
 
-  def logStep(self, vision, force, proprio, action, value, reward, done, max_force):
-    self.vision_history.append(vision)
+  def logStep(self, pose, force, proprio, action, value, reward, done, max_force):
+    self.pose_history.append(pose)
     self.force_history.append(
       torch_utils.normalizeForce(force, max_force)
     )

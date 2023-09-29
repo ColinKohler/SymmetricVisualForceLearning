@@ -68,12 +68,16 @@ if __name__ == '__main__':
     obs = env.reset()
     eps_lens.append(0)
     while not done:
+      print(np.round(obs[0], 3))
+      print(np.round(obs[2], 3))
       action_idx, action, value = agent.getAction(
         obs[0].reshape(1, *obs[0].shape),
         obs[1],
         obs[2],
         evaluate=True
       )
+      print(np.round(action.cpu().squeeze().numpy(), 3))
+      print()
 
       if args.plot_obs:
         norm_force = torch_utils.normalizeForce(obs[1], task_config.max_force)
