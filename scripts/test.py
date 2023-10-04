@@ -33,10 +33,12 @@ if __name__ == '__main__':
     help='Render the simulation while evaluating.')
   parser.add_argument('--plot_obs', action='store_true', default=False,
     help='Render the simulation while evaluating.')
+  parser.add_argument('--cnn', default=False, action='store_true',
+    help='Run vanilla CNN instead of equivairant CNN.')
   args = parser.parse_args()
 
   task_config = task_configs[args.task](
-    equivariant=True,
+    equivariant=(not args.cnn),
     vision_size=args.vision_size,
     encoder=args.encoder,
     num_gpus=args.num_gpus,
@@ -68,15 +70,18 @@ if __name__ == '__main__':
     obs = env.reset()
     eps_lens.append(0)
     while not done:
-      print(np.round(obs[0], 3))
-      print(np.round(obs[2], 3))
-      action_idx, action, value = agent.getAction(
+      print('Object Pose: {}'.format(np.round(obs[0], 3)))
+      print('Proprio: {}'.format(np.round(obs[2], 3)))
+      norm_action, action, value = agent.getAction(
         obs[0].reshape(1, *obs[0].shape),
         obs[1],
-        obs[2],
+        obs[2].reshape(1, *obs[2].shape),
         evaluate=True
       )
-      print(np.round(action.cpu().squeeze().numpy(), 3))
+      expert_action = env.getNextAction()
+      print('Action: {}'.format(np.round(action.cpu().squeeze().numpy(), 3)))
+      print('Expert Action: {}'.format(np.round(expert_action, 3)))
+      print('Value: {}'.format(np.round(value.cpu().numpy(), 3)))
       print()
 
       if args.plot_obs:
@@ -95,6 +100,7 @@ if __name__ == '__main__':
         plt.show()
 
       obs, reward, done = env.step(action.cpu().squeeze().numpy(), auto_reset=False)
+      #obs, reward, done = env.step(expert_action, auto_reset=False)
       eps_lens[-1] += 1
 
     num_success += int(reward >= 1)

@@ -1,88 +1,178 @@
 import ray
 import copy
 import torch
+import random
 import numpy as np
 import numpy.random as npr
+from random import sample
 
 from svfl import torch_utils
+from svfl.segment_tree import SumSegmentTree, MinSegmentTree
 from functools import partial
+
+class Sample(object):
+  def __init__(self, obs, action, reward, obs_, done, is_expert, timeout):
+    super().__init__()
+
+    self.obs = obs
+    self.action = action
+    self.reward = reward
+    self.obs_ = obs_
+    self.done = done if not timeout else False
+    self.is_expert = is_expert
+    self.timeout = timeout
+
+  def normalize(self, config):
+    self.obs[0] = torch_utils.normalizePose(self.obs[0].reshape(1, -1), config.workspace).squeeze()
+    self.obs[1] = torch_utils.normalizeForce(self.obs[1].reshape(1, -1), config.max_force).squeeze()
+    self.obs[2] = torch_utils.normalizeProprio(self.obs[2].reshape(1, -1), config.workspace).squeeze()
+
+    self.obs_[0] = torch_utils.normalizePose(self.obs_[0].reshape(1, -1), config.workspace).squeeze()
+    self.obs_[1] = torch_utils.normalizeForce(self.obs_[1].reshape(1, -1), config.max_force).squeeze()
+    self.obs_[2] = torch_utils.normalizeProprio(self.obs_[2].reshape(1, -1), config.workspace).squeeze()
+
+class QLearningBuffer(object):
+  def __init__(self, size):
+    super().__init__()
+
+    self._storage = []
+    self._max_size = size
+    self._next_idx = 0
+
+  def __len__(self):
+    return len(self._storage)
+
+  def __getitem__(self, key):
+    return self._storage[key]
+
+  def __setitem__(self, key, value):
+    self._storage[key] = value
+
+  def add(self, data):
+    if self._next_idx >= len(self._storage):
+      self._storage.append(data)
+    else:
+      self._storage[self._next_idx] = data
+    self._next_idx = (self._next_idx + 1) % self._max_size
+
+  def sample(self, batch_size):
+    batch_indexes = npr.choice(self.__len__(), batch_size).tolist()
+    batch = [self._storage[idx] for idx in batch_indexes]
+    return batch
+
+  def getSaveState(self):
+    return {
+      'storage': self._storage,
+      'max_size': self._max_size,
+      'next_idx': self._next_idx
+    }
+
+  def loadFromState(self, save_state):
+    self._storage = save_state['storage']
+    self._max_size = save_state['max_size']
+    self._next_idx = save_state['next_idx']
+
+class QLearningBufferExpert(QLearningBuffer):
+  def __init__(self, size):
+    super().__init__(size)
+    self._expert_idx = []
+
+  def add(self, data):
+    if self._next_idx >= len(self._storage):
+      self._storage.append(data)
+      idx = len(self._storage)-1
+      self._next_idx = (self._next_idx + 1) % self._max_size
+    else:
+      self._storage[self._next_idx] = data
+      idx = copy.deepcopy(self._next_idx)
+      self._next_idx = (self._next_idx + 1) % self._max_size
+      while self._storage[self._next_idx].expert:
+        self._next_idx = (self._next_idx + 1) % self._max_size
+    if data.is_expert:
+      self._expert_idx.append(idx)
+
+  def sample(self, batch_size):
+    if len(self._expert_idx) < batch_size/2 or len(self._storage) - len(self._expert_idx) < batch_size/2:
+      return super().sample(batch_size)
+    expert_indexes = npr.choice(self._expert_idx, int(batch_size / 2)).tolist()
+    non_expert_mask = np.ones(self.__len__(), dtype=np.bool)
+    non_expert_mask[np.array(self._expert_idx)] = 0
+    non_expert_indexes = npr.choice(np.arange(self.__len__())[non_expert_mask], int(batch_size/2)).tolist()
+    batch_indexes = expert_indexes + non_expert_indexes
+    batch = [self._storage[idx] for idx in batch_indexes]
+    return batch
+
+  def getSaveState(self):
+    save_state = super().getSaveState()
+    save_state['expert_idx'] = self._expert_idx
+    return save_state
+
+  def loadFromState(self, save_state):
+    super().loadFromState(save_state)
+    self._expert_idx = save_state['expert_idx']
 
 @ray.remote
 class ReplayBuffer(object):
-  '''
-
-  '''
   def __init__(self, initial_checkpoint, initial_buffer, config):
     self.config = config
     if self.config.seed:
       npr.seed(self.config.seed)
 
-    self.buffer = copy.deepcopy(initial_buffer)
-    self.num_eps = initial_checkpoint['num_eps']
-    self.num_steps = initial_checkpoint['num_steps']
-    self.total_samples = sum([len(eps_history.pose_history) for eps_history in self.buffer.values()])
+    it_capacity = 1
+    while it_capacity < self.config.replay_buffer_size:
+        it_capacity *= 2
+
+    self._it_sum = SumSegmentTree(it_capacity)
+    self._it_min = MinSegmentTree(it_capacity)
+    self._max_priority = 1.0
+
+    # TODO: Need to load checkpoint into buffer
+    self.buffer = QLearningBufferExpert(self.config.replay_buffer_size)
+    self.num_eps = 0
+    self.num_steps = 0
 
   def getBuffer(self):
-    '''
-    Get the replay buffer.
-
-    Returns:
-      list[EpisodeHistory] : The replay buffer
-    '''
     return self.buffer
 
-  def add(self, eps_history, shared_storage=None):
-    '''
-    Add a new episode to the replay buffer. If the episode already has priorities
-    those are used, otherwise we calculate them in the standard TD error fashion:
-    td_error = |V(s,a) - (V(s', a') * R(s,a) ** gamma)| + eps
-    priority = td_error ** alpha
+  def __len__(self):
+    return len(self.buffer)
 
-    Args:
-      eps_history (EpisodeHistory): The episode to add to the buffer.
-      shared_storage (ray.Worker): Shared storage worker. Defaults to None.
-    '''
-    if eps_history.priorities is None:
-      priorities = list()
-      for i, value in enumerate(eps_history.value_history):
-        if (i + 1) < len(eps_history.value_history):
-          priority = np.abs(value - (eps_history.reward_history[i] + self.config.discount * eps_history.value_history[i+1])) + self.config.per_eps
-        else:
-          priority = np.abs(value - eps_history.reward_history[i]) + self.config.per_eps
-        priority += 1 if eps_history.is_expert else 0
-        priorities.append(priority ** self.config.per_alpha)
+  def __getitem__(self, key):
+    return self.buffer[key]
 
-      eps_history.priorities = np.array(priorities, dtype=np.float32)
-      eps_history.eps_priority = np.max(eps_history.priorities)
+  def __setitem__(self, key, value):
+    self.buffer[key] = value
 
-    # Add to buffer
-    self.buffer[self.num_eps] = copy.deepcopy(eps_history)
-    self.num_eps += 1
-    self.num_steps += len(eps_history.pose_history)
-    self.total_samples += len(eps_history.pose_history)
-
-    # Delete the oldest episode if the buffer is full
-    if self.config.replay_buffer_size < len(self.buffer):
-      del_id = self.num_eps - len(self.buffer)
-      self.total_samples -= len(self.buffer[del_id].pose_history)
-      del self.buffer[del_id]
+  def add(self, sample, shared_storage):
+    idx = self.buffer._next_idx
+    self.buffer.add(sample)
+    self._it_sum[idx] = self._max_priority ** self.config.per_alpha
+    self._it_min[idx] = self._max_priority ** self.config.per_alpha
 
     if shared_storage:
       shared_storage.setInfo.remote('num_eps', self.num_eps)
       shared_storage.setInfo.remote('num_steps', self.num_steps)
 
+  def _sample_proportional(self):
+    res = []
+    for _ in range(self.config.batch_size):
+      mass = random.random() * self._it_sum.sum(0, len(self.buffer) - 1)
+      idx = self._it_sum.find_prefixsum_idx(mass)
+      res.append(idx)
+    return res
+
   def sample(self, shared_storage):
-    '''
-    Sample a batch from the replay buffer.
+    training_step = ray.get(shared_storage.getInfo.remote('training_step'))
+    beta = self.config.getPerBeta(training_step)
+    assert beta > 0
 
-    Args:
-      shared_storage (ray.Worker): Shared storage worker.
+    idxs = self._sample_proportional()
 
-    Returns:
-      (list[int], list[numpy.array], list[numpy.array], list[double], list[double]) : (Index, Observation, Action, Reward, Weight)
-    '''
-    (index_batch,
-     pose_batch,
+    weights = []
+    p_min = self._it_min.min() / self._it_sum.sum()
+    max_weight = (p_min * len(self.buffer)) ** (-beta)
+
+    (pose_batch,
      force_batch,
      proprio_batch,
      next_pose_batch,
@@ -92,41 +182,24 @@ class ReplayBuffer(object):
      reward_batch,
      done_batch,
      is_expert_batch,
-     weight_batch
-    ) = [list() for _ in range(12)]
+    ) = [list() for _ in range(10)]
 
-    for _ in range(self.config.batch_size):
-      eps_id, eps_history, eps_prob = self.sampleEps(uniform=False)
-      eps_step, step_prob = self.sampleStep(eps_history, uniform=False)
+    for idx in idxs:
+      p_sample = self._it_sum[idx] / self._it_sum.sum()
+      weight = (p_sample * len(self.buffer)) ** (-beta)
+      weights.append(weight / max_weight)
 
-      force = eps_history.force_history[eps_step].reshape(self.config.force_history, self.config.force_dim)
-      force_ = eps_history.force_history[eps_step+1].reshape(self.config.force_history, self.config.force_dim)
-
-      proprio = eps_history.proprio_history[eps_step]
-      proprio_ = eps_history.proprio_history[eps_step+1]
-
-      pose = eps_history.pose_history[eps_step]
-      pose_ = eps_history.pose_history[eps_step+1]
-      #vision, vision_, = self.crop(
-      #  eps_history.vision_history[eps_step],
-      #  eps_history.vision_history[eps_step+1],
-      #)
-      action = eps_history.action_history[eps_step+1]
-
-      index_batch.append([eps_id, eps_step])
-      pose_batch.append(pose)
-      force_batch.append(force)
-      proprio_batch.append(proprio)
-      next_pose_batch.append(pose_)
-      next_force_batch.append(force_)
-      next_proprio_batch.append(proprio_)
-      action_batch.append(action)
-      reward_batch.append(eps_history.reward_history[eps_step+1])
-      done_batch.append(eps_history.done_history[eps_step+1])
-      is_expert_batch.append(eps_history.is_expert)
-
-      training_step = ray.get(shared_storage.getInfo.remote('training_step'))
-      weight_batch.append((1 / (self.total_samples * eps_prob * step_prob)) ** self.config.getPerBeta(training_step))
+      sample = self.buffer._storage[idx]
+      pose_batch.append(sample.obs[0])
+      force_batch.append(sample.obs[1])
+      proprio_batch.append(sample.obs[2])
+      next_pose_batch.append(sample.obs_[0])
+      next_force_batch.append(sample.obs_[1])
+      next_proprio_batch.append(sample.obs_[2])
+      action_batch.append(sample.action)
+      reward_batch.append(sample.reward)
+      done_batch.append(sample.done)
+      is_expert_batch.append(sample.is_expert)
 
     pose_batch = torch.tensor(np.stack(pose_batch)).float()
     force_batch = torch.tensor(np.stack(force_batch)).float()
@@ -139,60 +212,35 @@ class ReplayBuffer(object):
     done_batch = torch.tensor(done_batch).int()
     non_final_mask_batch = (done_batch ^ 1).float()
     is_expert_batch = torch.tensor(is_expert_batch).long()
-    weight_batch = torch.tensor(weight_batch).float()
+    weights = torch.tensor(weights).float()
 
-    return (
-      index_batch,
-      (
-        (pose_batch, force_batch, proprio_batch),
-        (next_pose_batch, next_force_batch, next_proprio_batch),
-        action_batch,
-        reward_batch,
-        non_final_mask_batch,
-        is_expert_batch,
-        weight_batch
-      )
+    batch = (
+      (pose_batch, force_batch, proprio_batch),
+      (next_pose_batch, next_force_batch, next_proprio_batch),
+      action_batch,
+      reward_batch,
+      non_final_mask_batch,
+      is_expert_batch,
     )
 
-  def sampleEps(self, uniform=False):
-    '''
-    Sample a episode from the buffer using the priorities
+    return batch, weights, idxs
 
-    Returns:
-      (int, EpisodeHistory, double) : (episode ID, episode, episode probability)
-    '''
-    if uniform:
-      eps_idx = npr.choice(len(self.buffer))
-      eps_prob = 1.0
-    else:
-      eps_probs = np.array([eps_history.eps_priority for eps_history in self.buffer.values()], dtype=np.float32)
-      eps_probs /= np.sum(eps_probs)
+  def updatePriorities(self, idxs, td_error):
+    expert_priorirties = np.stack([self.buffer._storage[idx].is_expert for idx in idxs]) * self.config.per_expert_eps
+    priorities = np.abs(td_error) + expert_priorirties + self.config.per_eps
 
-      eps_idx = npr.choice(len(self.buffer), p=eps_probs)
-      eps_prob = eps_probs[eps_idx]
+    assert len(idxs) == len(priorities)
+    for idx, priority in zip(idxs, priorities):
+      if priority <= 0:
+        print("Invalid priority:", priority)
+        print("All priorities:", priorities)
 
-    eps_id = self.num_eps - len(self.buffer) + eps_idx
-    return eps_id, self.buffer[eps_id], eps_prob
+      assert priority > 0
+      assert 0 <= idx < len(self.buffer)
+      self._it_sum[idx] = priority ** self.config.per_alpha
+      self._it_min[idx] = priority ** self.config.per_alpha
 
-  def sampleStep(self, eps_history, uniform=False):
-    '''
-    Sample a step from the given episode using the step priorities
-
-    Args:
-      eps_history (EpisodeHistory): The episode to sample a step from
-
-    Returns:
-      (int, double) : (step index, step probability)
-    '''
-    if uniform:
-      step_idx = npr.choice(len(eps_history.priorities[:-1]))
-      step_prob = 1.0
-    else:
-      step_probs = eps_history.priorities[:-1] / sum(eps_history.priorities[:-1])
-      step_idx = npr.choice(len(step_probs), p=step_probs)
-      step_prob = step_probs[step_idx]
-
-    return step_idx, step_prob
+      self._max_priority = max(self._max_priority, priority)
 
   def augmentTransitionSO2(self, vision, vision_):
     ''''''
@@ -217,28 +265,3 @@ class ReplayBuffer(object):
     vision_ = vision_[:, w1:w1+self.config.vision_size, w2:w2+self.config.vision_size]
 
     return vision, vision_
-
-  def updatePriorities(self, td_errors, idx_info):
-    '''
-    Update the priorities for each sample in the batch.
-
-    Args:
-      td_errors (numpy.array): The TD error for each sample in the batch
-      idx_info (numpy.array): The episode and step for each sample in the batch
-    '''
-    for i in range(len(idx_info)):
-      eps_id, eps_step = idx_info[i]
-
-      if next(iter(self.buffer)) <= eps_id:
-        td_error = td_errors[i]
-
-        self.buffer[eps_id].priorities[eps_step] = (td_error + (1 if self.buffer[eps_id].is_expert else 0) + self.config.per_eps) ** self.config.per_alpha
-        self.buffer[eps_id].eps_priority = np.max(self.buffer[eps_id].priorities)
-
-  def resetPriorities(self):
-    '''
-    Uniformly reset the priorities for all samples in the buffer.
-    '''
-    for eps_history in self.buffer.values():
-      eps_history.eps_priority = 1.0
-      eps_history.priorities = np.array([1.0] * len(eps_history.priorities))

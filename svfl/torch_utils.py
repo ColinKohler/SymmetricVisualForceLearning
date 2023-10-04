@@ -7,6 +7,14 @@ import numpy as np
 import numpy.random as npr
 import scipy.ndimage
 
+def normalize(x, x_min, x_max):
+  r = x_max - x_min
+  x01 = (x - x_min) / r
+  return 2 * x01 - 1
+
+def unnormalize(x, x_min, x_max):
+  r = x_max - x_min
+  return 0.5 * (x + 1) * r + x_min
 
 def initWeights(m):
   if isinstance(m, nn.Linear):
@@ -59,6 +67,35 @@ def unnormalizeDepth(depth):
 
 def normalizeForce(force, max_force):
   return np.clip(force, -max_force, max_force) / max_force
+
+def normalizePose(pose, ws):
+  x = normalize(pose[:,0], ws[0,0], ws[0,1])
+  y = normalize(pose[:,1], ws[1,0], ws[1,1])
+  cos_theta = pose[:,2]
+  sin_theta = pose[:,3]
+  z = normalize(pose[:,4], ws[2,0], ws[2,1])
+
+  if torch.is_tensor(pose):
+    normalized_pose = torch.stack([x, y, cos_theta, sin_theta, z], dim=1)
+  else:
+    normalized_pose = np.array([x, y, cos_theta, sin_theta, z])
+
+  return normalized_pose
+
+def normalizeProprio(proprio, ws):
+  x = normalize(proprio[:,0], ws[0,0], ws[0,1])
+  y = normalize(proprio[:,1], ws[1,0], ws[1,1])
+  cos_theta = proprio[:,2]
+  sin_theta = proprio[:,3]
+  z = normalize(proprio[:,4], ws[2,0], ws[2,1])
+  p = normalize(proprio[:,5], 0, 1)
+
+  if torch.is_tensor(proprio):
+    normalized_proprio = torch.stack([x, y, cos_theta, sin_theta, z, p], dim=1)
+  else:
+    normalized_proprio = np.array([x, y, cos_theta, sin_theta, z, p])
+
+  return normalized_proprio
 
 def sampleGaussian(mu, var):
   eps = Normal(0, 1).sample(mu.size())

@@ -6,16 +6,30 @@ from escnn import group
 from escnn import gspaces
 from escnn import nn as enn
 
-from svfl.models.layers import EquivariantBlock, ConvBlock
+from svfl.models.layers import MLP
 
 class ProprioEncoder(nn.Module):
+  def __init__(self, equivariant=True, z_dim=8, initialize=True, N=8):
+    super().__init__()
+
+    if equivariant:
+      self.encoder = SO2ProprioEncoder(z_dim=z_dim, initialize=initialize, N=N)
+      self.in_type = self.encoder.in_type
+      self.out_type = self.encoder.out_type
+    else:
+      self.encoder = MLP([6, z_dim])
+
+  def forward(self, x):
+    return x
+    #return self.encoder(x)
+
+class SO2ProprioEncoder(nn.Module):
   '''
   '''
   def __init__(self, z_dim=8, initialize=True, N=8):
     super().__init__()
 
     self.z_dim = z_dim
-
     self.G = group.so2_group()
     self.gspace = gspaces.no_base_space(self.G)
 
@@ -26,11 +40,11 @@ class ProprioEncoder(nn.Module):
     # 3 signals, bandlimited up to freq 1
     act_1 = enn.FourierELU(
       self.gspace,
-      channels=3,
+      channels=128,
       irreps=self.G.bl_regular_representation(L=1).irreps,
       inplace=True,
       type='regular',
-      N=6
+      N=8
     )
     self.block_1 = enn.SequentialModule(
       enn.Linear(self.in_type, act_1.in_type),
@@ -40,7 +54,7 @@ class ProprioEncoder(nn.Module):
     # 8 signals, bandlimited up to freq 3
     act_2 = enn.FourierELU(
       self.gspace,
-      channels=8,
+      channels=256,
       irreps=self.G.bl_regular_representation(L=3).irreps,
       inplace=True,
       type='regular',

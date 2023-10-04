@@ -22,11 +22,11 @@ class BlockReachingConfig(Config):
     self.max_steps = 50
     self.dpos = 0.05
     self.drot = np.pi / 8
-    self.max_force = 50
+    self.max_force = 10
 
     # Data Gen
-    self.num_data_gen_envs = 1
-    self.num_expert_episodes = 50
+    self.num_data_gen_envs = 5
+    self.num_expert_episodes = 100
 
     # Training
     if results_path:
@@ -45,9 +45,9 @@ class BlockReachingConfig(Config):
     self.init_temp = 1e-2
     self.tau = 1e-2
     self.discount = 0.99
-    self.init_expert_weight = 1.0
+    self.init_expert_weight = 0.0
     self.end_expert_weight = 0.0
-    self.expert_weight_anneal_steps = self.training_steps // 2
+    #self.expert_weight_anneal_steps = self.training_steps // 2
 
     # Eval
     self.num_eval_envs = 5
@@ -59,7 +59,7 @@ class BlockReachingConfig(Config):
     self.actor_lr_init = 1e-3
     self.critic_lr_init = 1e-3
     self.lr_decay = 0.95
-    self.lr_decay_interval = 500
+    self.lr_decay_interval = 100000
 
     # Replay Buffer
     self.replay_buffer_size = 100000
@@ -67,6 +67,7 @@ class BlockReachingConfig(Config):
     self.init_per_beta = 0.4
     self.end_per_beta = 1.0
     self.per_eps = 1e-6
+    self.per_expert_eps = 1
 
   def getEnvConfig(self, render=False):
     '''

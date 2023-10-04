@@ -45,8 +45,8 @@ class BlockPickingConfig(Config):
     self.init_temp = 1e-2
     self.tau = 1e-2
     self.discount = 0.99
-    self.init_expert_weight = 0.0
-    self.end_expert_weight = 0.0
+    self.init_expert_weight = 1.0
+    self.end_expert_weight = 1.0
     #self.expert_weight_anneal_steps = self.training_steps // 10
 
     # Eval
@@ -56,10 +56,10 @@ class BlockPickingConfig(Config):
     self.num_eval_intervals = int(self.training_steps / self.eval_interval)
 
     # LR schedule
-    self.actor_lr_init = 1e-4
-    self.critic_lr_init = 1e-4
+    self.actor_lr_init = 1e-3
+    self.critic_lr_init = 1e-3
     self.lr_decay = 0.95
-    self.lr_decay_interval = 500
+    self.lr_decay_interval = 10000
 
     # Replay Buffer
     self.replay_buffer_size = 100000

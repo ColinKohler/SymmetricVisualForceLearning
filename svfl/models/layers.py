@@ -5,6 +5,19 @@ import torch.nn.functional as F
 from escnn import gspaces
 from escnn import nn as enn
 
+class MLP(nn.Module):
+  def __init__(self, hiddens):
+    super().__init__()
+
+    layers = list()
+    for h, h_ in zip(hiddens, hiddens[1:]):
+      layers.append(nn.Linear(h, h_))
+      layers.append(nn.ReLU(inplace=True))
+    self.mlp = nn.Sequential(*layers)
+
+  def forward(self, x):
+    return self.mlp(x)
+
 class Norm(nn.Module):
   def __init__(self, d_model, eps=1e-6):
     super().__init__()

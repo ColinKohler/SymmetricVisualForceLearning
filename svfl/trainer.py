@@ -30,7 +30,7 @@ class Trainer(object):
     self.alpha = self.config.init_temp
     self.target_entropy = -self.config.action_dim
     self.log_alpha = torch.tensor(np.log(self.alpha), requires_grad=True, device=self.device)
-    self.alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=1e-4)
+    self.alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=self.config.actor_lr_init, eps=1e-4)
 
     # Initialize actor, and critic models
     self.actor = GaussianPolicy(
@@ -150,13 +150,13 @@ class Trainer(object):
       self.critic.eval()
       self.data_generator.stepEnvsAsync(shared_storage, replay_buffer, logger)
 
-      idx_batch, batch = ray.get(next_batch)
+      batch, weights, batch_idxs = ray.get(next_batch)
       next_batch = replay_buffer.sample.remote(shared_storage)
 
       self.actor.train()
       self.critic.train()
       td_error, loss = self.updateWeights(batch)
-      replay_buffer.updatePriorities.remote(td_error.cpu(), idx_batch)
+      replay_buffer.updatePriorities.remote(batch_idxs, td_error.cpu())
       self.training_step += 1
 
       self.data_generator.stepEnvsWait(shared_storage, replay_buffer, logger)
@@ -227,14 +227,13 @@ class Trainer(object):
     Returns:
       (numpy.array, double) : (Priorities, Batch Loss)
     '''
-    obs_batch, next_obs_batch, action_batch, reward_batch, non_final_mask_batch, is_expert_batch, weight_batch = batch
+    obs_batch, next_obs_batch, action_batch, reward_batch, non_final_mask_batch, is_expert_batch = batch
 
     obs_batch = (obs_batch[0].to(self.device), obs_batch[1].to(self.device), obs_batch[2].to(self.device))
     next_obs_batch = (next_obs_batch[0].to(self.device), next_obs_batch[1].to(self.device), next_obs_batch[2].to(self.device))
     action_batch = action_batch.to(self.device)
     reward_batch = reward_batch.to(self.device)
     non_final_mask_batch = non_final_mask_batch.to(self.device)
-    weight_batch = weight_batch.to(self.device)
 
     # Critic Update
     with torch.no_grad():

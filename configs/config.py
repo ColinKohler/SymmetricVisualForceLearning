@@ -21,12 +21,12 @@ class Config(object):
     self.force_history = 64
     self.max_force = 100
     self.proprio_dim = 6
+    self.pose_dim = 5
 
     self.action_sequence = 'pxyzr'
     self.action_dim =  len(self.action_sequence)
 
-    #self.workspace = np.array([[0.25, 0.65], [-0.2, 0.2], [-0.01, 0.25]])
-    self.workspace = np.array([[0.32, 0.48], [-0.08, 0.08], [-0.01, 0.15]])
+    self.workspace = np.array([[0.25, 0.65], [-0.2, 0.2], [-0.01, 0.25]])
     self.view_type = 'camera_side_rgbd'
     self.random_orientation = True
     self.robot = 'panda'
@@ -37,7 +37,7 @@ class Config(object):
 
     # Model
     self.equivariant = equivariant
-    self.z_dim = 1
+    self.z_dim = 256
     self.encoder = encoder.split('+')
 
     # Training

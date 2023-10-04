@@ -28,12 +28,18 @@ class Critic(nn.Module):
 
     self.encoder = Latent(equivariant=equivariant, vision_size=vision_size, z_dim=z_dim, encoder=encoder, initialize=initialize)
 
-    self.action_type = self.gspace.type(self.G.irrep(0) + self.G.irrep(0) + self.G.irrep(0) + self.G.standard_representation())
-    self.in_type = self.encoder.out_type + self.action_type
-    self.out_type = self.gspace.type(self.G.irrep(0))
+    if self.equivariant:
+      self.action_type = self.gspace.type(self.G.irrep(0) + self.G.irrep(0) + self.G.irrep(0) + self.G.standard_representation())
+      self.in_type = self.encoder.out_type + self.action_type
+      self.out_type = self.gspace.type(self.G.irrep(0))
 
-    self.critic_1 = enn.Linear(self.in_type, self.out_type)
-    self.critic_2 = enn.Linear(self.in_type, self.out_type)
+      self.critic_1 = enn.Linear(self.in_type, self.out_type)
+      self.critic_2 = enn.Linear(self.in_type, self.out_type)
+    else:
+      self.critic_1 = nn.Linear(self.z_dim+self.action_dim, 1)
+      self.critic_2 = nn.Linear(self.z_dim+self.action_dim, 1)
+
+      self.apply(torch_utils.initWeights)
 
   def forward(self, obs, act):
     batch_size = obs[0].size(0)
@@ -42,11 +48,16 @@ class Critic(nn.Module):
     dxy = act[:, 1:3]
     inv_act = torch.cat((act[:,0:1], act[:,3:]), dim=1)
 
-    cat = torch.cat((z.tensor, inv_act, dxy), dim=1)
-    cat_geo = enn.GeometricTensor(cat, self.in_type)
+    if self.equivariant:
+      cat = torch.cat((z.tensor, inv_act, dxy), dim=1)
+      cat_geo = enn.GeometricTensor(cat, self.in_type)
 
-    out_1 = self.critic_1(cat_geo).tensor
-    out_2 = self.critic_2(cat_geo).tensor
+      out_1 = self.critic_1(cat_geo).tensor
+      out_2 = self.critic_2(cat_geo).tensor
+    else:
+      cat = torch.cat((z, inv_act, dxy), dim=1)
+      out_1 = self.critic_1(cat)
+      out_2 = self.critic_2(cat)
 
     return out_1, out_2
 
@@ -70,18 +81,24 @@ class GaussianPolicy(nn.Module):
     self.gspace = gspaces.no_base_space(self.G)
 
     self.encoder = Latent(equivariant=equivariant, vision_size=vision_size, z_dim=z_dim, encoder=encoder, initialize=initialize)
-    self.in_type = self.encoder.out_type
-    self.out_type = self.gspace.type(
-      self.G.standard_representation() + self.G.irrep(0) + self.G.irrep(0) + self.G.irrep(0) + \
-      self.G.irrep(0) + self.G.irrep(0) + self.G.irrep(0) + self.G.irrep(0) + self.G.irrep(0)
-    )
 
-    self.policy = enn.Linear(self.in_type, self.out_type)
+    if self.equivariant:
+      self.in_type = self.encoder.out_type
+      self.out_type = self.gspace.type(
+        self.G.standard_representation() + self.G.irrep(0) + self.G.irrep(0) + self.G.irrep(0) + \
+        self.G.irrep(0) + self.G.irrep(0) + self.G.irrep(0) + self.G.irrep(0) + self.G.irrep(0)
+      )
+
+      self.policy = enn.Linear(self.in_type, self.out_type)
+    else:
+      self.policy = nn.Linear(self.z_dim, self.action_dim*2)
 
   def forward(self, obs):
     z  = self.encoder(obs)
 
-    out = self.policy(z).tensor
+    out = self.policy(z)
+    if self.equivariant:
+      out = out.tensor
 
     dxy = out[:, 0:2]
     inv_act = out[:, 2:self.action_dim]

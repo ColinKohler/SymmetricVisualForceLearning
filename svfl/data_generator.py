@@ -6,6 +6,7 @@ import numpy.random as npr
 
 from svfl.agent import Agent
 from svfl import torch_utils
+from svfl.replay_buffer import Sample
 
 from bulletarm import env_factory
 
@@ -76,14 +77,15 @@ class DataGenerator(object):
       env_config,
       planner_config
     )
+
     self.obs = None
-    self.current_epsiodes = None
+    self.current_rewards = None
+    self.current_values =  None
 
   def resetEnvs(self, is_expert=False):
-    self.current_episodes = [EpisodeHistory(is_expert) for _ in range(self.num_envs)]
     self.obs = self.envs.reset()
-    for i, eps_history in enumerate(self.current_episodes):
-      eps_history.logStep(self.obs[0][i], self.obs[1][i], self.obs[2][i], np.array([0,0,0,0,0]), 0, 0, 0, self.config.max_force)
+    self.current_rewards = [list() for _ in range(self.num_envs)]
+    self.current_values = [list() for _ in range(self.num_envs)]
 
   def stepEnvsAsync(self, shared_storage, replay_buffer, logger, expert=False):
     '''
@@ -98,10 +100,10 @@ class DataGenerator(object):
     '''
     if expert:
       expert_actions = torch.tensor(self.envs.getNextAction()).float()
-      self.action_idxs, self.actions = self.agent.convertPlanAction(expert_actions)
+      self.norm_actions, self.actions = self.agent.convertPlanAction(expert_actions)
       self.values = torch.zeros(self.config.num_data_gen_envs)
     else:
-      self.action_idxs, self.actions, self.values = self.agent.getAction(
+      self.norm_actions, self.actions, self.values = self.agent.getAction(
         self.obs[0],
         self.obs[1],
         self.obs[2],
@@ -124,77 +126,33 @@ class DataGenerator(object):
     obs_, rewards, dones = self.envs.stepWait()
     obs_ = list(obs_)
 
-    for i, eps_history in enumerate(self.current_episodes):
-      eps_history.logStep(
-        obs_[0][i],
-        obs_[1][i],
-        obs_[2][i],
-        self.action_idxs[i].squeeze().numpy(),
-        self.values[i].item(),
-        rewards[i],
-        dones[i],
-        self.config.max_force
-      )
+    for i in range(self.num_envs):
+      timeout = (rewards[i] != 1) and dones[i]
+      sample_obs = [self.obs[0][i], self.obs[1][i], self.obs[2][i]]
+      sample_obs_ = [obs_[0][i], obs_[1][i], obs_[2][i]]
+      sample = Sample(sample_obs, self.norm_actions[i], rewards[i], sample_obs_, dones[i], expert, timeout)
+      sample.normalize(self.config)
+      replay_buffer.add.remote(sample, shared_storage)
+
+      self.current_rewards[i].append(rewards[i])
+      self.current_values[i].append(self.values[i].cpu())
 
     done_idxs = np.nonzero(dones)[0]
     if len(done_idxs) != 0:
       new_obs_ = self.envs.reset_envs(done_idxs)
 
       for i, done_idx in enumerate(done_idxs):
-        if not self.eval:
-          replay_buffer.add.remote(self.current_episodes[done_idx], shared_storage)
-
         if not expert and not self.eval:
-          logger.logTrainingEpisode.remote(self.current_episodes[done_idx].reward_history)
+          logger.logTrainingEpisode.remote(self.current_rewards[done_idx])
 
         if not expert and self.eval:
-          logger.logEvalEpisode.remote(self.current_episodes[done_idx].reward_history,
-                                       self.current_episodes[done_idx].value_history)
+          logger.logEvalEpisode.remote(self.current_rewards[done_idx], self.current_values[done_idx])
 
-        self.current_episodes[done_idx] = EpisodeHistory(expert)
-        self.current_episodes[done_idx].logStep(
-          new_obs_[0][i],
-          new_obs_[1][i],
-          new_obs_[2][i],
-          np.array([0,0,0,0,0]),
-          0,
-          0,
-          0,
-          self.config.max_force
-        )
-
+        self.current_rewards[done_idx] = list()
+        self.current_values[done_idx] = list()
         obs_[0][done_idx] = new_obs_[0][i]
         obs_[1][done_idx] = new_obs_[1][i]
         obs_[2][done_idx] = new_obs_[2][i]
 
     self.obs = obs_
     return len(done_idxs)
-
-class EpisodeHistory(object):
-  '''
-  Class containing the history of an episode.
-  '''
-  def __init__(self, is_expert=False):
-    self.pose_history = list()
-    self.force_history = list()
-    self.proprio_history = list()
-    self.action_history = list()
-    self.value_history = list()
-    self.reward_history = list()
-    self.done_history = list()
-    self.is_expert = is_expert
-
-    self.priorities = None
-    self.eps_priority = None
-    self.is_expert = is_expert
-
-  def logStep(self, pose, force, proprio, action, value, reward, done, max_force):
-    self.pose_history.append(pose)
-    self.force_history.append(
-      torch_utils.normalizeForce(force, max_force)
-    )
-    self.proprio_history.append(proprio)
-    self.action_history.append(action)
-    self.value_history.append(value)
-    self.reward_history.append(reward)
-    self.done_history.append(done)

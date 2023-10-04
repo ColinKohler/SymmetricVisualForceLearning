@@ -67,9 +67,9 @@ class Agent(object):
     '''
     #vision = torch.Tensor(vision.astype(np.float32)).view(vision.shape[0], vision.shape[1], vision.shape[2], vision.shape[3]).to(self.device)
     #vision = torch_utils.centerCrop(vision, out=self.config.vision_size)
-    pose = torch.Tensor(pose).view(pose.shape[0], 5).to(self.device)
+    pose = torch.Tensor(torch_utils.normalizePose(pose, self.config.workspace)).view(pose.shape[0], self.config.pose_dim).to(self.device)
     force = torch.Tensor(torch_utils.normalizeForce(force, self.config.max_force)).view(pose.shape[0], self.config.force_history, self.config.force_dim).to(self.device)
-    proprio = torch.Tensor(proprio).view(pose.shape[0], self.config.proprio_dim).to(self.device)
+    proprio = torch.Tensor(torch_utils.normalizeProprio(proprio, self.config.workspace)).view(pose.shape[0], self.config.proprio_dim).to(self.device)
 
     with torch.no_grad():
       if evaluate:
@@ -78,47 +78,31 @@ class Agent(object):
         action, _, _ = self.actor.sample((pose, force, proprio))
 
     action = action.cpu()
-    action_idx, action = self.decodeActions(*[action[:,i] for i in range(self.action_shape)])
+    norm_action, action = self.unnormalizeActions(*[action[:,i] for i in range(self.action_shape)])
     with torch.no_grad():
-      value = self.critic((pose, force, proprio), action_idx.to(self.device))
+      value = self.critic((pose, force, proprio), norm_action.to(self.device))
 
     value = torch.min(torch.hstack((value[0], value[1])), dim=1)[0]
-    return action_idx, action, value
+    return norm_action, action, value
 
-  def decodeActions(self, unscaled_p, unscaled_dx, unscaled_dy, unscaled_dz, unscaled_dtheta):
+  def unnormalizeActions(self, norm_p, norm_dx, norm_dy, norm_dz, norm_dtheta):
     '''
-    Convert action from model to environment action.
-
-    Args:
-      unscaled_p (double):
-      unscaled_dx (double):
-      unscaled_dy (double):
-      unscaled_dz (double):
-      unscaled_dtheta (double):
-
-    Returns:
-      (torch.Tensor, torch.Tensor) : Unscaled actions, scaled actions
+    Convert action from model (normalized) to environment action (unnormalized).
     '''
-    p = 0.5 * (unscaled_p + 1) * (self.p_range[1] - self.p_range[0]) + self.p_range[0]
-    dx = 0.5 * (unscaled_dx + 1) * (self.dx_range[1] - self.dx_range[0]) + self.dx_range[0]
-    dy = 0.5 * (unscaled_dy + 1) * (self.dy_range[1] - self.dy_range[0]) + self.dy_range[0]
-    dz = 0.5 * (unscaled_dz + 1) * (self.dz_range[1] - self.dz_range[0]) + self.dz_range[0]
+    p = torch_utils.unnormalize(norm_p, *self.p_range)
+    dx = torch_utils.unnormalize(norm_dx, *self.dx_range)
+    dy = torch_utils.unnormalize(norm_dy, *self.dy_range)
+    dz = torch_utils.unnormalize(norm_dz, *self.dz_range)
+    dtheta = torch_utils.unnormalize(norm_dtheta, *self.dtheta_range)
 
-    dtheta = 0.5 * (unscaled_dtheta + 1) * (self.dtheta_range[1] - self.dtheta_range[0]) + self.dtheta_range[0]
     actions = torch.stack([p, dx, dy, dz, dtheta], dim=1)
-    unscaled_actions = torch.stack([unscaled_p, unscaled_dx, unscaled_dy, unscaled_dz, unscaled_dtheta], dim=1)
+    norm_actions = torch.stack([norm_p, norm_dx, norm_dy, norm_dz, norm_dtheta], dim=1)
 
-    return unscaled_actions, actions
+    return norm_actions, actions
 
   def convertPlanAction(self, plan_action):
     '''
-    Convert actions from planner to agent actions by unscalling/scalling them.
-
-    Args:
-      plan_action (numpy.array): Action received from planner
-
-    Returns:
-      (torch.Tensor, torch.Tensor) : Unscaled actions, scaled actions
+    Convert actions from planner to agent actions by normalizing/unnormalizing them.
     '''
     p = plan_action[:, 0].clamp(*self.p_range)
     dx = plan_action[:, 1].clamp(*self.dx_range)
@@ -126,26 +110,13 @@ class Agent(object):
     dz = plan_action[:, 3].clamp(*self.dz_range)
     dtheta = plan_action[:, 4].clamp(*self.dtheta_range)
 
-    return self.decodeActions(
-      self.getUnscaledActions(p, self.p_range),
-      self.getUnscaledActions(dx, self.dx_range),
-      self.getUnscaledActions(dy, self.dy_range),
-      self.getUnscaledActions(dz, self.dz_range),
-      self.getUnscaledActions(dtheta, self.dtheta_range)
+    return self.unnormalizeActions(
+      torch_utils.normalize(p, *self.p_range),
+      torch_utils.normalize(dx, *self.dx_range),
+      torch_utils.normalize(dy, *self.dy_range),
+      torch_utils.normalize(dz, *self.dz_range),
+      torch_utils.normalize(dtheta, *self.dtheta_range)
     )
-
-  def getUnscaledActions(self, action, action_range):
-    '''
-    Convert action to the unscalled version using the given range.
-
-    Args:
-      action (double): Action
-      action_range (list[double]): Min and max range for the given action
-
-    Returns:
-      double: The unscalled action
-    '''
-    return 2 * (action - action_range[0]) / (action_range[1] - action_range[0]) - 1
 
   def getWeights(self):
     '''
