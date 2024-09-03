@@ -33,7 +33,7 @@ class Critic(nn.Module):
     self.inner_type_2 = enn.FieldType(self.group, self.z_dim * [self.group.trivial_repr])
     self.out_type = enn.FieldType(self.group, 1 * [self.group.trivial_repr])
 
-    self.encoder = Latent(equivariant=equivariant, vision_size=vision_size, z_dim=z_dim, encoder=encoder, initialize=initialize)
+    self.encoder = Latent(equivariant=equivariant, vision_size=vision_size, N=N, z_dim=z_dim, encoder=encoder, initialize=initialize)
 
     if self.equivariant:
       self.critic_1 = nn.Sequential(
@@ -105,7 +105,7 @@ class GaussianPolicy(nn.Module):
     self.invariant_action_repr = (self.action_dim * 2 - 2) * [self.group.trivial_repr]
     self.equivariant_action_repr = self.n_rho1 * [self.group.irrep(1)]
 
-    self.encoder = Latent(equivariant=equivariant, vision_size=vision_size, z_dim=z_dim, encoder=encoder, initialize=initialize)
+    self.encoder = Latent(equivariant=equivariant, vision_size=vision_size, z_dim=z_dim, N=N, encoder=encoder, initialize=initialize)
 
     self.layers = list()
 

@@ -5,6 +5,7 @@ import copy
 import collections
 import ray
 import torch
+import pickle
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 import numpy.random as npr
@@ -31,6 +32,7 @@ class Runner(object):
   '''
   def __init__(self, config, checkpoint=None, replay_buffer=None):
     self.config = config
+    self.timeout = 7
 
     # Set random seeds
     if self.config.seed:
@@ -60,12 +62,18 @@ class Runner(object):
     self.replay_buffer = dict()
 
     # Load checkpoint/replay buffer
+    self.log_file = None
     if checkpoint:
-      checkpoint = os.path.join(self.config.root_path,
+      log_file = copy.deepcopy(checkpoint)
+      self.log_file = os.path.join(self.config.domain_path,
+                                  log_file,
+                                  'log_data.pkl')
+
+      checkpoint = os.path.join(self.config.domain_path,
                                 checkpoint,
                                 'model.checkpoint')
     if replay_buffer:
-      replay_buffer = os.path.join(self.config.root_path,
+      replay_buffer = os.path.join(self.config.domain_path,
                                    replay_buffer,
                                    'replay_buffer.pkl')
     self.load(checkpoint_path=checkpoint,
@@ -87,7 +95,8 @@ class Runner(object):
       self.config.results_path,
       self.config.__dict__,
       checkpoint_interval=self.config.checkpoint_interval,
-      num_eval_eps=self.config.num_eval_episodes
+      num_eval_eps=self.config.num_eval_episodes,
+      log_file=self.log_file
     )
     trainer_gpu_alloc = 1.0 if torch.cuda.is_available() else 0.0
     self.training_worker = Trainer.options(num_cpus=0, num_gpus=trainer_gpu_alloc).remote(self.checkpoint, self.config)
@@ -129,14 +138,30 @@ class Runner(object):
       'generating_eval_eps'
     ]
 
-    start_time = time.time()
-    timeout_soon = 7.9 * 60 * 60
+    start = time.time()
     info = ray.get(self.shared_storage_worker.getInfo.remote(keys))
     try:
       while info['training_step'] < self.config.training_steps or info['generating_eval_eps'] or info['run_eval_interval']:
         # Check if we are getting close to cluster timeout (~8 hours) and start saving log more often
-        if time.time() - start_time > timeout_soon:
-          self.logger_worker.exportData.remote()
+        hours = divmod(time.time()-start, 3600)[0]
+        if hours >= self.timeout:
+          # Before saving pause training and wait for any running evaluations to end
+          self.shared_storage_worker.setInfo.remote('terminate', True)
+          if info['generating_eval_eps']:
+            while(ray.get(self.shared_storage_worker.getInfo.remote('generating_eval_eps'))):
+              time.sleep(0.1)
+
+          # Ray.get ensures we wait for these methods to return before shuttting down ray
+          ray.get(self.training_worker.saveWeights.remote(self.shared_storage_worker))
+          ray.get(self.shared_storage_worker.saveReplayBuffer.remote(ray.get(self.replay_buffer_worker.getBuffer.remote())))
+          ray.get(self.shared_storage_worker.saveCheckpoint.remote())
+          ray.get(self.logger_worker.exportData.remote())
+
+          # Sleep before terminating to ensure everything gets saved properly
+          time.sleep(5*60)
+          ray.shutdown()
+          return
+
         info = ray.get(self.shared_storage_worker.getInfo.remote(keys))
 
         # Eval

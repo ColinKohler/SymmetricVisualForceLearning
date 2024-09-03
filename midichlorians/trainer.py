@@ -37,6 +37,7 @@ class Trainer(object):
       self.config.vision_size,
       self.config.action_dim,
       z_dim=self.config.z_dim,
+      N=self.config.N,
       encoder=self.config.encoder,
       equivariant=self.config.equivariant
     )
@@ -47,6 +48,7 @@ class Trainer(object):
       self.config.vision_size,
       self.config.action_dim,
       z_dim=self.config.z_dim,
+      N=self.config.N,
       encoder=self.config.encoder,
       equivariant=self.config.equivariant
     )
@@ -57,6 +59,7 @@ class Trainer(object):
       self.config.vision_size,
       self.config.action_dim,
       z_dim=self.config.z_dim,
+      N=self.config.N,
       encoder=self.config.encoder,
       equivariant=self.config.equivariant
     )
@@ -78,6 +81,13 @@ class Trainer(object):
     self.critic_scheduler = torch.optim.lr_scheduler.ExponentialLR(self.critic_optimizer,
                                                                    self.config.lr_decay)
 
+    if initial_checkpoint['weights'] is not None:
+      self.actor.eval()
+      self.critic.eval()
+
+      self.actor.load_state_dict(initial_checkpoint['weights'][0])
+      self.critic.load_state_dict(initial_checkpoint['weights'][1])
+      torch_utils.softUpdate(self.critic_target, self.critic, 1.0)
     if initial_checkpoint['optimizer_state'] is not None:
       self.actor_optimizer.load_state_dict(
         copy.deepcopy(initial_checkpoint['optimizer_state'][0])
@@ -85,6 +95,8 @@ class Trainer(object):
       self.critic_optimizer.load_state_dict(
         copy.deepcopy(initial_checkpoint['optimizer_state'][1])
       )
+    self.actor.train()
+    self.critic.train()
 
     # Initialize data generator
     self.agent = Agent(self.config, self.device, actor=self.actor, critic=self.critic)
@@ -187,7 +199,7 @@ class Trainer(object):
         )
 
         if self.config.save_model:
-          #shared_storage.saveReplayBuffer.remote(replay_buffer.getBuffer.remote())
+          shared_storage.saveReplayBuffer.remote(replay_buffer.getBuffer.remote())
           shared_storage.saveCheckpoint.remote()
 
       # Logger/Shared storage updates

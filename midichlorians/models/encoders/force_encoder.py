@@ -34,10 +34,10 @@ class ScaledDotProductAttention(nn.Module):
     return output, attn
 
 class EquivMultiHeadAttention(nn.Module):
-  def __init__(self, n_head, d_model, d_k, d_v, initialize=True):
+  def __init__(self, n_head, d_model, d_k, d_v, c=8, initialize=True):
     super().__init__()
     self.n_head = n_head
-    self.c = 8
+    self.c = c
     self.d_model = d_model
     self.d_k = d_k
     self.d_v = d_v
@@ -102,7 +102,7 @@ class EquivForceEncoder(nn.Module):
     )
     out_type = enn.FieldType(self.group, self.d_model * [self.group.regular_repr])
     self.embed = EquivariantBlock(self.in_type, out_type, kernel_size=1, stride=1, padding=0, initialize=initialize)
-    self.attn  = EquivMultiHeadAttention(n_head=1, d_model=self.d_model, d_k=self.d_model, d_v=self.d_model, initialize=initialize)
+    self.attn  = EquivMultiHeadAttention(n_head=1, d_model=self.d_model, d_k=self.d_model, d_v=self.d_model, c=self.N, initialize=initialize)
 
     self.fc_in_type = enn.FieldType(self.group, self.seq_len * self.d_model * [self.group.regular_repr])
     self.out_type = enn.FieldType(self.group, z_dim * [self.group.regular_repr])

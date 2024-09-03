@@ -34,6 +34,7 @@ class Agent(object):
         self.config.vision_size,
         self.config.action_dim,
         z_dim=self.config.z_dim,
+        N=self.config.N,
         encoder=self.config.encoder,
         initialize=initialize_models,
         equivariant=self.config.equivariant
@@ -48,6 +49,7 @@ class Agent(object):
         self.config.vision_size,
         self.config.action_dim,
         z_dim=self.config.z_dim,
+        N=self.config.N,
         encoder=self.config.encoder,
         initialize=initialize_models,
         equivariant=self.config.equivariant

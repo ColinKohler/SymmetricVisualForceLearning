@@ -22,7 +22,7 @@ class PegInsertionConfig(Config):
     self.max_steps = 50
     self.dpos = 0.025
     self.drot = np.pi / 16
-    self.max_force = 50
+    self.max_force = 500
 
     # Data Gen
     self.num_data_gen_envs = 5
@@ -48,7 +48,7 @@ class PegInsertionConfig(Config):
 
     # Eval
     self.num_eval_envs = 5
-    self.num_eval_episodes = 100
+    self.num_eval_episodes = 50
     self.eval_interval = 500
     self.num_eval_intervals = int(self.training_steps / self.eval_interval)
 
@@ -84,6 +84,7 @@ class PegInsertionConfig(Config):
       'action_sequence' : self.action_sequence,
       'robot' : self.robot,
       'num_objects' : 1,
+      'peg_type' : 'round',
       'object_scale_range' : (1.0, 1.0),
       'random_orientation' : self.random_orientation,
       'workspace_check' : 'point',

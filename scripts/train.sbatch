@@ -18,9 +18,9 @@
 
 echo "node: $SLURM_NODELIST"
 if [ $# -eq 4 ]; then
-  python -u scripts/train.py $1 --vision_size=$2 --num_sensors=$3 --encoder=$4
+  python -u scripts/train.py $1 --vision_size=$2 --encoder=$3 --N=$4
 elif [ $# -eq 5 ]; then
-  python -u scripts/train.py $1 --vision_size=$2 --num_sensors=$3 --encoder=$4 --results_path=$5
+  python -u scripts/train.py $1 --vision_size=$2 --encoder=$3 --N=$4 --results_path=$5
 else
-  python -u scripts/train.py $1 --vision_size=$2 --num_sensors=$3 --encoder=$4 --results_path=$5 --checkpoint=$6 --buffer=$7
+  python -u scripts/train.py $1 --vision_size=$2 --encoder=$3 --N=$4 --results_path=$5 --checkpoint=$6 --buffer=$7
 fi
